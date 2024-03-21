@@ -1,0 +1,30 @@
+# Godot logs
+logs/
+
+sample/android
+
+.env
+vc140.pdb
+.sconsign.dblite
+
+*.obj
+*.os
+
+**/*.tmp
+
+temp/
+
+epic-online-services-godot-addon.zip
+
+# dev
+compile_commands.json
+.cache/
+backup/
+.vscode/
+sample/
+thirdparty/eos-sdk/
+_media/
+
+# gen
+src/gen/
+
