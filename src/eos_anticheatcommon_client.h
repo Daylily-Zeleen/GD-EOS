@@ -1,6 +1,6 @@
 #pragma once
-#include "eos_anticheatcommon_types.h"
-#include "godot_cpp/classes/ref_counted.hpp"
+
+#include "godot_cpp/classes/object.hpp"
 
 namespace godot {
 

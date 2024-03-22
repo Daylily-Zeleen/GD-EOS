@@ -1,14 +1,15 @@
 #pragma once
 
-#include <eos_sdk.h>
+#include "utils.h"
 
-#include "godot_cpp/classes/global_constants.hpp"
-#include "godot_cpp/core/class_db.hpp"
-#include "godot_cpp/variant/callable_method_pointer.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
 
-// #include "eos_constants.h"
-#include <type_traits>
+#include <gen/forward_declare.gen.h>
+
+#include "eos_packed_result.h"
+
+// TODO:: tmp
+#include "../eos_anticheatcommon_client.h"
 
 #ifdef DEBUG_ENABLED
 #include "godot_cpp/templates/hash_map.hpp"
@@ -16,54 +17,6 @@
 #endif // DEBUG_ENABLED
 
 namespace godot {
-
-#define _ARG_TYPE(arg) \
-    std::conditional_t<(sizeof(decltype(arg)) > 8) || !std::is_trivial_v<decltype(arg)>, const decltype(arg) &, decltype(arg)>
-
-static StringName _get_class_name(const Variant &p_val) {
-    if (auto ref = Object::cast_to<RefCounted>(p_val)) {
-        return ref->get_class();
-    }
-    return "";
-}
-
-#define _DEFINE_SETGET(field)                  \
-    auto get_##field() const { return field; } \
-    void set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
-
-#define _DEFINE_SETGET_BOOL(field)            \
-    bool is_##field() const { return field; } \
-    void set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
-
-#define _BIND_BEGIN(klass) auto tmp_obj = memnew(klass);
-#define _BIND_PROP(field)                                                                                                      \
-    ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);                     \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field);              \
-    ADD_PROPERTY(PropertyInfo(Variant(tmp_obj->get_##field()).get_type(), #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NONE, \
-                         _get_class_name(tmp_obj->get_##field())),                                                             \
-            "set_" #field, "get_" #field);
-
-#define _BIND_PROP_BOOL(field)                                                                                    \
-    ClassDB::bind_method(D_METHOD("is_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::is_##field);          \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
-    ADD_PROPERTY(PropertyInfo(Variant::BOOL, #field), "set_" #field, "is_" #field);
-#define _BIND_END() memdelete(tmp_obj);
-
-#define _INTERFACE_BIND_METHOD(m_klass, m_method_name, ...) \
-    ClassDB::bind_method(D_METHOD(String(#m_method_name) == String("create_platform") ? "create" : #m_method_name, ##__VA_ARGS__), &m_klass::m_method_name)
-#define _INTERFACE_BIND_SIGNAL(m_interface_prefix, m_name) \
-    ADD_SIGNAL(MethodInfo(#m_name, MAKE_DATA_CLASS_PROP_INFO_BY_SIGNAL_NAME(m_interface_prefix##m_name)))
-#define _CONNECT_INTERFACE_SIGNAL(m_interface_prefix, m_signal_name, m_klass) \
-    IEOS::get_singleton()->connect(#m_interface_prefix #m_signal_name, callable_mp(this, &m_klass::m_signal_name))
-
-#define REGISTER_AND_ADD_SINGLETON(m_klass) \
-    GDREGISTER_ABSTRACT_CLASS(m_klass);     \
-    memnew(m_klass);                        \
-    godot::Engine::get_singleton()->register_singleton(m_klass::get_class_static(), m_klass::get_singleton())
-
-#define UNREGISTER_AND_DELETE_SINGLETON(m_klass)                                       \
-    godot::Engine::get_singleton()->unregister_singleton(m_klass::get_class_static()); \
-    memdelete(m_klass::get_singleton())
 
 class EOSDataClassOptions : public RefCounted {
     GDCLASS(EOSDataClassOptions, RefCounted)
@@ -338,8 +291,3 @@ struct _MakeDataClassPropInfo {};
     auto indentifier = *(ref_##indentifier.ptr())
 
 #define MAKE_DATA_CLASS_PROP_INFO_BY_SIGNAL_NAME(signal_name) _MakeDataClassPropInfo<signal_name>::make()
-
-#include "eosg_continuance_token.h"
-
-#include "eos_anticheatcommon_client.h"
-#include "gen/eos_structs.gen.inl"

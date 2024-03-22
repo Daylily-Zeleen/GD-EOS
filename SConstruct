@@ -18,8 +18,8 @@ eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 # - LINKFLAGS are for linking flags
 
 # Add source files
-env.Append(CPPPATH=["src/", eos_sdk_folder + "Include/"])
-sources = Glob("src/*.cpp") + Glob("src/gen/*.cpp")
+env.Append(CPPPATH=["src/", "src/core/", eos_sdk_folder + "Include/"])
+sources = Glob("src/*.cpp") + Glob("src/gen/*.cpp") + Glob("src/core/*.cpp")
 platform = env["platform"]
 
 env.Append(CPPDEFINES=["NOT_NEED_ENUM_CALSS"])
