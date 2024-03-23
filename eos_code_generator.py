@@ -3,7 +3,6 @@ import os
 # TODO: 每种接口生成单独头文件
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
-# TODO: 
 
 sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
 
@@ -28,7 +27,19 @@ interfaces: dict[str, dict] = {
     }
 }
 structs: dict[str, dict[str, str]] = {}
-handles: dict[str, dict] = {}
+handles: dict[str, dict] = {
+    "EOS": {
+        "methods": {},
+        "callbacks": {},
+        "enums": {},
+    },
+    "EOS_HAntiCheatCommon": {
+        "methods": {},
+        "callbacks": {},
+        "enums": {},
+    },
+    
+}
 
 
 api_latest_macros: list[str] = []
@@ -37,7 +48,9 @@ release_methods: dict[str, dict] = {}
 unhandled_methods: dict[str, dict] = {}
 unhandled_callbacks: dict[str, dict] = {}
 unhandled_enums: dict[str, list[str]] = {}
+unhandled_infos: dict[str, dict] = {}
 
+generate_infos: dict = {}
 
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
@@ -97,8 +110,21 @@ def main():
     f.close()
     print("Handles .cpp finished")
 
-    gen_handles
 
+def _is_base_handle_type(handle_type: str) -> str:
+    return handle_type in ["EOS", "EOS_HAntiCheatCommon"]
+
+def _get_base_class(handle_type:str) -> str:
+    if "EOS" ==handle_type:
+        return "Object"
+    elif "EOS_HAntiCheatCommon" == handle_type:
+        return _convert_handle_class_name("EOS")
+    elif handle_type.startswith("EOS_HAntiCheat"):
+        return _convert_handle_class_name("EOS_HAntiCheatCommon")
+    elif handle_type.removeprefix("EOS_H") in interfaces:
+        return _convert_handle_class_name("EOS")
+    else:
+        return "RefCounted"
 
 def _convert_to_interface_lower(file_name: str) -> str:
     splited = file_name.rsplit("\\", 1)
@@ -115,9 +141,45 @@ def _convert_to_interface_lower(file_name: str) -> str:
     )
 
 
+def _cheat_as_handle_method(method_name: str) -> str:
+    map = {
+        "EOS_IntegratedPlatform_CreateIntegratedPlatformOptionsContainer": "EOS_HIntegratedPlatform",
+        "EOS_EpicAccountId_FromString": "EOS_EpicAccountId",
+        "EOS_ProductUserId_FromString": "EOS_ProductUserId",
+        # 公用（common）
+        "EOS_EResult_ToString": "EOS",
+        "EOS_EResult_IsOperationComplete": "EOS",
+        "EOS_ByteArray_ToString": "EOS",
+        "EOS_Logging_SetCallback": "EOS",
+        "EOS_Logging_SetLogLevel": "EOS",
+        "EOS_EApplicationStatus_ToString": "EOS",
+        "EOS_ENetworkStatus_ToString": "EOS",
+    }
+    return map.get(method_name, "")
+
+def _cheat_as_handle_enum(enum_type: str) -> str:
+    if enum_type.startswith("EOS_EAntiCheatCommon"):
+        return "EOS_HAntiCheatCommon"
+    map = {
+        # Log (不单独开一个类)
+        "EOS_ELogLevel": "EOS",
+        "EOS_ELogCategory": "EOS",
+        # 公用（common）
+        "EOS_ELoginStatus": "EOS",
+        "EOS_EAttributeType": "EOS",
+        "EOS_EComparisonOp": "EOS",
+        "EOS_EExternalAccountType": "EOS",
+        "EOS_EExternalCredentialType": "EOS",
+        "EOS_EResult": "EOS",
+        # 
+    }
+    return map.get(enum_type, "")
+
+
 def parse_all_file():
-    file_lower2infos: dict[str, dict] = {}
+    file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
+        "file": "eos_common",
         "enums": {},
         "methods": {},
         "callbacks": {},
@@ -147,6 +209,7 @@ def parse_all_file():
         interface_lower = _convert_to_interface_lower(f)
         if not interface_lower in file_lower2infos.keys():
             file_lower2infos[_convert_to_interface_lower(f)] = {
+                "file": f.removesuffix(".h"),
                 "methods": {},  # 最终为空
                 "callbacks": {},  # 最终为空
                 "enums": {},  # 最终为空
@@ -216,16 +279,34 @@ def parse_all_file():
             for m in to_remove_methods:
                 infos["methods"].pop(m)
 
+    # 初始化生成信息
+    for il in file_lower2infos:
+        infos: dict = file_lower2infos[il]
+        generate_infos[infos["file"]] = {
+            "handles": {},
+            "structs": {},
+            "enums": {},
+            #
+            "callbacks": {},
+            "methods": {},
+        }
+
     # 移动句柄
     for il in file_lower2infos:
         for h in file_lower2infos[il]["handles"]:
             handles[h] = file_lower2infos[il]["handles"][h]
+            generate_infos[file_lower2infos[il]["file"]]["handles"][h] = (
+                file_lower2infos[il]["handles"][h]
+            )
         file_lower2infos[il].pop("handles")
 
     # 移动结构体
     for il in file_lower2infos:
         for s in file_lower2infos[il]["structs"]:
             structs[s] = file_lower2infos[il]["structs"][s]
+            generate_infos[file_lower2infos[il]["file"]]["structs"][s] = (
+                file_lower2infos[il]["structs"][s]
+            )
         file_lower2infos[il].pop("structs")
 
     # 移动枚举
@@ -233,22 +314,83 @@ def parse_all_file():
         interface = _convert_interface_class_name(il).removeprefix("EOS")
         if interface in interfaces:
             handles["EOS_H" + interface]["enums"] = file_lower2infos[il]["enums"]
-        else:
             for e in file_lower2infos[il]["enums"]:
-                unhandled_enums[e] = file_lower2infos[il]["enums"][e]
-        file_lower2infos[il].pop("enums")
+                generate_infos[file_lower2infos[il]["file"]]["enums"][e] = (
+                    file_lower2infos[il]["enums"][e]
+                )
+            file_lower2infos[il]["enums"].clear()
 
-    # 未处理的方法和回调
+    # Cheat as handle's method
+    for il in file_lower2infos:
+        methods = file_lower2infos[il]["methods"]
+        to_remove: list[str] = []
+        for m in methods:
+            cheat_handle_type = _cheat_as_handle_method(m)
+            if not len(cheat_handle_type):
+                print("WARN: has not owned hanle type:", m)
+                continue
+            if not cheat_handle_type in handles:
+                print(handles.keys())
+                print("ERR UNKONWN handle type:", cheat_handle_type)
+                exit(1)
+            handles[cheat_handle_type]["methods"][m] = methods[m]
+            to_remove.append(m)
+        for m in to_remove:
+            methods.pop(m)
+
+    # Cheat as handle's enum
+    for il in file_lower2infos:
+        enums = file_lower2infos[il]["enums"]
+        to_remove: list[str] = []
+        for e in enums:
+            cheat_handle_type = _cheat_as_handle_enum(e)
+            if not len(cheat_handle_type):
+                print("WARN: has not owned hanle type:", e)
+                continue
+            if not cheat_handle_type in handles:
+                print("ERR UNKONWN handle type:", cheat_handle_type)
+                exit(1)
+            handles[cheat_handle_type]["enums"][e] = enums[e]
+            to_remove.append(e)
+        for e in to_remove:
+            enums.pop(e)
+
+    # 未处理的方法、回调、枚举
     for il in file_lower2infos:
         for cb in file_lower2infos[il]["callbacks"]:
             unhandled_callbacks[cb] = file_lower2infos[il]["callbacks"][cb]
-        file_lower2infos[il].pop("callbacks")
+            generate_infos[file_lower2infos[il]["file"]]["callbacks"][cb] = (
+                file_lower2infos[il]["callbacks"][cb]
+            )
 
         for m in file_lower2infos[il]["methods"]:
             unhandled_methods[m] = file_lower2infos[il]["methods"][m]
-        file_lower2infos[il].pop("methods")
+            generate_infos[file_lower2infos[il]["file"]]["methods"][m] = (
+                file_lower2infos[il]["methods"][m]
+            )
 
-    # print(file_lower2infos)
+        for e in file_lower2infos[il]["enums"]:
+            unhandled_enums[e] = file_lower2infos[il]["enums"][e]
+            generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[
+                il
+            ]["enums"][e]
+
+        if len(file_lower2infos[il]["callbacks"]):
+            if not il in unhandled_infos:
+                unhandled_infos[il] = {}
+            unhandled_infos[il]["callbacks"] = file_lower2infos[il]["callbacks"]
+        if len(file_lower2infos[il]["methods"]):
+            if not il in unhandled_infos:
+                unhandled_infos[il] = {}
+            unhandled_infos[il]["methods"] = file_lower2infos[il]["methods"]
+        if len(file_lower2infos[il]["enums"]):
+            if not il in unhandled_infos:
+                unhandled_infos[il] = {}
+            unhandled_infos[il]["enums"] = file_lower2infos[il]["enums"]
+
+        file_lower2infos[il].pop("callbacks")
+        file_lower2infos[il].pop("methods")
+        file_lower2infos[il].pop("enums")
 
     classes: list[str] = []
     for k in file_lower2infos.keys():
@@ -262,8 +404,14 @@ def parse_all_file():
 
     _make_additional_method_requirements()
 
-    print(classes)
+    # print(classes)
     # print(interfaces.keys())
+
+    for il in unhandled_infos:
+        # print(f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}')
+        if il in ["common"]:
+            print(il, "  ", unhandled_infos[il]["enums"].keys())
+    # exit()
 
 
 def gen_foward_declare_file() -> str:
@@ -326,10 +474,6 @@ def _is_enum_type(type: str) -> bool:
 def _convert_result_type(method_name: str) -> str:
     return method_name.split("_", 1)[1] + "Result"
 
-
-result_types: list[str] = []
-
-
 def _gen_packed_result_type(
     method_name: str,
     method_info: dict,
@@ -368,11 +512,6 @@ def _gen_packed_result_type(
     typename: str = _convert_result_type(method_name)
     if get_type_name_only:
         return typename
-
-    if typename in result_types:
-        print("== ERROR duplicate name:", typename)
-        # exit(1)
-    result_types.append(typename)
 
     menbers_lines: list[str] = []
     setget_lines: list[str] = []
@@ -424,7 +563,7 @@ def _gen_packed_result_type(
             and (i + 1) <= len(out_args)
             and out_args[i + 1]["type"].endswith("int32_t*")
         ):
-            if not out_args[i + 1]["name"] != "OutBytesWritten":
+            if out_args[i + 1]["name"] != "OutBytesWritten":
                 print("WARN:", method_name)
             menbers_lines.append(f"\tPackedByteArray {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
@@ -484,6 +623,9 @@ def _gen_handle(
     r_cpp_lines: list[str],
     r_register_lines: list[str],
 ) -> list[str]:
+    is_base_handle_type = _is_base_handle_type(handle_name)
+    base_class = _get_base_class(handle_name)
+    
     method_infos = infos["methods"]
     callback_infos = infos["callbacks"]
 
@@ -505,29 +647,30 @@ def _gen_handle(
             continue
         _gen_packed_result_type(method, method_infos[method], ret, r_register_lines, [])
 
-    ret.append(f"class {klass} : public RefCounted {{")
-    ret.append(f"\tGDCLASS({klass}, RefCounted)")
+    ret.append(f"class {klass} : public {base_class} {{")
+    ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
-    ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
-    ret.append(f"")
+    if not is_base_handle_type:
+        ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
+        ret.append(f"")
     ret.append(f"protected:")
     ret.append(f"\tstatic void _bind_methods();")
     ret.append(f"")
     ret.append(f"public:")
-    ret.append(f"\t{klass}() = default;")
     # Destructor
-    if len(release_method):
+    if len(release_method) and not is_base_handle_type:
         ret.append(f"\t~{klass} {{")
         ret.append(f"\t\tif (m_handle) {{")
         ret.append(f"\t\t\trelease_method(m_handle);")
         ret.append(f"\t\t}}")
         ret.append(f"\t}}")
     # Handle setget
-    ret.append(
-        f"\tvoid set_handle({handle_name} p_handle) {{ ERR_FAIL_COND(m_handle); m_handle = p_handle; }}"
-    )
-    ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
-    ret.append(f"")
+    if not is_base_handle_type:
+        ret.append(
+            f"\tvoid set_handle({handle_name} p_handle) {{ ERR_FAIL_COND(m_handle); m_handle = p_handle; }}"
+        )
+        ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
+        ret.append(f"")
     # Methods
     for method in method_infos:
         if method.endswith("Release"):
@@ -596,8 +739,7 @@ def __get_callback_ret_default_val(callback_return_type: str) -> str:
 
 
 def __convert_to_signal_name(callback_type: str) -> str:
-    # TODO
-    return to_snake_case(callback_type)
+    return to_snake_case(callback_type.split("_", 1)[1])
 
 
 def __convert_to_struct_class(strcut_type: str) -> str:
@@ -778,7 +920,7 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
         "EOS_ContinuanceToken_ToString": "256",  # 需要调用一次从 InOut 参数获取需要的大小
     }
     if not method_name in map:
-        print("ERR: ", method_name)
+        print("ERR has not MAX_LENGTH macros: ", method_name)
         exit()
     return map[method_name]
 
@@ -925,11 +1067,13 @@ def __make_packed_result(
             )
     acl_indents = "\t\t" if has_result_code else "\t"
     i = begin_idx
-    while i <len(args):
+    while i < len(args):
         arg_name: str = args[i]["name"]
         arg_type: str = args[i]["type"]
         decayed_type: str = _decay_eos_type(arg_type)
-        snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out"))
+        snake_name: str = to_snake_case(
+            arg_name.removeprefix("InOut").removeprefix("Out")
+        )
         if _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
@@ -945,9 +1089,7 @@ def __make_packed_result(
                     f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});"
                 )
         elif __is_struct_type(decayed_type):
-            r_prepare_lines.append(
-                f"\t{decayed_type} {arg_name};"
-            )
+            r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
                 r_after_call_lines.append(
@@ -1129,6 +1271,7 @@ def _gen_method(
 
     options_type: str = ""  # 用于获取里边的buffer size 字段
 
+    static: bool = True
     i: int = 0
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
@@ -1139,6 +1282,7 @@ def _gen_method(
         if decayed_type == handle_type:
             # 句柄参数
             call_args.append("m_handle")
+            static = False
         elif __is_callback_type(decayed_type):
             # 回调参数
             if need_callable_arg:
@@ -1165,7 +1309,7 @@ def _gen_method(
             declare_args.append(
                 f"const {remap_type(decayed_type, name)}& p_{snake_name}"
             )
-            prepare_lines.append(f"\tauto Options = p_{snake_name}->to_eos();")
+            prepare_lines.append(f"\tauto &Options = p_{snake_name}->to_eos();")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&Options")
         elif __is_method_input_only_struct(decayed_type) and _is_expended_struct(
@@ -1212,17 +1356,31 @@ def _gen_method(
             break
         else:
             # 普通参数
-            declare_args.append(
-                f"gd_arg_t<{remap_type(decayed_type, name)}> p_{snake_name}"
-            )
+            declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
-            call_args.append(f"to_eos_type<gd_arg_t<{remap_type(decayed_type, name)}>, {type}>(p_{snake_name})")
+            call_args.append(
+                f"to_eos_type<gd_arg_t<{remap_type(type, name)}>, {type}>(p_{snake_name})"
+            )
         i += 1
 
-    snake_method_name = to_snake_case(method_name.rsplit("_", 1)[1])
+    # 避免同类内方法重名
+    candidate_method_name = method_name.rsplit("_", 1)[1]
+    valid = False
+    while not valid:
+        valid = True
+        for m in handles[handle_type]["methods"]:
+            if m.endswith(candidate_method_name):
+                splited = method_name.rsplit("_", 2)
+                candidate_method_name = "".join([splited[1], splited[2]])
+                valid = False
+                break
+    snake_method_name = to_snake_case(candidate_method_name).removeprefix(
+        "e_"
+    )  # Hack, 去除枚举前缀
+
     # ======= 声明 ===============
     r_declare_lines.append(
-        f'\t{return_type} {snake_method_name}({", ".join(declare_args)});'
+        f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});'
     )
     # ======= 定义 ===============
     r_define_lines.append(
@@ -1269,8 +1427,10 @@ def _gen_method(
     default_val_arg = ""
     if need_callable_arg:
         default_val_arg = ", DEVAL(Callable())"
+    
+    bind_prefix:str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(
-        f'\tClassDB::bind_method(D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});'
+        f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});'
     )
 
 
@@ -1427,6 +1587,7 @@ def _is_need_skip_method(method_name: str) -> bool:
     # TODO: Create , Release, GetInterface 均不需要
     return method_name.startswith("EOS_Logging_") or method_name in [
         "EOS_IntegratedPlatform_SetUserPreLogoutCallback",  # 特殊处理
+        "EOS_ByteArray_ToString",  # Godot 压根就不需要
         # 废弃 DEPRECATED!
         "EOS_Achievements_CopyAchievementDefinitionByIndex",
         "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
@@ -1732,7 +1893,8 @@ def gen_structs(r_cpp_lines: list[str]) -> str:
 
 def to_snake_case(text: str) -> str:
     # TODO: 分离
-    text = text.split("[", 1)[0] # SPECIAL: char SocketName[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
+    # SPECIAL: char SocketName[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
+    text = text.split("[", 1)[0]
     #
     snake_str = "".join(
         ["_" + char.lower() if char.isupper() else char for char in text]
@@ -1835,6 +1997,8 @@ def __is_internal_struct(struct_type: str, r_owned_structs: list[str]) -> bool:
 
 def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) -> bool:
     r_owned_structs.clear()
+    if not _decay_eos_type(struct_type) in structs:
+        return False
     for struct_name in structs:
         for field in structs[struct_name]:
             field_type = structs[struct_name][field]
@@ -1848,6 +2012,8 @@ def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) ->
 
 
 def __is_method_input_only_struct(struct_type: str) -> bool:
+    if not _decay_eos_type(struct_type) in structs:
+        return False
     if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(
         struct_type, []
     ):
@@ -1988,7 +2154,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 continue
 
             method_info = {
-                "return": line.split(" ", 1)[0].split("(")[1].rstrip(")"),
+                "return": line.split("(", 1)[1].split(")")[0],
                 "args": [],
             }
             args = line.split(" ", 1)[1].split("(", 1)[1].rsplit(")", 1)[0].split(", ")
