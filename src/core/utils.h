@@ -548,6 +548,7 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
     if (r_eos_field_count) {                                                                     \
         using _ #gd_data_type = std::remove_const_v<std::remove_pointer_t<decltype(eos_field)>>; \
         eos_field = memalloc(sizeof(_ #gd_data_type) * r_eos_field_count);                       \
+        memset(&eos_field, 0, sizeof(_ #gd_data_type) * r_eos_field_count);                      \
         for (decltype(r_eos_field_count) i = 0; i < r_eos_field_count; ++i) {                    \
             Object::cast_to<gd_data_type>(gd_field[0])->set_to_eos(eos_field[0]);                \
         }                                                                                        \
@@ -599,75 +600,75 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     }
 }
 
-#define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<decltype(data->(eos_field)), m_gd_Ty>(data->(eos_field))
-#define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype(data->(eos_field)), m_gd_Ty>(data->(eos_field), data->(eos_field_count))
+#define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<decltype((eos_field)), m_gd_Ty>((eos_field))
+#define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype((eos_field)), m_gd_Ty>((eos_field), (eos_field_count))
 #define _EXPAND_TO_GODOT_VAL_CLIENT_DATA(m_gd_Ty, eos_field) ((_CallbackClientData *)eos_field)->client_data
-#define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty>(data->eos_field)
-#define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype(data->(eos_field)), decltype(data->(eso_field_count))>(data->(eos_field), data->(eos_filed_count))
-#define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype(data->(eos_field))>(data->(eos_field))
-#define _EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE(m_gd_Ty, eos_field) (m_gd_Ty *)(data->(eos_field))
+#define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty>(eos_field)
+#define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
+#define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype((eos_field))>((eos_field))
+#define _EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE(m_gd_Ty, eos_field) (m_gd_Ty *)((eos_field))
 #define _EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL(gd_field, eos_field) static_assert(false, "不该发生")
-#define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union(data->(eos_field), data->(eos_field##Type))
+#define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 
 // 回调
-#define _EOS_METHOD_CALLBACK(m_callbak_info_ty, m_callback_signal, m_arg_type)  \
-    [](m_callbak_info_ty data) {                                                \
-        auto cd = _CallbackClientData::cast_to_scoped(data->ClientData);        \
-        auto cb_data = m_arg_type::from_eos(data);                              \
-        if (cd.get_completion_callback().is_valid()) {                          \
-            cd.get_completion_callback().call(cb_data);                         \
-        }                                                                       \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data); \
+#define _EOS_METHOD_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
+    [](m_callbak_info_ty m_callback_identifier) {                                                     \
+        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);             \
+        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                   \
+        if (cd.get_completion_callback().is_valid()) {                                                \
+            cd.get_completion_callback().call(cb_data);                                               \
+        }                                                                                             \
+        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                       \
     }
 
-#define _EOS_METHOD_CALLBACK_EXPANDED(m_callbak_info_ty, m_callback_signal, ...)      \
-    [](m_callbak_info_ty data) {                                                      \
-        auto cd = _CallbackClientData::cast_to_scoped(data->ClientData);              \
-        if (cd.get_completion_callback().is_valid()) {                                \
-            cd.get_completion_callback().call(__VA_ARGS__);                           \
-        }                                                                             \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__); \
+#define _EOS_METHOD_CALLBACK_EXPANDED(m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
+    [](m_callbak_info_ty m_callback_identifier) {                                                       \
+        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);               \
+        if (cd.get_completion_callback().is_valid()) {                                                  \
+            cd.get_completion_callback().call(__VA_ARGS__);                                             \
+        }                                                                                               \
+        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
     }
 
 // TODO: EOS_IntegratedPlatform_SetUserPreLogoutCallback 需要配合 方法生成 特殊处理
 // 有返回值回调返回默认值时不会释放
-#define _EOS_METHOD_CALLBACK_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_signal, m_arg_type) \
-    [](m_callbak_info_ty data) {                                                                            \
-        auto cd = (_CallbackClientData *)data->ClientData;                                                  \
-        auto cb_data = m_arg_type::from_eos(data);                                                          \
-        m_default_ret ret = m_default_ret;                                                                  \
-        if (cd->completion_callback.is_valid()) {                                                           \
-            auto res = cd->completion_callback.call(cb_data);                                               \
-            if (ret.get_type() == Variant::INT) {                                                           \
-                ret = (m_default_ret)res;                                                                   \
-            } else if (ret.get_type() != Variant::NIL) {                                                    \
-                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                   \
-            }                                                                                               \
-        }                                                                                                   \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                             \
-        if (ret != m_default_ret) {                                                                         \
-            memdelete((_CallbackClientData *)data->ClientData);                                             \
-        }                                                                                                   \
-        return ret;                                                                                         \
+#define _EOS_METHOD_CALLBACK_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
+    [](m_callbak_info_ty m_callback_identifier) {                                                                                  \
+        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                        \
+        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                                                \
+        m_default_ret ret = m_default_ret;                                                                                         \
+        if (cd->completion_callback.is_valid()) {                                                                                  \
+            auto res = cd->completion_callback.call(cb_data);                                                                      \
+            if (ret.get_type() == Variant::INT) {                                                                                  \
+                ret = (m_default_ret)res;                                                                                          \
+            } else if (ret.get_type() != Variant::NIL) {                                                                           \
+                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                                          \
+            }                                                                                                                      \
+        }                                                                                                                          \
+        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                    \
+        if (ret != m_default_ret) {                                                                                                \
+            memdelete((_CallbackClientData *)m_callback_identifier->ClientData);                                                   \
+        }                                                                                                                          \
+        return ret;                                                                                                                \
     }
 
-#define _EOS_METHOD_CALLBACK_EXPANDED_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_signal, ...) \
-    [](m_callbak_info_ty data) {                                                                              \
-        auto cd = _CallbackClientData::cast_to_scoped(data->ClientData);                                      \
-        m_default_ret ret = m_default_ret;                                                                    \
-        if (cd.get_completion_callback().is_valid()) {                                                        \
-            auto res = cd.get_completion_callback().call(##__VA_ARGS__);                                      \
-            if (ret.get_type() == Variant::INT) {                                                             \
-                ret = (m_default_ret)res;                                                                     \
-            } else if (ret.get_type() != Variant::NIL) {                                                      \
-                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                     \
-            }                                                                                                 \
-        }                                                                                                     \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                         \
-        if (ret != m_default_ret) {                                                                           \
-            memdelete((_CallbackClientData *)data->ClientData);                                               \
-        }                                                                                                     \
-        return ret;                                                                                           \
+#define _EOS_METHOD_CALLBACK_EXPANDED_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
+    [](m_callbak_info_ty m_callback_identifier) {                                                                                    \
+        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);                                            \
+        m_default_ret ret = m_default_ret;                                                                                           \
+        if (cd.get_completion_callback().is_valid()) {                                                                               \
+            auto res = cd.get_completion_callback().call(##__VA_ARGS__);                                                             \
+            if (ret.get_type() == Variant::INT) {                                                                                    \
+                ret = (m_default_ret)res;                                                                                            \
+            } else if (ret.get_type() != Variant::NIL) {                                                                             \
+                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                                            \
+            }                                                                                                                        \
+        }                                                                                                                            \
+        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                                                \
+        if (ret != m_default_ret) {                                                                                                  \
+            memdelete((_CallbackClientData *)m_callback_identifier->ClientData);                                                     \
+        }                                                                                                                            \
+        return ret;                                                                                                                  \
     }
 
 #define _EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) m_options_ty##_options_ptr

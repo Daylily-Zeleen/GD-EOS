@@ -3,7 +3,7 @@ import os
 # TODO: 每种接口生成单独头文件
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
-# TODO: void 且 out 参数可以被转为单个godot返回值（String，PackedByteArray）则不需要PackedResult
+# TODO: 
 
 sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
 
@@ -14,7 +14,6 @@ enum2file: dict[str, str] = {}
 
 all_structs: dict[str, dict[str, str]] = {}
 
-internal_structs: dict[str, list[str]] = {}
 
 # 解析结果
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
@@ -185,9 +184,10 @@ def parse_all_file():
                     continue
 
                 # 句柄方法
-                for arg in methods[method_name]["args"]:
+                for i in range(len(methods[method_name]["args"])):
+                    arg: dict[str, str] = methods[method_name]["args"][i]
                     arg_type = _decay_eos_type(arg["type"])
-                    if arg_type in _handles.keys():
+                    if arg_type in _handles.keys() and i == 0:
                         # 移动到对应的handle中
                         if not method_name in to_remove_methods:
                             handle_type = arg_type
@@ -294,7 +294,7 @@ def gen_handles(r_cpp_lines: list[str]) -> str:
     h_lines.append(f"")
 
     h_lines.append(f"namespace godot {{")
-
+    r_cpp_lines.append(f"namespace godot {{")
     for h in handles:
         r_cpp_lines.append(f"// ========= {h} =========")
         h_lines.append(f"// ========= {h} =========")
@@ -302,6 +302,7 @@ def gen_handles(r_cpp_lines: list[str]) -> str:
         h_lines += _gen_handle(h, handles[h], r_cpp_lines, [])
 
     h_lines.append(f"}} // namespace godot")
+    r_cpp_lines.append(f"}} // namespace godot")
 
     return "\n".join(h_lines)
 
@@ -323,7 +324,7 @@ def _is_enum_type(type: str) -> bool:
 
 
 def _convert_result_type(method_name: str) -> str:
-    return method_name.rsplit("_", 1)[1] + "Result"
+    return method_name.split("_", 1)[1] + "Result"
 
 
 result_types: list[str] = []
@@ -334,6 +335,7 @@ def _gen_packed_result_type(
     method_info: dict,
     r_define_lines: list[str],
     r_register_lines: list[str],
+    r_need_convert_to_return_value: list[bool],
     get_type_name_only: bool = False,
 ) -> str:
     out_args: list[dict[str, str]] = []
@@ -347,6 +349,22 @@ def _gen_packed_result_type(
     if len(out_args) <= 0:
         return ""
     #
+    if len(method_info["return"]) <= 0 or method_info["return"] == "void":
+        if len(out_args) == 1:
+            r_need_convert_to_return_value.append[True]
+            return ""
+        if len(out_args) == 2:
+            if (
+                out_args[0]["type"] == "char*"
+                and out_args[1]["type"].endswith("int32_t*")
+                and out_args[1]["name"].endswith("Length")
+            ) or (
+                out_args[0]["type"] == "void*"
+                and out_args[1]["type"].endswith("int32_t*")
+            ):
+                r_need_convert_to_return_value.append[True]
+                return ""
+
     typename: str = _convert_result_type(method_name)
     if get_type_name_only:
         return typename
@@ -355,7 +373,7 @@ def _gen_packed_result_type(
         print("== ERROR duplicate name:", typename)
         # exit(1)
     result_types.append(typename)
-    # 输出类型
+
     menbers_lines: list[str] = []
     setget_lines: list[str] = []
     bind_lines: list[str] = []
@@ -364,7 +382,7 @@ def _gen_packed_result_type(
         arg: dict[str, str] = out_args[i]
         arg_type: str = arg["type"]
         arg_name: str = arg["name"]
-        decayed_type: str = _decay_eos_type( arg["type"])
+        decayed_type: str = _decay_eos_type(arg["type"])
         snake_name: str = to_snake_case(
             arg_name.removeprefix("IntOut").removeprefix("Out")
         )
@@ -431,21 +449,23 @@ def _gen_packed_result_type(
     r_define_lines.append(f"class {typename}: public EOSPackedResult {{")
     r_define_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
     r_define_lines.append(f"public:")
-    if method_info["return"] != "EOS_EResult":
+    if method_info["return"] == "EOS_EResult":
         r_define_lines.append(f"\tEOS_EResult result_code;")
+    else:
+        print("ERROR unsupport to gen packed result:", method_name)
     r_define_lines += menbers_lines
     r_define_lines.append("")
     r_define_lines.append(f"public:")
-    if method_info["return"] != "EOS_EResult":
+    if method_info["return"] == "EOS_EResult":
         r_define_lines.append(f"\t_DEFINE_SETGET(result_code);")
     r_define_lines += setget_lines
     r_define_lines.append("")
     r_define_lines.append(f"protected:")
     r_define_lines.append(f"\tstatic void _bind_methods() {{")
     r_define_lines.append(f"\t\t_BIND_BEGIN({typename});")
-    if method_info["return"] != "EOS_EResult":
+    if method_info["return"] == "EOS_EResult":
         r_define_lines.append(
-            f'\t\t_BIND_PROP_ENUM(result_code, {enum_owner}, {_convert_enum_type("EOS_EResult")})'
+            f'\t\t_BIND_PROP_ENUM(result_code, EOS_Common, {_convert_enum_type("EOS_EResult")})'
         )
     r_define_lines += bind_lines
     r_define_lines.append(f"\t\t_BIND_END();")
@@ -483,7 +503,7 @@ def _gen_handle(
             continue
         if _is_need_skip_method(method):
             continue
-        _gen_packed_result_type(method, method_infos[method], ret, r_register_lines)
+        _gen_packed_result_type(method, method_infos[method], ret, r_register_lines, [])
 
     ret.append(f"class {klass} : public RefCounted {{")
     ret.append(f"\tGDCLASS({klass}, RefCounted)")
@@ -531,7 +551,7 @@ def _gen_handle(
     ret.append(f"")
 
     # bind
-    r_cpp_lines.append(f"void klass::_bind_methods() {{")
+    r_cpp_lines.append(f"void {klass}::_bind_methods() {{")
     r_cpp_lines += method_bind_lines
     for callback in callback_infos:
         if _is_need_skip_callback(method):
@@ -618,9 +638,9 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
         )
         if len(return_type):
             # TODO: 有返回值的回调的信号发射对象需要特殊处理
-            return f'_EOS_METHOD_CALLBACK_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
+            return f'_EOS_METHOD_CALLBACK_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
         else:
-            return f'_EOS_METHOD_CALLBACK({arg_type}, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
+            return f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
     else:
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
         ## 检出不需要成为参数的字段
@@ -648,9 +668,9 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
 
         if len(return_type):
             # TODO: 有返回值的回调的信号发射对象需要特殊处理
-            ret = f'_EOS_METHOD_CALLBACK_EXPANDED_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, "{signal_name}"'
+            ret = f'_EOS_METHOD_CALLBACK_EXPANDED_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}"'
         else:
-            ret = f'_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, "{signal_name}"'
+            ret = f'_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
 
         for field in fields:
             field_type: str = fields[field]
@@ -669,34 +689,35 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
                 signal_bind_args += ", "
 
             snake_case_field = to_snake_case(field)
-            godot_type = remap_type(_decay_eos_type(field_type))
-            if _is_anti_cheat_client_handle_type(field_type):
-                ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({godot_type}, {field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({godot_type}, {snake_case_field})"
+            if _is_anticheat_client_handle_type(field_type):
+                ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type)}, data->{field})"
+                signal_bind_args += (
+                    f"_MAKE_PROP_INFO({remap_type(field_type)}, {snake_case_field})"
+                )
             elif _is_requested_channel_ptr_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL({godot_type}, {snake_case_field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::INT, "{snake_case_field}")'
             elif field_type.startswith("Union"):
-                ret += f"_EXPAND_TO_GODOT_VAL_UNION({godot_type}, {field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_UNION({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_handle_type(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({godot_type}, {field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({godot_type}, {snake_case_field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({remap_type(_decay_eos_type(field_type))}, data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_client_data_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_CLIENT_DATA({godot_type}, {field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_CLIENT_DATA({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_internal_struct_arr_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({godot_type}, {field}, {_find_count_field(field, fields.keys())})"
-                signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{godot_type}")'
+                ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({remap_type(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
+                signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{remap_type(_decay_eos_type(field_type))}")'
             elif _is_internal_struct_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_STRUCT({godot_type}, {field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({godot_type}, {snake_case_field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_STRUCT({remap_type(_decay_eos_type(field_type))}, data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_arr_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_ARR({godot_type}, {field}, {_find_count_field(field, fields.keys())})"
-                signal_bind_args += f'PropertyInfo(Variant({godot_type}()).get_type(), "{snake_case_field}")'
+                ret += f"_EXPAND_TO_GODOT_VAL_ARR({remap_type(field_type)}, data->{field}, {_find_count_field(field, fields.keys())})"
+                signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
             else:
-                ret += f"_EXPAND_TO_GODOT_VAL({godot_type}, {field})"
-                signal_bind_args += f'PropertyInfo(Variant({godot_type}()).get_type(), "{snake_case_field}")'
+                ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
+                signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
         ret += ")"
 
         if len(signal_bind_args):
@@ -754,7 +775,7 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
         # 以下可能需要特殊处理
         "EOS_EpicAccountId_ToString": "EOS_EPICACCOUNTID_MAX_LENGTH",
         "EOS_ProductUserId_ToString": "EOS_PRODUCTUSERID_MAX_LENGTH",
-        "EOS_ContinuanceToken_ToString": "256", # 需要调用一次从 InOut 参数获取需要的大小
+        "EOS_ContinuanceToken_ToString": "256",  # 需要调用一次从 InOut 参数获取需要的大小
     }
     if not method_name in map:
         print("ERR: ", method_name)
@@ -804,9 +825,10 @@ def __expend_input_struct(
         snake_field: str = to_snake_case(field)
 
         if __is_api_version_field(field_type, field):
-            # ApiVersion 字段
+            # 不需要 ApiVersion 作为参数
             macro = __get_api_latest_macro(decayed_type)
-            r_prepare_lines.append(f"\t{arg_type}.ApiVersion = {macro};")
+            r_prepare_lines.append(f"\t{arg_name}.ApiVersion = {macro};")
+            continue
         elif (
             is_deprecated_field(field)
             or field in count_fields
@@ -818,17 +840,13 @@ def __expend_input_struct(
         r_bind_args.append(f'"{snake_field}"')
 
         option_field = f"{arg_name}.{field}"
-        if _is_anti_cheat_client_handle_type(field_type):
-            r_declare_args.append(
-                f"{remap_type(_decay_eos_type(field_type), field)} p_{snake_field}"
-            )
+        if _is_anticheat_client_handle_type(field_type):
+            r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
             r_prepare_lines.append(
                 f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({option_field}, p_{snake_field});"
             )
         elif _is_requested_channel_ptr_field(field_type, field):
-            r_declare_args.append(
-                f"{remap_type(_decay_eos_type(field_type), field)} p_{snake_field}"
-            )
+            r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
             r_prepare_lines.append(
                 f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL({option_field}, p_{snake_field});"
             )
@@ -868,7 +886,7 @@ def __expend_input_struct(
             )
         elif _is_arr_field(field_type, field):
             r_declare_args.append(
-                f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}"
+                f"const {remap_type(field_type, field)} &p_{snake_field}"
             )
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
             r_prepare_lines.append(
@@ -876,15 +894,15 @@ def __expend_input_struct(
             )
         else:
             r_declare_args.append(
-                f"gd_arg_t<{remap_type(_decay_eos_type(field_type), field)}> p_{snake_field}"
+                f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}"
             )
             r_prepare_lines.append(f"\t_TO_EOS_FIELD({option_field}, p_{snake_field});")
 
 
-def __use_packed_result(
+def __make_packed_result(
     packed_result_type: str,
     method_name: str,
-    han_result_code: bool,
+    has_result_code: bool,
     options_identifier: str,
     options_type: str,
     begin_idx: int,
@@ -892,35 +910,72 @@ def __use_packed_result(
     r_call_args: list[str],
     r_prepare_lines: list[str],
     r_after_call_lines: list[str],
+    r_return_type_if_convert_to_return: list[str],
 ):
-    r_after_call_lines.append(f"\tRef<{packed_result_type}> ret; ret.instantiate();")
-    if han_result_code:
-        r_after_call_lines.append(f"\tret->result_code = result_code;")
-        r_after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
-    acl_indents = "\t\t" if han_result_code else "\t"
-    for i in range(begin_idx, len(args)):
+    pack_result: bool = len(packed_result_type) > 0
+
+    if pack_result:
+        r_after_call_lines.append(
+            f"\tRef<{packed_result_type}> ret; ret.instantiate();"
+        )
+        if has_result_code:
+            r_after_call_lines.append(f"\tret->result_code = result_code;")
+            r_after_call_lines.append(
+                f"\tif (result_code == EOS_EResult::EOS_Success) {{"
+            )
+    acl_indents = "\t\t" if has_result_code else "\t"
+    i = begin_idx
+    while i <len(args):
         arg_name: str = args[i]["name"]
         arg_type: str = args[i]["type"]
         decayed_type: str = _decay_eos_type(arg_type)
-        snake_name: str = to_snake_case(arg_name)
+        snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out"))
         if _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
-            r_call_args.append(f"\t&{arg_name}")
-            r_after_call_lines.append(
-                f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_handle({arg_name});"
-            )
+            r_call_args.append(f"&{arg_name}")
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_handle({arg_name});"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(
+                    f"Ret<{remap_type(decayed_type, arg_name)}>"
+                )
+                r_after_call_lines.append(
+                    f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});"
+                )
         elif __is_struct_type(decayed_type):
             r_prepare_lines.append(
-                f"\t{__convert_to_struct_class(decayed_type)} {arg_name};"
+                f"\t{decayed_type} {arg_name};"
             )
-            r_call_args.append(f"\t&{arg_name}")
-            r_after_call_lines.append(
-                f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});"
-            )
+            r_call_args.append(f"&{arg_name}")
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(
+                    f"Ret<{remap_type(decayed_type, arg_name)}>"
+                )
+                r_after_call_lines.append(
+                    f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});"
+                )
+
         elif _is_enum_type(decayed_type):
             r_prepare_lines.append(f"\t{_convert_enum_type(decayed_type)} {arg_name};")
-            r_call_args.append(f"\t&{arg_name}")
-            r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
+            r_call_args.append(f"&{arg_name}")
+
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}ret->{snake_name} = {arg_name};"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(
+                    f"{remap_type(decayed_type, arg_name)}"
+                )
+                r_after_call_lines.append(
+                    f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};;"
+                )
         elif (
             arg_type == "char*"
             and (i + 1) < len(args)
@@ -928,19 +983,22 @@ def __use_packed_result(
             and args[i + 1]["name"].endswith("Length")
         ):
             r_prepare_lines.append(
-                f"\tchar* {arg_name} = (char *)memalloc(sizeof(char) * ({__get_str_result_max_length_macro(method_name)} + 1);"
+                f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};"
             )
             r_prepare_lines.append(
                 f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = 0;'
             )
 
-            r_call_args.append(f"\t{arg_name}")
-            r_call_args.append(f'\t&{args[i+1]["name"]}')
+            r_call_args.append(f"&{arg_name}[0]")
+            r_call_args.append(f'&{args[i+1]["name"]}')
 
-            r_after_call_lines.append(
-                f'{acl_indents}{arg_name}[{args[i+1]["name"]}] = (char)0;'
-            )
-            r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}ret->{snake_name} = &{arg_name}[0];"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(f"String")
+                r_after_call_lines.append(f"{acl_indents}String ret = &{arg_name}[0];")
             i += 1
         elif (
             arg_type == "void*"
@@ -961,19 +1019,29 @@ def __use_packed_result(
                 print(f"ERR can't find length_variable: {arg_name}")
                 exit(1)
             #
+
             r_prepare_lines.append(f"\tPackedByteArray {arg_name};")
             r_prepare_lines.append(f"\t{arg_name}.resize({length_variable});")
             r_prepare_lines.append(
                 f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = {length_variable};'
             )
 
-            r_call_args.append(f"\t{arg_name}.ptrw()")
-            r_call_args.append(f'\t&{args[i+1]["name"]}')
+            r_call_args.append(f"{arg_name}.ptrw()")
+            r_call_args.append(f'&{args[i+1]["name"]}')
 
             r_after_call_lines.append(
                 f'{acl_indents}{arg_name}.resize({args[i+1]["name"]});'
             )
-            r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
+
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}ret->{snake_name} = {arg_name};"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(f"PackedByteArray")
+                r_after_call_lines.append(
+                    f"{acl_indents}PackedByteArray ret = {arg_name};"
+                )
 
             i += 1
         elif decayed_type == "EOS_Bool":
@@ -991,14 +1059,23 @@ def __use_packed_result(
                 exit(1)
 
             r_prepare_lines.append(f'\t{arg_type.removesuffix("*")} {arg_name};')
-            r_call_args.append(f"\t&{arg_name}")
-            r_after_call_lines.append(
-                f"{acl_indents}_FROM_EOS_FIELD(ret->{snake_name}, {arg_name});"
-            )
+            r_call_args.append(f"&{arg_name}")
+
+            if pack_result:
+                r_after_call_lines.append(
+                    f"{acl_indents}_FROM_EOS_FIELD(ret->{snake_name}, {arg_name});"
+                )
+            else:
+                r_return_type_if_convert_to_return.append(
+                    f"{remap_type(decayed_type, arg_name)}"
+                )
+                r_after_call_lines.append(
+                    f"{acl_indents}{remap_type(decayed_type, arg_name)} ret; _FROM_EOS_FIELD(ret, {arg_name});"
+                )
 
         i += 1
 
-    if han_result_code:
+    if has_result_code:
         r_after_call_lines.append(f"\t}}")
 
 
@@ -1015,7 +1092,12 @@ def _gen_method(
     return_type: str = ""
     callback_signal = ""
     need_callable_arg = False
-    packed_result_type = _gen_packed_result_type(method_name, info, [], [], True)
+
+    out_to_ret: list[bool] = []
+    packed_result_type = _gen_packed_result_type(
+        method_name, info, [], [], out_to_ret, True
+    )
+    need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
     for a in info["args"]:
@@ -1032,8 +1114,6 @@ def _gen_method(
         exit(1)
 
     if len(packed_result_type):
-        if method_name == "EOS_Achievements_GetAchievementDefinitionCount":
-            print("3 ", info["return"], return_type)
         return_type = f"Ref<{packed_result_type}>"
     elif return_type == "" and info["return"] != "void":
         return_type = remap_type(info["return"], "")
@@ -1062,7 +1142,7 @@ def _gen_method(
         elif __is_callback_type(decayed_type):
             # 回调参数
             if need_callable_arg:
-                declare_args.append(f"const Callable& p_completion_callback")
+                declare_args.append(f"const Callable& p_{snake_name}")
                 bind_args.append(f'"completion_callback"')
 
             call_args.append(f"{_gen_callback(decayed_type, [])}")
@@ -1072,7 +1152,7 @@ def _gen_method(
             bind_args.append('"client_data"')
             if need_callable_arg:
                 call_args.append(
-                    "_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_completion_callback)"
+                    f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{snake_name})"
                 )
             else:
                 call_args.append("_MAKE_CALLBACK_CLIENT_DATA(p_client_data)")
@@ -1105,7 +1185,8 @@ def _gen_method(
             )
         elif name.startswith("Out") or name.startswith("InOut"):
             # Out 参数
-            __use_packed_result(
+            converted_return_type: list[str] = []
+            __make_packed_result(
                 packed_result_type,
                 method_name,
                 info["return"] == "EOS_EResult",
@@ -1116,7 +1197,17 @@ def _gen_method(
                 call_args,
                 prepare_lines,
                 after_call_lines,
+                converted_return_type,
             )
+            if len(converted_return_type):
+                if len(converted_return_type) != 1:
+                    print("Error len(converted_return_type) != 1:", method_name)
+                    exit(1)
+                if return_type != "void":
+                    print("ERROR : ?")
+                    exit(1)
+                return_type = converted_return_type[1]
+
             # Out 参数在最后，直接跳出
             break
         else:
@@ -1124,8 +1215,8 @@ def _gen_method(
             declare_args.append(
                 f"gd_arg_t<{remap_type(decayed_type, name)}> p_{snake_name}"
             )
-            bind_args += f'"{snake_name}"'
-            call_args += f"to_eos_type<gd_arg_t<{remap_type(decayed_type, name)}>, {type}>(p_{snake_name})"
+            bind_args.append(f'"{snake_name}"')
+            call_args.append(f"to_eos_type<gd_arg_t<{remap_type(decayed_type, name)}>, {type}>(p_{snake_name})")
         i += 1
 
     snake_method_name = to_snake_case(method_name.rsplit("_", 1)[1])
@@ -1147,7 +1238,7 @@ def _gen_method(
         r_define_lines.append(
             f'\tEOS_EResult result_code = {method_name}({", ".join(call_args)});'
         )
-    elif return_type == "void" or return_type == "Signal":
+    elif return_type == "void" or return_type == "Signal" or need_out_to_ret:
         r_define_lines.append(f'\t{method_name}({", ".join(call_args)});')
     else:
         r_define_lines.append(f'\tauto ret = {method_name}({", ".join(call_args)});')
@@ -1335,7 +1426,7 @@ def _is_need_skip_callback(callback_type: str) -> bool:
 def _is_need_skip_method(method_name: str) -> bool:
     # TODO: Create , Release, GetInterface 均不需要
     return method_name.startswith("EOS_Logging_") or method_name in [
-        "EOS_IntegratedPlatform_SetUserPreLogoutCallback"  # 特殊处理
+        "EOS_IntegratedPlatform_SetUserPreLogoutCallback",  # 特殊处理
         # 废弃 DEPRECATED!
         "EOS_Achievements_CopyAchievementDefinitionByIndex",
         "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
@@ -1343,7 +1434,6 @@ def _is_need_skip_method(method_name: str) -> bool:
         "EOS_Achievements_CopyUnlockedAchievementByIndex",
         "EOS_Achievements_CopyUnlockedAchievementByAchievementId",
         "EOS_Achievements_AddNotifyAchievementsUnlocked",
-        
         "EOS_RTCAudio_RegisterPlatformAudioUser",
         "EOS_RTCAudio_UnregisterPlatformAudioUser",
         "EOS_RTCAudio_GetAudioInputDevicesCount",
@@ -1352,7 +1442,6 @@ def _is_need_skip_method(method_name: str) -> bool:
         "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
         "EOS_RTCAudio_SetAudioInputSettings",
         "EOS_RTCAudio_SetAudioOutputSettings",
-        
         # 废弃 NODT: This api is deprecated.
         "EOS_AntiCheatClient_PollStatus",
     ]
@@ -1367,13 +1456,13 @@ def _is_need_skip_enum_type(ori_enum_type: str) -> bool:
         "EOS_EComparisonOp",
     ]
 
-def _is_need_skip_enum_value(ori_enum_type: str, enum_value:str) -> bool:
+
+def _is_need_skip_enum_value(ori_enum_type: str, enum_value: str) -> bool:
     map = {
-        "EOS_EExternalCredentialType":[
+        "EOS_EExternalCredentialType": [
             # DEPRECATED
             "EOS_ECT_STEAM_APP_TICKET"
         ],
-        
     }
     return ori_enum_type in map and enum_value in map[ori_enum_type]
 
@@ -1642,6 +1731,9 @@ def gen_structs(r_cpp_lines: list[str]) -> str:
 
 
 def to_snake_case(text: str) -> str:
+    # TODO: 分离
+    text = text.split("[", 1)[0] # SPECIAL: char SocketName[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
+    #
     snake_str = "".join(
         ["_" + char.lower() if char.isupper() else char for char in text]
     )
@@ -1849,7 +1941,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             continue
 
         # 句柄类型
-        if "typedef struct " in line: #  and "Handle*" in line
+        if "typedef struct " in line:  #  and "Handle*" in line
             handle_type = line.split("* ", 1)[1].split(";", 1)[0]
             r_file_lower2infos[interface_lower]["handles"][handle_type] = {
                 "methods": {},
@@ -2279,15 +2371,6 @@ def _decay_eos_type(t: str) -> str:
     return ret
 
 
-# def _get_internal_structs(filed2type: dict[str, str]) -> list[str]:
-#     ret: list[str] = []
-#     for t in filed2type.values():
-#         type = _decay_eos_type(t)
-#         if type in all_structs.keys():
-#             ret.append(type)
-#     return ret
-
-
 def _is_unused_struct(name: str) -> bool:
     return name in ["EOS_UI_Rect"]
 
@@ -2303,7 +2386,7 @@ def _is_internal_struct_field(type: str, field: str) -> bool:
     return False
 
 
-def _is_anti_cheat_client_handle_type(type: str) -> bool:
+def _is_anticheat_client_handle_type(type: str) -> bool:
     return type == "EOS_AntiCheatCommon_ClientHandle"
 
 
@@ -2529,7 +2612,7 @@ def _gen_struct(
                 continue
 
             field_type = fields[field]
-            if _is_anti_cheat_client_handle_type(field_type):
+            if _is_anticheat_client_handle_type(field_type):
                 r_structs_cpp.append(
                     f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});"
                 )
@@ -2570,7 +2653,7 @@ def _gen_struct(
         r_structs_cpp.append(
             f"void godot::{typename}::set_to_eos({struct_type} &p_data) {{"
         )
-        r_structs_cpp.append(f"\tmemset(&m_eos_data, 0, sizeof({struct_type}));")
+        # r_structs_cpp.append(f"\tmemset(&m_eos_data, 0, sizeof({struct_type}));")
         for field in fields.keys():
             if is_deprecated_field(field):
                 continue
@@ -2580,7 +2663,7 @@ def _gen_struct(
                 continue
 
             field_type = fields[field]
-            if _is_anti_cheat_client_handle_type(field_type):
+            if _is_anticheat_client_handle_type(field_type):
                 r_structs_cpp.append(
                     f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});"
                 )
