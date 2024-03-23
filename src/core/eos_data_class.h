@@ -5,6 +5,8 @@
 #include <godot_cpp/classes/ref_counted.hpp>
 
 #include <gen/forward_declare.gen.h>
+#include <gen/eos_enums.gen.inl>
+#include <eos_logging.h>
 
 #include "eos_packed_result.h"
 

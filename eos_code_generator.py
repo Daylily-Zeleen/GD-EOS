@@ -38,7 +38,6 @@ handles: dict[str, dict] = {
         "callbacks": {},
         "enums": {},
     },
-    
 }
 
 
@@ -114,8 +113,9 @@ def main():
 def _is_base_handle_type(handle_type: str) -> str:
     return handle_type in ["EOS", "EOS_HAntiCheatCommon"]
 
-def _get_base_class(handle_type:str) -> str:
-    if "EOS" ==handle_type:
+
+def _get_base_class(handle_type: str) -> str:
+    if "EOS" == handle_type:
         return "Object"
     elif "EOS_HAntiCheatCommon" == handle_type:
         return _convert_handle_class_name("EOS")
@@ -125,6 +125,7 @@ def _get_base_class(handle_type:str) -> str:
         return _convert_handle_class_name("EOS")
     else:
         return "RefCounted"
+
 
 def _convert_to_interface_lower(file_name: str) -> str:
     splited = file_name.rsplit("\\", 1)
@@ -157,6 +158,7 @@ def _cheat_as_handle_method(method_name: str) -> str:
     }
     return map.get(method_name, "")
 
+
 def _cheat_as_handle_enum(enum_type: str) -> str:
     if enum_type.startswith("EOS_EAntiCheatCommon"):
         return "EOS_HAntiCheatCommon"
@@ -171,7 +173,7 @@ def _cheat_as_handle_enum(enum_type: str) -> str:
         "EOS_EExternalAccountType": "EOS",
         "EOS_EExternalCredentialType": "EOS",
         "EOS_EResult": "EOS",
-        # 
+        #
     }
     return map.get(enum_type, "")
 
@@ -408,9 +410,9 @@ def parse_all_file():
     # print(interfaces.keys())
 
     for il in unhandled_infos:
-        # print(f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}')
-        if il in ["common"]:
-            print(il, "  ", unhandled_infos[il]["enums"].keys())
+        print(f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}')
+        # if il in ["common"]:
+        #     print(il, "  ", unhandled_infos[il]["enums"].keys())
     # exit()
 
 
@@ -441,7 +443,6 @@ def gen_handles(r_cpp_lines: list[str]) -> str:
     h_lines.append(f"#include <godot_cpp/classes/ref_counted.hpp>")
     h_lines.append(f"")
 
-    h_lines.append(f"namespace godot {{")
     r_cpp_lines.append(f"namespace godot {{")
     for h in handles:
         r_cpp_lines.append(f"// ========= {h} =========")
@@ -449,7 +450,6 @@ def gen_handles(r_cpp_lines: list[str]) -> str:
         # TODO: 生成绑定宏
         h_lines += _gen_handle(h, handles[h], r_cpp_lines, [])
 
-    h_lines.append(f"}} // namespace godot")
     r_cpp_lines.append(f"}} // namespace godot")
 
     return "\n".join(h_lines)
@@ -473,6 +473,7 @@ def _is_enum_type(type: str) -> bool:
 
 def _convert_result_type(method_name: str) -> str:
     return method_name.split("_", 1)[1] + "Result"
+
 
 def _gen_packed_result_type(
     method_name: str,
@@ -585,6 +586,7 @@ def _gen_packed_result_type(
 
         i += 1
 
+    r_define_lines.append("namespace godot {")
     r_define_lines.append(f"class {typename}: public EOSPackedResult {{")
     r_define_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
     r_define_lines.append(f"public:")
@@ -610,6 +612,7 @@ def _gen_packed_result_type(
     r_define_lines.append(f"\t\t_BIND_END();")
     r_define_lines.append(f"\t}}")
     r_define_lines.append(f"}};")
+    r_define_lines.append("} // namespace godot")
     r_define_lines.append(f"")
 
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({typename});\\")
@@ -625,7 +628,7 @@ def _gen_handle(
 ) -> list[str]:
     is_base_handle_type = _is_base_handle_type(handle_name)
     base_class = _get_base_class(handle_name)
-    
+
     method_infos = infos["methods"]
     callback_infos = infos["callbacks"]
 
@@ -647,6 +650,7 @@ def _gen_handle(
             continue
         _gen_packed_result_type(method, method_infos[method], ret, r_register_lines, [])
 
+    ret.append("namespace godot {")
     ret.append(f"class {klass} : public {base_class} {{")
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
@@ -657,6 +661,10 @@ def _gen_handle(
     ret.append(f"\tstatic void _bind_methods();")
     ret.append(f"")
     ret.append(f"public:")
+    # USING 枚举
+    if len(infos["enums"]):
+        ret.append(f"\t_USING_ENUMS_{_convert_handle_class_name(handle_name)}()")
+
     # Destructor
     if len(release_method) and not is_base_handle_type:
         ret.append(f"\t~{klass} {{")
@@ -691,6 +699,10 @@ def _gen_handle(
     ret.append(f"")
 
     ret.append(f"}};")
+    ret.append("} // namespace godot")
+    # CAST 枚举
+    if len(infos["enums"]):
+        ret.append(f"_CAST_ENUMS_{_convert_handle_class_name(handle_name)}()")
     ret.append(f"")
 
     # bind
@@ -700,6 +712,9 @@ def _gen_handle(
         if _is_need_skip_callback(method):
             continue
         _gen_callback(callback, r_cpp_lines)
+    # BIND 枚举
+    if len(infos["enums"]):
+        r_cpp_lines.append(f"\t_BIND_ENUMS_{_convert_handle_class_name(handle_name)}()")
     r_cpp_lines.append(f"}}")
 
     return ret
@@ -1427,8 +1442,12 @@ def _gen_method(
     default_val_arg = ""
     if need_callable_arg:
         default_val_arg = ", DEVAL(Callable())"
-    
-    bind_prefix:str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
+
+    bind_prefix: str = (
+        "ClassDB::bind_static_method(get_class_static(), "
+        if static
+        else "ClassDB::bind_method("
+    )
     r_bind_lines.append(
         f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});'
     )
@@ -1507,7 +1526,6 @@ def gen_enums() -> str:
         if len(handles[h]) <= 0:
             continue
         lines.append(f"// ==== {h} ====")
-        interface_class_name = _convert_interface_class_name(h)
         interface_enums: dict[str, list[str]] = handles[h]["enums"]
 
         # Bind enum value macro
@@ -1524,7 +1542,7 @@ def gen_enums() -> str:
             lines.append("")
 
         # Bind macro
-        lines.append(f"#define _BIND_ENUMS_{interface_class_name}()\\")
+        lines.append(f"#define _BIND_ENUMS_{_convert_handle_class_name(h)}()\\")
         for enum_type in interface_enums:
             if _is_need_skip_enum_type(enum_type):
                 continue
@@ -1532,7 +1550,7 @@ def gen_enums() -> str:
         lines.append("")
 
         # Using macro
-        lines.append(f"#define _USING_ENUMS_{_convert_interface_class_name(h)}()\\")
+        lines.append(f"#define _USING_ENUMS_{_convert_handle_class_name(h)}()\\")
         for enum_type in interface_enums:
             if _is_need_skip_enum_type(enum_type):
                 continue
@@ -1540,12 +1558,12 @@ def gen_enums() -> str:
         lines.append("")
 
         # Variant cast macro
-        lines.append(f"#define _CAST_ENUMS_{_convert_interface_class_name(h)}()\\")
+        lines.append(f"#define _CAST_ENUMS_{_convert_handle_class_name(h)}()\\")
         for enum_type in interface_enums:
             if _is_need_skip_enum_type(enum_type):
                 continue
             lines.append(
-                f"\tVARIANT_ENUM_CAST(godot::{_convert_interface_class_name(h)}::{_convert_enum_type(enum_type)});\\"
+                f"\tVARIANT_ENUM_CAST(godot::{_convert_handle_class_name(h)}::{_convert_enum_type(enum_type)});\\"
             )
         lines.append("")
 
