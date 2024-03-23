@@ -1248,7 +1248,6 @@ def _gen_method(
 
     return_type: str = ""
     callback_signal = ""
-    need_callable_arg = False
 
     out_to_ret: list[bool] = []
     packed_result_type = _gen_packed_result_type(
@@ -1259,14 +1258,12 @@ def _gen_method(
     # 是否回调
     for a in info["args"]:
         if __is_callback_type(_decay_eos_type(a["type"])):
-            if info["return"] == "void":
+            if len(info["return"]) <= 0 or info["return"] == "void":
                 return_type = "Signal"
                 callback_signal = __convert_to_signal_name(_decay_eos_type(a["type"]))
-            else:
-                need_callable_arg = True
             break
 
-    if (need_callable_arg or return_type == "Signal") and len(packed_result_type):
+    if (return_type == "Signal") and len(packed_result_type):
         print("ERROR 回调与打包返回冲突:", method_name)
         exit(1)
 
@@ -1274,7 +1271,7 @@ def _gen_method(
         return_type = f"Ref<{packed_result_type}>"
     elif return_type == "" and info["return"] != "void":
         return_type = remap_type(info["return"], "")
-    else:
+    elif return_type == "":
         return_type = "void"
 
     declare_args: list[str] = []
@@ -1288,6 +1285,7 @@ def _gen_method(
 
     static: bool = True
     i: int = 0
+    need_callable_arg = False
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
         name: str = info["args"][i]["name"]
@@ -1300,21 +1298,23 @@ def _gen_method(
             static = False
         elif __is_callback_type(decayed_type):
             # 回调参数
-            if need_callable_arg:
-                declare_args.append(f"const Callable& p_{snake_name}")
-                bind_args.append(f'"completion_callback"')
-
+            declare_args.append(f"const Callable& p_{snake_name} = {{}}")
+            bind_args.append(f'"{snake_name}"')
             call_args.append(f"{_gen_callback(decayed_type, [])}")
+            need_callable_arg = True
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
             bind_args.append('"client_data"')
-            if need_callable_arg:
+            if (i + 1)< len(info["args"])and  __is_callback_type(_decay_eos_type(info["args"][i+1]["type"])):
                 call_args.append(
-                    f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{snake_name})"
+                    f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})'
                 )
             else:
-                call_args.append("_MAKE_CALLBACK_CLIENT_DATA(p_client_data)")
+                call_args.append(
+                    f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data)"
+                )
+                
         elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(
             decayed_type
         ):
@@ -1384,6 +1384,8 @@ def _gen_method(
     while not valid:
         valid = True
         for m in handles[handle_type]["methods"]:
+            if method_name == m:
+                continue
             if m.endswith(candidate_method_name):
                 splited = method_name.rsplit("_", 2)
                 candidate_method_name = "".join([splited[1], splited[2]])
@@ -1721,6 +1723,8 @@ def remap_type(type: str, field: str = "") -> str:
         return f"Ref<{_convert_handle_class_name(type)}>"
     if _is_internal_struct_arr_field(type, field):
         return f"TypedArray<{__convert_to_struct_class(_decay_eos_type(type))}>"
+    if __is_callback_type(type):
+        return "Callable"
 
     if type.startswith("Union"):
         uion_field_map = {
