@@ -406,6 +406,7 @@ def parse_all_file():
         "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
     ]
 
+    # Check
     # 未处理的方法、回调、枚举
     for il in file_lower2infos:
         for cb in file_lower2infos[il]["callbacks"]:
@@ -763,7 +764,7 @@ def _gen_handle(
         if _is_need_skip_callback(callback):
             continue
 
-        _gen_callback(callback, r_cpp_lines)
+        _gen_callback(callback, r_cpp_lines, True)
     # BIND 枚举
     if len(infos["enums"]):
         r_cpp_lines.append(f"\t_BIND_ENUMS_{_convert_handle_class_name(handle_name)}()")
@@ -826,10 +827,11 @@ def __get_release_method(struct_type: str) -> str:
     exit()
 
 
-# TODO: EOS_IntegratedPlatform_OnUserPreLogoutCallback 需要配合 方法生成 特殊处理
-# 在    EOS_IntegratedPlatform_SetUserPreLogoutCallback 中将 _CallbackClientData 作为静态变量
-# TODO: 生成信号绑定
-def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
+def _gen_callback(
+    callback_type: str,
+    r_bind_signal_lines: list[str],
+    for_gen_signal_binding: bool = False,
+) -> str:
     infos: dict = {}
     for handle_infos in handles.values():
         for cb_ty in handle_infos["callbacks"]:
@@ -851,11 +853,16 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
         r_bind_signal_lines.append(
             f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({remap_type(_decay_eos_type(arg_type), arg_name)}, {to_snake_case(arg_name)})));'
         )
-        if len(return_type):
-            # TODO: 有返回值的回调的信号发射对象需要特殊处理
-            return f'_EOS_METHOD_CALLBACK_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
+        gd_cb_info_type = remap_type(_decay_eos_type(arg_type), arg_name).removeprefix("Ref<").removesuffix(">")
+        if callback_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
+            return f'_EOS_USER_PRE_LOGOUT_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+        elif len(return_type):
+            if for_gen_signal_binding:
+                return ""
+            print("ERROR unsupport callback type:", callback_type)
+            exit(1)
         else:
-            return f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {remap_type(_decay_eos_type(arg_type), arg_name)})'
+            return f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
     else:
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
         ## 检出不需要成为参数的字段
@@ -882,8 +889,10 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
         signal_bind_args: str = ""
 
         if len(return_type):
-            # TODO: 有返回值的回调的信号发射对象需要特殊处理
-            ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}"'
+            if for_gen_signal_binding:
+                return ""
+            print("ERROR unsupport callback type:", callback_type)
+            exit(1)
         else:
             ret = (
                 f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
@@ -1380,11 +1389,10 @@ def _gen_method(
                 interface_signal_name = __convert_to_signal_name(cb)
 
                 prepare_lines.append(
-                    f"\tauto completion_callback = &file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
+                    f"\tauto callback = &file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
                 )
-                call_args.append(f"completion_callback")
+                call_args.append(f"callback")
             else:
-                # TODO : integrate platform 的有返回值回调
                 call_args.append(f"{_gen_callback(decayed_type, [])}")
 
             need_callable_arg = True
@@ -1421,6 +1429,18 @@ def _gen_method(
                         )
                         call_args.append(f"transfer_data")
                         for_file_transfer = True
+                    case "EOS_IntegratedPlatform_SetUserPreLogoutCallback":
+                        prepare_lines.append(
+                            "\tstatic auto client_data = _CallbackClientData(this, {}, {});"
+                        )
+                        prepare_lines.append("\tclient_data.handle_wrapper = this;")
+                        prepare_lines.append(
+                            "\tclient_data.client_data = p_client_data;"
+                        )
+                        prepare_lines.append(
+                            f'\tclient_data.callback = p_{to_snake_case(info["args"][i+1]["name"])};'
+                        )
+                        call_args.append("&client_data")
                     case _:
                         call_args.append(
                             f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})'
@@ -1729,7 +1749,6 @@ def _is_need_skip_callback(callback_type: str) -> bool:
 def _is_need_skip_method(method_name: str) -> bool:
     # TODO: Create , Release, GetInterface 均不需要
     return method_name.startswith("EOS_Logging_") or method_name in [
-        "EOS_IntegratedPlatform_SetUserPreLogoutCallback",  # 特殊处理
         "EOS_ByteArray_ToString",  # Godot 压根就不需要
         # 废弃 DEPRECATED!
         "EOS_Achievements_CopyAchievementDefinitionByIndex",
@@ -1951,6 +1970,8 @@ def _is_expended_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_FileTransferProgressCallbackInfo",
         "EOS_PlayerDataStorage_WriteFileCallbackInfo",
         "EOS_PlayerDataStorage_ReadFileCallbackInfo",
+        #
+        "EOS_IntegratedPlatform_UserPreLogoutCallbackInfo",
         #
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
@@ -2932,7 +2953,6 @@ def _gen_struct(
         r_structs_cpp.append(
             f"void godot::{typename}::set_to_eos({struct_type} &p_data) {{"
         )
-        # r_structs_cpp.append(f"\tmemset(&m_eos_data, 0, sizeof({struct_type}));")
         for field in fields.keys():
             if is_deprecated_field(field):
                 continue

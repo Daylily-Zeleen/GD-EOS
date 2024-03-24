@@ -97,10 +97,10 @@ static StringName _get_class_name(const Variant &p_val) {
 struct _CallbackClientData {
     Variant client_data;
     Object *handle_wrapper;
-    Callable completion_callback;
+    Callable callback;
 
-    _CallbackClientData(Object *p_handle_wrapper, const Variant &p_client_data, const Callable &p_completion_callback = {}) :
-            handle_wrapper(p_handle_wrapper), client_data(p_client_data), completion_callback(p_completion_callback) {}
+    _CallbackClientData(Object *p_handle_wrapper, const Variant &p_client_data, const Callable &p_callback = {}) :
+            handle_wrapper(p_handle_wrapper), client_data(p_client_data), callback(p_callback) {}
 
     static auto cast_to_scoped(void *p_client_data) {
         struct ScopedObject {
@@ -110,7 +110,7 @@ struct _CallbackClientData {
         public:
             Variant &get_client_data() const { return ccd->client_data; }
             Object *get_handle_warpper() const { return ccd->handle_wrapper; }
-            Callable &get_completion_callback() const { return ccd->completion_callback; }
+            Callable &get_callback() const { return ccd->callback; }
 
             ScopedObject(_CallbackClientData *p_ccd) :
                     ccd(p_ccd) {}
@@ -615,8 +615,8 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     [](m_callbak_info_ty m_callback_identifier) {                                                     \
         auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);             \
         auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                   \
-        if (cd.get_completion_callback().is_valid()) {                                                \
-            cd.get_completion_callback().call(cb_data);                                               \
+        if (cd.get_callback().is_valid()) {                                                           \
+            cd.get_callback().call(cb_data);                                                          \
         }                                                                                             \
         cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                       \
     }
@@ -624,51 +624,20 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EOS_METHOD_CALLBACK_EXPANDED(m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
     [](m_callbak_info_ty m_callback_identifier) {                                                       \
         auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);               \
-        if (cd.get_completion_callback().is_valid()) {                                                  \
-            cd.get_completion_callback().call(__VA_ARGS__);                                             \
+        if (cd.get_callback().is_valid()) {                                                             \
+            cd.get_callback().call(__VA_ARGS__);                                                        \
         }                                                                                               \
         cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
     }
 
-// TODO: EOS_IntegratedPlatform_SetUserPreLogoutCallback 需要配合 方法生成 特殊处理
-// 有返回值回调返回默认值时不会释放
-#define _EOS_METHOD_CALLBACK_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
-    [](m_callbak_info_ty m_callback_identifier) {                                                                                  \
-        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                        \
-        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                                                \
-        m_default_ret ret = m_default_ret;                                                                                         \
-        if (cd->completion_callback.is_valid()) {                                                                                  \
-            auto res = cd->completion_callback.call(cb_data);                                                                      \
-            if (ret.get_type() == Variant::INT) {                                                                                  \
-                ret = (m_default_ret)res;                                                                                          \
-            } else if (ret.get_type() != Variant::NIL) {                                                                           \
-                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                                          \
-            }                                                                                                                      \
-        }                                                                                                                          \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                    \
-        if (ret != m_default_ret) {                                                                                                \
-            memdelete((_CallbackClientData *)m_callback_identifier->ClientData);                                                   \
-        }                                                                                                                          \
-        return ret;                                                                                                                \
-    }
-
-#define _EOS_METHOD_CALLBACK_EXPANDED_RET(m_ret_ty, m_default_ret, m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
-    [](m_callbak_info_ty m_callback_identifier) {                                                                                    \
-        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);                                            \
-        m_default_ret ret = m_default_ret;                                                                                           \
-        if (cd.get_completion_callback().is_valid()) {                                                                               \
-            auto res = cd.get_completion_callback().call(##__VA_ARGS__);                                                             \
-            if (ret.get_type() == Variant::INT) {                                                                                    \
-                ret = (m_default_ret)res;                                                                                            \
-            } else if (ret.get_type() != Variant::NIL) {                                                                             \
-                ERR_PRINT(vformat("The callback return type must be \"%s\"", #m_ret_ty));                                            \
-            }                                                                                                                        \
-        }                                                                                                                            \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                                                \
-        if (ret != m_default_ret) {                                                                                                  \
-            memdelete((_CallbackClientData *)m_callback_identifier->ClientData);                                                     \
-        }                                                                                                                            \
-        return ret;                                                                                                                  \
+#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
+    [](m_callbak_info_ty m_callback_identifier) {                                                              \
+        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                    \
+        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                            \
+        if (cd.get_callback().is_valid()) {                                                                    \
+            cd.get_callback().call(cb_data);                                                                   \
+        }                                                                                                      \
+        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                \
     }
 
 #define _EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) m_options_ty##_options_ptr
