@@ -178,6 +178,21 @@ def _cheat_as_handle_enum(enum_type: str) -> str:
     return map.get(enum_type, "")
 
 
+def _cheat_as_handle_callback(callback_type: str) -> str:
+    map = {
+        "EOS_TitleStorage_OnReadFileDataCallback": "EOS_HTitleStorageFileTransferRequest",
+        "EOS_TitleStorage_OnFileTransferProgressCallback": "EOS_HTitleStorageFileTransferRequest",
+        "EOS_PlayerDataStorage_OnReadFileDataCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+        "EOS_PlayerDataStorage_OnWriteFileDataCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+        "EOS_PlayerDataStorage_OnFileTransferProgressCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+        #
+        "EOS_TitleStorage_OnReadFileCompleteCallback": "EOS_HTitleStorageFileTransferRequest",
+        "EOS_PlayerDataStorage_OnReadFileCompleteCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+        "EOS_PlayerDataStorage_OnWriteFileCompleteCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+    }
+    return map.get(callback_type, "")
+
+
 def parse_all_file():
     file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
@@ -357,6 +372,40 @@ def parse_all_file():
         for e in to_remove:
             enums.pop(e)
 
+    # Cheat as handle's callback
+    for il in file_lower2infos:
+        callbacks = file_lower2infos[il]["callbacks"]
+        to_remove: list[str] = []
+        for cb in callbacks:
+            cheat_handle_type = _cheat_as_handle_callback(cb)
+            if not len(cheat_handle_type):
+                print("WARN: has not owned hanle type:", e)
+                continue
+            if not cheat_handle_type in handles:
+                print("ERR UNKONWN handle type:", cheat_handle_type)
+                exit(1)
+            handles[cheat_handle_type]["callbacks"][cb] = callbacks[cb]
+            to_remove.append(cb)
+        for cb in to_remove:
+            callbacks.pop(cb)
+
+    # 复制特殊的回调
+    handles["EOS_HTitleStorageFileTransferRequest"]["callbacks"][
+        "EOS_TitleStorage_OnReadFileCompleteCallback"
+    ] = handles["EOS_HTitleStorage"]["callbacks"][
+        "EOS_TitleStorage_OnReadFileCompleteCallback"
+    ]
+    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"][
+        "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
+    ] = handles["EOS_HPlayerDataStorage"]["callbacks"][
+        "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
+    ]
+    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"][
+        "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
+    ] = handles["EOS_HPlayerDataStorage"]["callbacks"][
+        "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
+    ]
+
     # 未处理的方法、回调、枚举
     for il in file_lower2infos:
         for cb in file_lower2infos[il]["callbacks"]:
@@ -410,7 +459,9 @@ def parse_all_file():
     # print(interfaces.keys())
 
     for il in unhandled_infos:
-        print(f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}')
+        print(
+            f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}'
+        )
         # if il in ["common"]:
         #     print(il, "  ", unhandled_infos[il]["enums"].keys())
     # exit()
@@ -709,8 +760,9 @@ def _gen_handle(
     r_cpp_lines.append(f"void {klass}::_bind_methods() {{")
     r_cpp_lines += method_bind_lines
     for callback in callback_infos:
-        if _is_need_skip_callback(method):
+        if _is_need_skip_callback(callback):
             continue
+
         _gen_callback(callback, r_cpp_lines)
     # BIND 枚举
     if len(infos["enums"]):
@@ -728,6 +780,9 @@ def __is_callback_type(type: str) -> bool:
     for h in handles:
         if type in handles[h]["callbacks"]:
             return True
+    if type in unhandled_callbacks:
+        print("WARN unhandled callback ty:", type)
+        return True
     return False
 
 
@@ -775,11 +830,14 @@ def __get_release_method(struct_type: str) -> str:
 # 在    EOS_IntegratedPlatform_SetUserPreLogoutCallback 中将 _CallbackClientData 作为静态变量
 # TODO: 生成信号绑定
 def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
-    infos: dict
+    infos: dict = {}
     for handle_infos in handles.values():
-        for callback_type in handle_infos["callbacks"]:
-            if callback_type == _decay_eos_type(callback_type):
+        for cb_ty in handle_infos["callbacks"]:
+            if cb_ty == _decay_eos_type(callback_type):
                 infos = handle_infos["callbacks"][callback_type]
+                break
+        if len(infos):
+            break
     if not len(infos["args"]) == 1:
         print("ERROR:", callback_type)
         exit()
@@ -825,9 +883,11 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
 
         if len(return_type):
             # TODO: 有返回值的回调的信号发射对象需要特殊处理
-            ret = f'_EOS_METHOD_CALLBACK_EXPANDED_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}"'
+            ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED_RET({return_type}, {__get_callback_ret_default_val(return_type)}, {arg_type}, data, "{signal_name}"'
         else:
-            ret = f'_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
+            ret = (
+                f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
+            )
 
         for field in fields:
             field_type: str = fields[field]
@@ -841,8 +901,8 @@ def _gen_callback(callback_type: str, r_bind_signal_lines: list[str]) -> str:
             ):
                 continue
 
-            if not ret.endswith(", "):
-                ret += ",\n\t"
+            if not ret.endswith(",\n\t\t\t"):
+                ret += ",\n\t\t\t"
                 signal_bind_args += ", "
 
             snake_case_field = to_snake_case(field)
@@ -1282,6 +1342,10 @@ def _gen_method(
     after_call_lines: list[str] = []
 
     options_type: str = ""  # 用于获取里边的buffer size 字段
+    options_input_identifier: str = ""
+    options_prepare_identifier: str = ""
+
+    for_file_transfer: bool = False
 
     static: bool = True
     i: int = 0
@@ -1300,38 +1364,93 @@ def _gen_method(
             # 回调参数
             declare_args.append(f"const Callable& p_{snake_name} = {{}}")
             bind_args.append(f'"{snake_name}"')
-            call_args.append(f"{_gen_callback(decayed_type, [])}")
+
+            if decayed_type in [
+                "EOS_PlayerDataStorage_OnWriteFileCompleteCallback",
+                "EOS_PlayerDataStorage_OnReadFileCompleteCallback",
+                "EOS_TitleStorage_OnReadFileCompleteCallback",
+            ]:
+                cb = decayed_type
+                gd_cb = (
+                    remap_type(decayed_type, name)
+                    .removeprefix("Ref<")
+                    .removesuffix(">")
+                )
+                signal_name = __convert_to_signal_name(cb)
+                interface_signal_name = __convert_to_signal_name(cb)
+
+                prepare_lines.append(
+                    f"\tauto completion_callback = &file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
+                )
+                call_args.append(f"completion_callback")
+            else:
+                # TODO : integrate platform 的有返回值回调
+                call_args.append(f"{_gen_callback(decayed_type, [])}")
+
             need_callable_arg = True
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
             bind_args.append('"client_data"')
-            if (i + 1)< len(info["args"])and  __is_callback_type(_decay_eos_type(info["args"][i+1]["type"])):
-                call_args.append(
-                    f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})'
-                )
+            if (i + 1) < len(info["args"]) and __is_callback_type(
+                _decay_eos_type(info["args"][i + 1]["type"])
+            ):
+                match _decay_eos_type(info["args"][i + 1]["type"]):
+                    case "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
+                        write_cb = f'{options_input_identifier}->p_{to_snake_case("WriteFileDataCallback")}'
+                        progress_cb = f'{options_input_identifier}->p_{to_snake_case("FileTransferProgressCallback")}'
+                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+
+                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                        prepare_lines.append(
+                            f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {write_cb}, {progress_cb}, {completion_cb});"
+                        )
+                        call_args.append(f"transfer_data")
+                        for_file_transfer = True
+                    case (
+                        "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
+                        | "EOS_TitleStorage_OnReadFileCompleteCallback"
+                    ):
+                        read_cb = f'{options_input_identifier}->p_{to_snake_case("ReadFileDataCallback")}'
+                        progress_cb = f'{options_input_identifier}->p_{to_snake_case("FileTransferProgressCallback")}'
+                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+
+                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                        prepare_lines.append(
+                            f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {read_cb}, {progress_cb}, {completion_cb});"
+                        )
+                        call_args.append(f"transfer_data")
+                        for_file_transfer = True
+                    case _:
+                        call_args.append(
+                            f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})'
+                        )
             else:
-                call_args.append(
-                    f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data)"
-                )
-                
+                call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data)")
+
         elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(
             decayed_type
         ):
-            if name == "Options":
+            if name.endswith("Options"):
                 options_type = decayed_type
+                options_input_identifier = f"p_{snake_name}"
+                options_prepare_identifier = f"{name}"
             # 未被展开的输入结构体（Options）
             declare_args.append(
                 f"const {remap_type(decayed_type, name)}& p_{snake_name}"
             )
-            prepare_lines.append(f"\tauto &Options = p_{snake_name}->to_eos();")
+            prepare_lines.append(
+                f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();"
+            )
             bind_args.append(f'"{snake_name}"')
-            call_args.append(f"&Options")
+            call_args.append(f"&{options_prepare_identifier}")
         elif __is_method_input_only_struct(decayed_type) and _is_expended_struct(
             decayed_type
         ):
-            if name == "Options":
+            if name.endswith("Options"):
                 options_type = decayed_type
+                options_input_identifier = f"p_{snake_name} "
+                options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
             __expend_input_struct(
                 type,
@@ -1349,7 +1468,7 @@ def _gen_method(
                 packed_result_type,
                 method_name,
                 info["return"] == "EOS_EResult",
-                "Options",
+                options_prepare_identifier,
                 options_type,
                 i,
                 info["args"],
@@ -1421,9 +1540,13 @@ def _gen_method(
     r_define_lines += after_call_lines
     # 返回
     if _is_handle_type(_decay_eos_type(info["return"])):
-        r_define_lines.append(
-            f"\t{return_type} ret; ret.instantiate(); ret->set_handle(return_handle);"
-        )
+        if not for_file_transfer:
+            r_define_lines.append(f"\t{return_type} ret;")
+            r_define_lines.append(
+                f"\tif(return_handle) {{ ret.instantiate(); ret->set_handle(return_handle);}}"
+            )
+        else:
+            r_define_lines.append(f"\tret->set_handle(return_handle);")
         r_define_lines.append(f"\treturn ret;")
     elif len(packed_result_type):
         if info["return"] == "EOS_EResult":
@@ -1697,14 +1820,6 @@ def is_deprecated_field(field: str) -> bool:
         field.endswith("_DEPRECATED")
         # Hack
         or field == "Reserved"  # SDK要求保留
-        or field
-        in [
-            # 以下回调字段由对应的接口返回值对象信号承担
-            "ReadFileDataCallback",
-            "FileTransferProgressCallback",
-            "WriteFileDataCallback",
-        ]
-        #
         or field == "PlatformSpecificOptions"  # 暂不支持的字段
         or field == "SystemSpecificOptions"  # 暂不支持的字段
         or field == "InitOptions"  # 暂不支持的字段
@@ -1723,7 +1838,7 @@ def remap_type(type: str, field: str = "") -> str:
         return f"Ref<{_convert_handle_class_name(type)}>"
     if _is_internal_struct_arr_field(type, field):
         return f"TypedArray<{__convert_to_struct_class(_decay_eos_type(type))}>"
-    if __is_callback_type(type):
+    if __is_callback_type(_decay_eos_type(type)):
         return "Callable"
 
     if type.startswith("Union"):
@@ -1745,34 +1860,6 @@ def remap_type(type: str, field: str = "") -> str:
         "EOS_TitleStorage_OnFileTransferProgressCallback": [
             "FileTransferProgressCallback"
         ],
-        #
-        "const EOS_Lobby_AttributeData*": ["Attribute", "Parameter"],
-        "const EOS_Sessions_AttributeData*": ["SessionAttribute", "Parameter"],
-        #
-        "EOS_AntiCheatCommon_LogPlayerUseWeaponData*": [
-            "UseWeaponData",
-            "PlayerUseWeaponData",
-        ],
-        "const EOS_Auth_Credentials*": ["Credentials"],
-        "const EOS_Auth_Token*": ["AuthToken"],
-        "const EOS_Auth_IdToken*": ["IdToken"],
-        "const EOS_Connect_Credentials*": ["Credentials"],
-        "const EOS_Connect_IdToken*": ["IdToken"],
-        "const EOS_Connect_UserLoginInfo*": ["UserLoginInfo"],
-        "const EOS_P2P_SocketId*": ["SocketId"],
-        #
-        "const EOS_Lobby_LocalRTCOptions*": ["LocalRTCOptions"],
-        "const EOS_IntegratedPlatform_Options*": ["Options"],
-        "const EOS_Platform_RTCOptions*": ["RTCOptions"],
-        #
-        "EOS_Platform_ClientCredentials": ["ClientCredentials"],
-        "const EOS_Auth_PinGrantInfo*": ["PinGrantInfo"],
-        "const EOS_Ecom_ItemOwnership*": ["ItemOwnership"],
-        "const EOS_Ecom_SandboxIdItemOwnership*": ["SandboxIdItemOwnerships"],
-        "const EOS_Mod_Identifier*": ["Mod"],
-        "EOS_RTCAudio_AudioBuffer*": ["Buffer"],
-        "const EOS_RTC_Option*": ["RoomOptions"],
-        "const EOS_RTC_ParticipantMetadata*": ["ParticipantMetadata"],
         # Arr
         "const EOS_Stats_IngestData*": ["Stats"],
         "const EOS_PresenceModification_DataRecordId*": ["Records"],
@@ -1822,15 +1909,6 @@ def remap_type(type: str, field: str = "") -> str:
         "Union{EOS_AntiCheatCommon_ClientHandle : ClientHandle, const char* : String, uint32_t : UInt32, in, EOS_AntiCheatCommon_Vec3f : Vec3f, EOS_AntiCheatCommon_Quat : Quat}": "Variant",
         "Union{int64_t : AsInt64, double : AsDouble, EOS_Bool : AsBool, const char* : AsUtf8}": "Vaiant",
         "Union{EOS_EpicAccountId : Epic, const char* : External}": "String",
-        #
-        # "EOS_ContinuanceToken": "Ref<EOSGContinuanceToken>",
-        # "EOS_HLobbyDetails": "Ref<EOSGLobbyDetails>",
-        # "EOS_HLobbyModification": "Ref<EOSGLobbyModification>",
-        # "EOS_HPresenceModification": "Ref<EOSGPresenceModification>",
-        # "EOS_HSessionModification": "Ref<EOSGSessionModification>",
-        # "EOS_HSessionDetails": "Ref<EOSGSessionDetails>",
-        # "EOS_HIntegratedPlatformOptionsContainer": "Ref<EOSGIntegratedPlatformOptionsContainer>",  # TODO
-        #
         "EOS_AntiCheatCommon_ClientHandle": "EOSAntiCheatCommon_Client *",
         #
     }
@@ -1866,6 +1944,19 @@ def remap_type(type: str, field: str = "") -> str:
 
 
 def _is_expended_struct(struct_type: str) -> bool:
+    if struct_type in [
+        # 特殊处理
+        "EOS_PlayerDataStorage_ReadFileDataCallbackInfo",
+        "EOS_PlayerDataStorage_WriteFileDataCallbackInfo",
+        "EOS_PlayerDataStorage_FileTransferProgressCallbackInfo",
+        "EOS_PlayerDataStorage_WriteFileCallbackInfo",
+        "EOS_PlayerDataStorage_ReadFileCallbackInfo",
+        #
+        "EOS_PlayerDataStorage_WriteFileOptions",
+        "EOS_PlayerDataStorage_ReadFileOptions",
+        "EOS_TitleStorage_ReadFileOptions",
+    ]:
+        return False
     return _decay_eos_type(struct_type) in expended_as_args_structs
 
 
@@ -2883,6 +2974,36 @@ def _gen_struct(
                 r_structs_cpp.append(
                     f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});"
                 )
+            elif __is_callback_type(_decay_eos_type(field_type)):
+                eos_cb_type = field_type
+                gd_cb_type = (
+                    remap_type(field_type).removeprefix("Ref<").removesuffix(">")
+                )
+                signal_name = __convert_to_signal_name(eos_cb_type)
+                match field_type:
+                    case "EOS_PlayerDataStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = &read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
+                        )
+                    case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = &write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
+                        )
+                    case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
+                        )
+                    case "EOS_TitleStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = &title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
+                        )
+                    case "EOS_TitleStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
+                        )
+                    case _:
+                        print("ERROR: ", field_type)
+                        exit(1)
             else:
                 r_structs_cpp.append(
                     f"\t_TO_EOS_FIELD(p_data.{field}, {to_snake_case(field)});"
