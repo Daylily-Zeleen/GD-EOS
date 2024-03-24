@@ -4,15 +4,6 @@
 
 #include <godot_cpp/classes/ref_counted.hpp>
 
-#include <gen/forward_declare.gen.h>
-#include <gen/eos_enums.gen.inl>
-#include <eos_logging.h>
-
-#include "eos_packed_result.h"
-
-// TODO:: tmp
-#include "../eos_anticheatcommon_client.h"
-
 #ifdef DEBUG_ENABLED
 #include "godot_cpp/templates/hash_map.hpp"
 #include "godot_cpp/templates/local_vector.hpp"

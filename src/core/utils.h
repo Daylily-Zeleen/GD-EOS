@@ -143,17 +143,18 @@ static To to_eos_type(From p_from) {
     return p_from;
 }
 
-template <typename From, typename To, typename Tint>
-PackedStringArray to_godot_type_arr(From p_from, Tint p_count) {
-    static_assert(false);
-    return {};
-}
+// template <typename From, typename To, typename Tint>
+// PackedStringArray to_godot_type_arr(From p_from, Tint p_count) {
+//     static_assert(false);
+//     return {};
+// }
 
-template <typename From, typename To, typename Tint>
-const To to_eos_type_arr(From p_from, Tint r_count) {
-    static_assert(false);
-    return {};
-}
+// template <typename From, typename To, typename Tint>
+// const To to_eos_type_arr(From p_from, Tint r_count) {
+//     static_assert(false);
+//     return {};
+// }
+
 // EOS_Bool
 template <>
 bool to_godot_type(EOS_Bool p_from) { return p_from; }
@@ -209,9 +210,21 @@ PackedStringArray to_godot_type_arr(const cstr_t *p_from, Tint p_count) {
     return to_godot_type_arr(p_from, p_count);
 }
 
+// cstr_t*
 template <typename Tint>
-const cstr_t *to_eos_type_arr(const PackedStringArray &p_from, Tint &r_count) {
-    return to_eos_type_arr(p_from, r_count);
+PackedStringArray to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
+    PackedStringArray ret;
+    ret.resize(p_count);
+    for (int i = 0; i < p_count; ++i) {
+        ret[i] = to_godot_type<EOS_ProductUserId, String>(p_from[i]);
+    }
+    return ret;
+}
+
+// const cstr_t*
+template <typename Tint>
+PackedStringArray to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_count) {
+    return to_godot_type_arr(p_from, p_count);
 }
 
 // int16_t*
@@ -244,10 +257,10 @@ PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
     return to_godot_type_arr(p_from, p_count);
 }
 
-template <typename Tint>
-const int16_t *to_eos_type_arr(const PackedStringArray &p_from, Tint &r_count) {
-    return to_eos_type_arr(p_from, r_count);
-}
+// template <typename Tint>
+// const int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
+//     return to_eos_type_arr(p_from, r_count);
+// }
 
 // uint8_t*
 template <typename Tint>
@@ -260,18 +273,18 @@ PackedInt32Array to_godot_type_arr(uint8_t *p_from, Tint p_count) {
     return ret;
 }
 
-template <typename Tint>
-uint8_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
-    uint8_t *ret = nullptr;
-    if (p_from.size()) {
-        ret = (uint8_t *)memalloc(sizeof(uint8_t) * p_from.size());
-        for (int i = 0; i < p_from.size(); i++) {
-            ret[i] = p_from[i];
-        }
-    }
-    r_count = p_from.size();
-    return ret;
-}
+// template <typename Tint>
+// uint8_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
+//     uint8_t *ret = nullptr;
+//     if (p_from.size()) {
+//         ret = (uint8_t *)memalloc(sizeof(uint8_t) * p_from.size());
+//         for (int i = 0; i < p_from.size(); i++) {
+//             ret[i] = p_from[i];
+//         }
+//     }
+//     r_count = p_from.size();
+//     return ret;
+// }
 
 // uint32_t*
 template <typename Tint>
@@ -303,10 +316,10 @@ PackedInt64Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
     return to_godot_type_arr(p_from, p_count);
 }
 
-template <typename Tint>
-const uint32_t *to_eos_type_arr(const PackedStringArray &p_from, Tint &r_count) {
-    return to_eos_type_arr(p_from, r_count);
-}
+// template <typename Tint>
+// const uint32_t *to_eos_type_arr(const PackedInt64Array &p_from, Tint &r_count) {
+//     return to_eos_type_arr(p_from, r_count);
+// }
 
 // ===
 // const void *
@@ -347,7 +360,20 @@ static const uint8_t *to_eos_requested_channel(uint16_t p_channel) {
 // Hack
 using eos_p2p_socketid_socked_name_t = char[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
 template <>
-String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) { return p_from; }
+String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
+    return &p_from[0];
+}
+
+template <typename From, typename To>
+inline void to_eos_type(From p_from, To &r_to) {
+    r_to = to_eos_type<std::remove_reference_t<To>, From>(p_from);
+}
+
+template <>
+inline void to_eos_type(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+    memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
+    memcpy(&r_to[0], p_from.utf8().get_data(), MIN(p_from.utf8().length(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
+}
 
 template <>
 EOS_AntiCheatCommon_Vec3f to_eos_type(const Vector3 &p_from) {
@@ -361,7 +387,7 @@ EOS_AntiCheatCommon_Quat to_eos_type(const Quaternion &p_from) {
 // For code generator
 #define _DECLTYPE_GODOT_ARG_TYPE(m_field) gd_arg_t<decltype(m_field)>
 
-template <typename RefOut, typename In, typename InArg = std::conditional_t<std::is_pointer_v<In>, In, In &>, typename Out = std::remove_pointer_t<decltype(RefOut().ptr())>>
+template <typename RefOut, typename In, typename InArg = std::conditional_t<std::is_pointer_v<In>, const In, const In &>, typename Out = std::remove_pointer_t<decltype(RefOut().ptr())>>
 inline RefOut to_godot_data(InArg p_in) {
     if constexpr (std::is_pointer_v<InArg>) {
         return Out::from_eos(*p_in);
@@ -508,52 +534,81 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
     }
 }
 
+template <typename FromGD, typename ToUnion, typename UnionTy>
+void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy p_union_type) {
+    variant_to_eos_union(p_from, p_union, p_union_type);
+}
+
+template <typename ToUnion>
+void to_eos_data_union(const String &p_from, ToUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
+    string_to_eos_union_account_id(p_from, p_union, p_union_type);
+}
+
+template <typename FromUnion, typename UnionTy>
+Variant to_godot_data_union(const FromUnion &p_from, UnionTy p_union_type) {
+    return eos_union_to_variant(p_from, p_union_type);
+}
+
+template <typename FromUnion>
+String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_union_type) {
+    return eos_union_account_id_to_string(p_from, p_union_type);
+}
+
 #define _FROM_EOS_FIELD(gd_field, eos_field) \
-    gd_field = to_godot_type<decltype(eos_field), decltype(gd_field)>(eos_field)
+    gd_field = to_godot_type<std::conditional_t<std::is_same_v<decltype(eos_field), eos_p2p_socketid_socked_name_t>, const eos_p2p_socketid_socked_name_t &, decltype(eos_field)>, decltype(gd_field)>(eos_field)
 #define _FROM_EOS_FIELD_ARR(gd_field, eos_field, eos_field_count) \
-    gd_field = to_godot_type_arr<decltype(eos_field), decltype(gd_field)>(eos_field, eos_field_count)
+    gd_field = to_godot_type_arr(eos_field, eos_field_count)
+// gd_field = to_godot_type_arr<decltype(eos_field), decltype(gd_field)>(eos_field, eos_field_count)
 #define _FROM_EOS_FIELD_CLIENT_DATA(gd_field, eos_field) \
     gd_field = ((_CallbackClientData *)eos_field)->client_data
-#define _FROM_EOS_FIELD_STRUCT(gd_field, eos_field) \
-    gd_field = to_godot_data<decltype(gd_field)>(eos_field)
+#define _FROM_EOS_FIELD_STRUCT(gd_field, eos_field)                                   \
+    if (!eos_field) {                                                                 \
+        gd_field.unref();                                                             \
+    } else {                                                                          \
+        gd_field = to_godot_data<decltype(gd_field), decltype(eos_field)>(eos_field); \
+    }
 #define _FROM_EOS_FIELD_STRUCT_ARR(gd_data_type, gd_field, eos_field, eos_filed_count) \
     gd_field.resize(eos_filed_count);                                                  \
     for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                  \
-        gd_field[i] = to_godot_data<gd_data_type>(eos_field[i]);                       \
+        gd_field[i] = gd_data_type::from_eos(eos_field[i]);                            \
     }
 #define _FROM_EOS_FIELD_HANDLER(gd_field, eos_field) \
-    gd_field->set_handle(eps_field)
+    if (gd_field.is_null()) {                        \
+        gd_field.instantiate();                      \
+    }                                                \
+    gd_field->set_handle(eos_field)
 #define _FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(gd_field, eos_field) \
     gd_field = (decltype(gd_field))eos_field
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
     static_assert(false, "不该发生")
 #define _FROM_EOS_FIELD_UNION(gd_field, eos_field)                                        \
     if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, decltype(eos_field##Type)>) { \
-        gd_field = eos_union_account_id_to_string(eos_field, eos_field##Type);            \
+        gd_field = to_godot_data_union(eos_field, eos_field##Type);                       \
         gd_field##_type = eos_field##Type;                                                \
     } else {                                                                              \
-        gd_field = eos_union_to_variant(eos_field, eos_field##Type);                      \
+        gd_field = to_godot_data_union(eos_field, eos_field##Type);                       \
     }
 
 #define _TO_EOS_FIELD(eos_field, gd_field) \
-    eos_field = to_eos_type<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(gd_field)
+    to_eos_type<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(gd_field, eos_field)
 #define _TO_EOS_FIELD_ARR(eos_field, gd_field, r_eos_field_count) \
-    eos_field = to_eos_type_arr<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(gd_field, r_eos_field_count)
+    eos_field = (decltype(eos_field))to_eos_type_arr(gd_field, r_eos_field_count)
 #define _TO_EOS_FIELD_CLIENT_DATA(eos_field, gd_field) \
     static_assert(false, "不应该发生")
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
-#define _TO_EOS_FIELD_STRUCT_ARR(gd_data_type, eos_field, gd_field, r_eos_field_count)           \
-    r_eos_field_count = gd_field.size();                                                         \
-    if (r_eos_field_count) {                                                                     \
-        using _ #gd_data_type = std::remove_const_v<std::remove_pointer_t<decltype(eos_field)>>; \
-        eos_field = memalloc(sizeof(_ #gd_data_type) * r_eos_field_count);                       \
-        memset(&eos_field, 0, sizeof(_ #gd_data_type) * r_eos_field_count);                      \
-        for (decltype(r_eos_field_count) i = 0; i < r_eos_field_count; ++i) {                    \
-            Object::cast_to<gd_data_type>(gd_field[0])->set_to_eos(eos_field[0]);                \
-        }                                                                                        \
-    } else {                                                                                     \
-        eos_field = nullptr;                                                                     \
+#define _TO_EOS_FIELD_STRUCT_ARR(gd_data_type, eos_field, gd_field, r_eos_field_count)              \
+    r_eos_field_count = gd_field.size();                                                            \
+    if (r_eos_field_count) {                                                                        \
+        using _eos_data_type = std::remove_const_t<std::remove_pointer_t<decltype(eos_field)>>;     \
+        auto eos_data_arr = (_eos_data_type *)memalloc(sizeof(_eos_data_type) * r_eos_field_count); \
+        memset(&eos_field, 0, sizeof(_eos_data_type) * r_eos_field_count);                          \
+        for (decltype(r_eos_field_count) i = 0; i < r_eos_field_count; ++i) {                       \
+            Object::cast_to<gd_data_type>(gd_field[0])->set_to_eos(eos_data_arr[0]);                \
+        }                                                                                           \
+        eos_field = eos_data_arr;                                                                   \
+    } else {                                                                                        \
+        eos_field = nullptr;                                                                        \
     }
 #define _TO_EOS_FIELD_HANDLER(eos_field, gd_field) \
     eos_field = gd_field.is_valid ? gd_field->get_handle() : nullptr
@@ -563,10 +618,10 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
     eos_field = to_eos_requested_channel(gd_field)
 #define _TO_EOS_FIELD_UNION(eos_field, gd_field)                                          \
     if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, decltype(eos_field##Type)>) { \
-        string_to_eos_union_account_id(gd_field, eos_field, gd_field##_type);             \
+        to_eos_data_union(gd_field, eos_field, gd_field##_type);                          \
         eos_field##Type = gd_field##_type;                                                \
     } else {                                                                              \
-        variant_to_eos_union(gd_field, eos_field, eos_field##Type);                       \
+        to_eos_data_union(gd_field, eos_field, eos_field##Type);                          \
     }
 
 // 绑定
@@ -578,7 +633,7 @@ godot::TypedArray<GDDataClass> _to_godot_value_struct_arr(EOSArraTy p_eos_arr, T
     godot::TypedArray<GDDataClass> ret;
     ret.resize(p_count);
     for (decltype(p_count) i = 0; i < p_count; ++i) {
-        ret[i] = to_godot_data<GDDataClass>(p_eos_arr[i]);
+        ret[i] = to_godot_data<GDDataClass, decltype(p_eos_arr[i])>(p_eos_arr[i]);
     }
     return ret;
 }
@@ -601,9 +656,10 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 }
 
 #define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<decltype((eos_field)), m_gd_Ty>((eos_field))
-#define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype((eos_field)), m_gd_Ty>((eos_field), (eos_field_count))
+#define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr((eos_field), (eos_field_count))
+// #define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype((eos_field)), m_gd_Ty>((eos_field), (eos_field_count))
 #define _EXPAND_TO_GODOT_VAL_CLIENT_DATA(m_gd_Ty, eos_field) ((_CallbackClientData *)eos_field)->client_data
-#define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty>(eos_field)
+#define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty, decltype(eos_field)>(eos_field)
 #define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
 #define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype((eos_field))>((eos_field))
 #define _EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE(m_gd_Ty, eos_field) (m_gd_Ty *)((eos_field))
