@@ -9,6 +9,9 @@
 
 namespace godot {
 
+#define _BIND_ENUM_CONSTANT(enume_type_name, e, e_bind) \
+    ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enume_type_name>(enume_type_name::e, e_bind), e_bind, enume_type_name::e)
+
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
 
 #define VARIANT_TO_CHARSTRING(str) ((String)str).utf8()
@@ -613,7 +616,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         eos_field = nullptr;                                                                        \
     }
 #define _TO_EOS_FIELD_HANDLER(eos_field, gd_field) \
-    eos_field = gd_field.is_valid ? gd_field->get_handle() : nullptr
+    eos_field = gd_field.is_valid() ? gd_field->get_handle() : nullptr
 #define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
     eos_field = (void *)gd_field
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
@@ -673,7 +676,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EOS_METHOD_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
     [](m_callbak_info_ty m_callback_identifier) {                                                     \
         auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);             \
-        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                   \
+        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                  \
         if (cd.get_callback().is_valid()) {                                                           \
             cd.get_callback().call(cb_data);                                                          \
         }                                                                                             \
@@ -689,14 +692,21 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                  \
     }
 
-#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
-    [](m_callbak_info_ty m_callback_identifier) {                                                              \
-        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                    \
-        auto cb_data = m_arg_type::from_eos(m_callback_identifier);                                            \
-        if (cd.get_callback().is_valid()) {                                                                    \
-            cd.get_callback().call(cb_data);                                                                   \
-        }                                                                                                      \
-        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                               \
+#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                           \
+    [](m_callbak_info_ty m_callback_identifier) {                                                                                        \
+        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                              \
+        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                                                     \
+        auto return_action = EOS_EIntegratedPlatformPreLogoutAction::EOS_IPLA_ProcessLogoutImmediately;                                  \
+        if (cd->callback.is_valid()) {                                                                                                   \
+            auto res = cd->callback.call(cb_data);                                                                                       \
+            if (res.get_type() != Variant::INT || (int32_t)res != 0 || (int32_t)res != 1) {                                              \
+                ERR_PRINT("Read file data callback shoul return a Value of IntegreatePlatform.EOS_EIntegratedPlatformPreLogoutAction."); \
+            } else {                                                                                                                     \
+                return_action = (EOS_EIntegratedPlatformPreLogoutAction)(res.operator int32_t());                                        \
+            }                                                                                                                            \
+        }                                                                                                                                \
+        cd->handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                              \
+        return return_action;                                                                                                            \
     }
 
 #define _EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) m_options_ty##_options_ptr

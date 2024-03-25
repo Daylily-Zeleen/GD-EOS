@@ -21,7 +21,7 @@ struct _FileTransferData {
             client_data(p_client_data), interface_handle(p_interface_handle), request_handle(p_request_handle), operation_callback(p_operation_callback), progress_callback(p_progress_callback), completion_callback(p_completion_callback) {}
 };
 
-template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, char *SIGNAL_NAME>
+template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
 EOS_PlayerDataStorage_EReadResult read_file_data_callback(const EOSCallbackInfoTy *p_data) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
     ERR_FAIL_COND_V(file_transfer_data->operation_callback.is_valid(), (memdelete(file_transfer_data), EOS_PlayerDataStorage_EReadResult::EOS_RR_FailRequest));
@@ -43,7 +43,7 @@ EOS_PlayerDataStorage_EReadResult read_file_data_callback(const EOSCallbackInfoT
     return read_result;
 }
 
-template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, char *SIGNAL_NAME>
+template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
 EOS_PlayerDataStorage_EWriteResult write_file_data_callback(const EOSCallbackInfoTy *p_data, void *r_data_buffer, uint32_t *r_data_written) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
     ERR_FAIL_COND_V(file_transfer_data->operation_callback.is_valid(), (memdelete(file_transfer_data), EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest));
@@ -71,7 +71,7 @@ EOS_PlayerDataStorage_EWriteResult write_file_data_callback(const EOSCallbackInf
 }
 
 //=========
-template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, char *SIGNAL_NAME>
+template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
 EOS_TitleStorage_EReadResult title_storage_read_file_data_callback(const EOSCallbackInfoTy *p_data) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
     ERR_FAIL_COND_V(file_transfer_data->operation_callback.is_valid(), (memdelete(file_transfer_data), EOS_TitleStorage_EReadResult::EOS_TS_RR_FailRequest));
@@ -94,8 +94,8 @@ EOS_TitleStorage_EReadResult title_storage_read_file_data_callback(const EOSCall
 }
 
 // ================
-template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, char *SIGNAL_NAME>
-void file_transfer_progress_callback(const EOSCallbackInfoTy *p_data) {
+template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
+inline void file_transfer_progress_callback(const EOSCallbackInfoTy *p_data) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
     auto data = GDCallbackInfoTy::from_eos(p_data);
 
@@ -108,7 +108,7 @@ void file_transfer_progress_callback(const EOSCallbackInfoTy *p_data) {
     }
 }
 
-template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, char *SIGNAL_NAME, char *INTERFACE_SIGNAL_NAME>
+template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME, const char *INTERFACE_SIGNAL_NAME>
 void file_transfer_completion_callback(const EOSCallbackInfoTy *p_data) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
     auto data = GDCallbackInfoTy::from_eos(*p_data);
@@ -131,11 +131,11 @@ void file_transfer_completion_callback(const EOSCallbackInfoTy *p_data) {
 
 #define MAKE_FILE_TRANSFER_DATA(...) memnew(_FileTransferData(this, __VA_ARGS__))
 
-template <const char* str>
-void aa(){}
+template <const char *str>
+void aa() {}
 constexpr char sd[] = "sd";
 
-void ggg(){
+void ggg() {
     aa<sd>();
 }
 
