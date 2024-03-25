@@ -1,6 +1,5 @@
 import os
 
-# TODO: 每种接口生成单独头文件
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
@@ -47,14 +46,6 @@ generate_infos: dict = {}
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
 max_options_fields_count_to_expend = 3
 max_callback_fields_count_to_expend = 3
-
-
-gen_enums_inl_file = "eos_enums.gen.inl"
-gen_structs_h_file = "eos_structs.gen.h"
-gen_structs_cpp_file = "eos_structs.gen.cpp"
-gen_handles_h_file = "eos_handles.gen.h"
-gen_handles_cpp_file = "eos_handles.gen.cpp"
-gen_forward_declare_h_file = "forward_declare.gen.h"
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
@@ -222,7 +213,7 @@ def _gen_files(file_base_name: str, infos: dict):
 
     # 生成接口
     interface_handle_h_lines: list[str] = []
-    interface_handle_cpp_lines: list[str] = [f'#include "{file_base_name+".gen.h"}"']
+    interface_handle_cpp_lines: list[str] = [f'#include "{file_base_name+"_interface.h"}"']
     interface_handle_cpp_lines.append("")
     if file_base_name.startswith("eos_playerdatastorage") or file_base_name.startswith("eos_titlestorage"):
         interface_handle_cpp_lines.append(f'#include <core/file_transfer.inl>')
@@ -239,11 +230,11 @@ def _gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f"#include <godot_cpp/core/binder_common.hpp>")
         interface_handle_h_lines.append(f"#include <core/utils.h>")
     elif file_base_name == "eos_anticheatcommon":
-        interface_handle_h_lines.append(f'#include "eos_common.gen.h"')
+        interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
     elif file_base_name.startswith("eos_anticheat"):
-        interface_handle_h_lines.append(f'#include "eos_anticheatcommon.gen.h"')
+        interface_handle_h_lines.append(f'#include "eos_anticheatcommon_interface.h"')
     else:
-        interface_handle_h_lines.append(f'#include "eos_common.gen.h"')
+        interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
     interface_handle_h_lines.append(f"")
     if len(enums):
         interface_handle_h_lines.append(f'#include <gen/enums/{file_base_name+".enums.inl"}>')
@@ -1099,32 +1090,16 @@ def __get_struct_fields(type: str) -> dict[str, str]:
     return structs[_decay_eos_type(type)]
 
 
-def __get_callback_ret_default_val(callback_return_type: str) -> str:
-    return {
-        "EOS_EIntegratedPlatformPreLogoutAction": "EOS_IPLA_ProcessLogoutImmediately",
-        "EOS_PlayerDataStorage_EReadResult": "EOS_RR_ContinueReading",
-        "EOS_PlayerDataStorage_EReadResult": "EOS_RR_ContinueReading",
-        "EOS_PlayerDataStorage_EWriteResult": "EOS_WR_ContinueWriting",
-        "EOS_TitleStorage_EReadResult": "EOS_TS_RR_ContinueReading",
-    }[callback_return_type]
-
-
 def __convert_to_signal_name(callback_type: str) -> str:
-    return to_snake_case(callback_type.split("_", 1)[1])
+    ret = to_snake_case(callback_type.rsplit("_", 1)[1])
+    if ret.endswith("_callback_v2"):
+        ret = ret.removesuffix("_callback_v2") + "_v2"
+    return ret.removesuffix("_callback")
 
 
 def __convert_to_struct_class(strcut_type: str) -> str:
     # TODO
     return _decay_eos_type(strcut_type).replace("EOS_", "EOS")
-
-
-def __get_release_method(struct_type: str) -> str:
-    expected_release_method = struct_type + "_Release"
-    for method in release_methods:
-        if method == expected_release_method:
-            return method
-    print("ERROR: Can' find release method for ", struct_type)
-    exit()
 
 
 def _gen_callback(
@@ -1603,8 +1578,8 @@ def _gen_method(
             ]:
                 cb = _decay_eos_type(_get_callback_infos(decayed_type)["args"][0]["type"])
                 gd_cb = remap_type(cb, name).removeprefix("Ref<").removesuffix(">")
-                signal_name = __convert_to_signal_name(cb)
-                interface_signal_name = __convert_to_signal_name(cb)
+                signal_name = __convert_to_signal_name(decayed_type)
+                interface_signal_name = __convert_to_signal_name(decayed_type)
                 prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                 if signal_name != interface_signal_name:
                     prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')                    
@@ -2058,6 +2033,7 @@ def to_snake_case(text: str) -> str:
         .replace("k_w_s", "kws")
         .replace("p2_p_", "p2p_")
         .replace("n_a_t", "nat")
+        .removesuffix("_handle") # Hack 去除 _handle 后缀
     )
 
 
@@ -2688,7 +2664,7 @@ def _gen_struct(
                 cb_arg = _get_callback_infos(_decay_eos_type(field_type))["args"][0]
                 eos_cb_type = _decay_eos_type(cb_arg["type"])
                 gd_cb_type = remap_type(eos_cb_type).removeprefix("Ref<").removesuffix(">")
-                signal_name = __convert_to_signal_name(eos_cb_type)
+                signal_name = __convert_to_signal_name(_decay_eos_type(field_type))
                 
                 const_str_line :str = f'constexpr char {signal_name}[] = "{signal_name}";'
                 if not const_str_line in optional_cpp_lines and not const_str_line in r_structs_cpp:
