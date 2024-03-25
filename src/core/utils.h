@@ -9,6 +9,8 @@
 
 namespace godot {
 
+#define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
+
 #define VARIANT_TO_CHARSTRING(str) ((String)str).utf8()
 #define VARIANT_TO_EOS_BOOL(var) \
     ((var.get_type() == Variant::BOOL) ? ((var.operator bool()) ? EOS_TRUE : EOS_FALSE) : EOS_FALSE)
@@ -109,7 +111,7 @@ struct _CallbackClientData {
 
         public:
             Variant &get_client_data() const { return ccd->client_data; }
-            Object *get_handle_warpper() const { return ccd->handle_wrapper; }
+            Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
             Callable &get_callback() const { return ccd->callback; }
 
             ScopedObject(_CallbackClientData *p_ccd) :
@@ -626,6 +628,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 
 // 绑定
 #define _MAKE_PROP_INFO(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
+#define _MAKE_PROP_INFO_ENUM(m_name, enum_owner, enum_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, #enum_owner "." #enum_type)
 
 // 展开转换
 template <typename GDDataClass, typename EOSArraTy, typename TInt>
@@ -674,7 +677,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd.get_callback().is_valid()) {                                                           \
             cd.get_callback().call(cb_data);                                                          \
         }                                                                                             \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                       \
+        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                      \
     }
 
 #define _EOS_METHOD_CALLBACK_EXPANDED(m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
@@ -683,7 +686,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd.get_callback().is_valid()) {                                                             \
             cd.get_callback().call(__VA_ARGS__);                                                        \
         }                                                                                               \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
+        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                  \
     }
 
 #define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
@@ -693,7 +696,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd.get_callback().is_valid()) {                                                                    \
             cd.get_callback().call(cb_data);                                                                   \
         }                                                                                                      \
-        cd->get_handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                \
+        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                               \
     }
 
 #define _EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) m_options_ty##_options_ptr

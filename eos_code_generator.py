@@ -7,7 +7,6 @@ import os
 sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
 
 enum_types: list[str] = []
-enum2file: dict[str, str] = {}
 
 
 all_structs: dict[str, dict[str, str]] = {}
@@ -83,6 +82,10 @@ def main():
     print("Parsing...")
     parse_all_file()
     print("Parse finished")
+    
+    # if len(generate_infos["eos_common"]["enums"]):
+    #     print(generate_infos["eos_common"]["enums"].keys())
+    # return
 
     for fbn in generate_infos:
         _gen_file(fbn, generate_infos[fbn])
@@ -163,7 +166,7 @@ def _gen_file(file_base_name: str, infos: dict):
             interface_handle = h
             continue
         sub_handles[h] = infos["handles"][h]
-        
+
     # PackedResults h file
     packed_result_h_lines: list[str] = []
     packed_result_cpp_lines: list[str] = [f'#include "{file_base_name + ".packed_results.h"}"']
@@ -181,7 +184,6 @@ def _gen_file(file_base_name: str, infos: dict):
         f = open(packed_result_cpp_file, "w")
         f.write("\n".join(packed_result_cpp_lines))
         f.close()
-
 
     # Handles Gen
     if len(sub_handles):
@@ -366,7 +368,7 @@ def gen_structs(
     return lines
 
 
-def gen_packed_results(file_base_name: str, types_include_file: str, handle_class: str, methods: dict, r_h_lines: list[str], r_cpp_lines:list[str]) -> bool:
+def gen_packed_results(file_base_name: str, types_include_file: str, handle_class: str, methods: dict, r_h_lines: list[str], r_cpp_lines: list[str]) -> bool:
     ret: bool = False
     r_h_lines.append("#pragma once")
     r_h_lines.append("")
@@ -383,7 +385,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, handle_clas
             continue
         if _is_need_skip_method(method):
             continue
-        if len(_gen_packed_result_type(method, methods[method], r_h_lines,r_cpp_lines,  register_lines, [])):
+        if len(_gen_packed_result_type(method, methods[method], r_h_lines, r_cpp_lines, register_lines, [])):
             ret = True
 
     r_h_lines.append("")
@@ -726,7 +728,11 @@ def parse_all_file():
         if interface in interfaces:
             handles["EOS_H" + interface]["enums"] = file_lower2infos[il]["enums"]
             for e in file_lower2infos[il]["enums"]:
-                generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[il]["enums"][e]
+                generate_infos[file_lower2infos[il]["file"]]["handles"]["EOS_H" + interface]["enums"][e] = file_lower2infos[il]["enums"][e]
+            file_lower2infos[il]["enums"].clear()
+        else:
+            for e in file_lower2infos[il]["enums"]:
+                generate_infos[file_lower2infos[il]["file"]]["enums"][e] =  file_lower2infos[il]["enums"][e]
             file_lower2infos[il]["enums"].clear()
 
     # Cheat as handle's method
@@ -886,7 +892,7 @@ def _gen_packed_result_type(
     method_name: str,
     method_info: dict,
     r_h_lines: list[str],
-    r_cpp_lines:list[str],
+    r_cpp_lines: list[str],
     r_register_lines: list[str],
     r_need_convert_to_return_value: list[bool],
     get_type_name_only: bool = False,
@@ -991,8 +997,8 @@ def _gen_packed_result_type(
     r_h_lines.append(f"}};")
     # r_h_lines.append("} // namespace godot")
     r_h_lines.append(f"")
-    
-    # 
+
+    #
     r_cpp_lines.append(f"void {typename}::_bind_methods() {{")
     r_cpp_lines.append(f"\t_BIND_BEGIN({typename});")
     if method_info["return"] == "EOS_EResult":
@@ -1074,17 +1080,24 @@ def _gen_callback(
         if len(infos):
             break
     if not len(infos["args"]) == 1:
-        print("ERROR:", callback_type)
-        exit()
+        # 特殊处理
+        if not callback_type in ["EOS_PlayerDataStorage_OnWriteFileDataCallback"]:
+            print("ERROR:", callback_type)
+            exit()
+            
     arg: dict[str, str] = infos["args"][0]
     arg_type: str = arg["type"]
     arg_name: str = arg["name"]
     return_type: str = infos["return"]
+    
+    if not __is_struct_type(_decay_eos_type(arg_type)):
+        print("ERROR unsupport callback:", callback_type)
+        exit(1)
 
     signal_name = __convert_to_signal_name(callback_type)
     if not _is_expended_struct(_decay_eos_type(arg_type)):
         r_bind_signal_lines.append(
-            f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({remap_type(_decay_eos_type(arg_type), arg_name)}, {to_snake_case(arg_name)})));'
+            f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({__convert_to_struct_class(_decay_eos_type(arg_type))}, {to_snake_case(arg_name)})));'
         )
         gd_cb_info_type = remap_type(_decay_eos_type(arg_type), arg_name).removeprefix("Ref<").removesuffix(">")
         if callback_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
@@ -1140,7 +1153,10 @@ def _gen_callback(
                 signal_bind_args += ", "
 
             snake_case_field = to_snake_case(field)
-            if _is_anticheat_client_handle_type(field_type):
+            if _is_enum_type(field_type):
+                ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {_get_enum_owned_interface(field_type)}, {field_type})"
+            elif _is_anticheat_client_handle_type(field_type):
                 ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type)}, {snake_case_field})"
             elif _is_requested_channel_ptr_field(field_type, field):
@@ -1151,16 +1167,16 @@ def _gen_callback(
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_handle_type(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({remap_type(_decay_eos_type(field_type))}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(_decay_eos_type(field_type))}, {snake_case_field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_client_data_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_CLIENT_DATA({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_internal_struct_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({remap_type(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
-                signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{remap_type(_decay_eos_type(field_type))}")'
+                signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{__convert_to_struct_class(_decay_eos_type(field_type))}")'
             elif _is_internal_struct_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT({remap_type(_decay_eos_type(field_type))}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(_decay_eos_type(field_type))}, {snake_case_field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({__convert_to_struct_class(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_ARR({remap_type(field_type)}, data->{field}, {_find_count_field(field, fields.keys())})"
                 signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
@@ -1169,8 +1185,8 @@ def _gen_callback(
                 signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
         ret += ")"
 
-        if len(signal_bind_args):
-            signal_bind_args = ", " + signal_bind_args
+        # if len(signal_bind_args):
+        #     signal_bind_args = ", " + signal_bind_args
         r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}"{signal_bind_args}));')
         return ret
 
@@ -1295,7 +1311,7 @@ def __expend_input_struct(
             r_declare_args.append(f"const Variant &p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_CLIENT_DATA({option_field}, p_{snake_field});")
         elif _is_internal_struct_arr_field(field_type, field):
-            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_declare_args.append(f"const TypedArray<{__convert_to_struct_class(_decay_eos_type(field_type))}> &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(decay_field_type)}, {option_field}, p_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
@@ -1466,7 +1482,7 @@ def _gen_method(
     callback_signal = ""
 
     out_to_ret: list[bool] = []
-    packed_result_type = _gen_packed_result_type(method_name, info, [],[], [], out_to_ret, True)
+    packed_result_type = _gen_packed_result_type(method_name, info, [], [], [], out_to_ret, True)
     need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
@@ -1647,6 +1663,9 @@ def _gen_method(
     # ======= 声明 ===============
     r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
+    for i in range(len(declare_args)):
+        # 移除默认值
+        declare_args[i] = declare_args[i].removesuffix(" = {}")
     r_define_lines.append(f'{return_type} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{')
     r_define_lines += prepare_lines
     # 调用
@@ -1675,7 +1694,7 @@ def _gen_method(
     elif return_type == "EOS_EResult":
         r_define_lines.append(f"\treturn result_code;")
     elif return_type == "Signal":
-        r_define_lines.append(f"\treturn Signal(this, {callback_signal});")
+        r_define_lines.append(f'\treturn Signal(this, SNAME("{callback_signal}"));')
     elif return_type != "void":
         r_define_lines.append(f"\treturn _EXPAND_TO_GODOT_VAL({return_type}, ret);")
 
@@ -1686,7 +1705,7 @@ def _gen_method(
         bind_args_text = ", " + bind_args_text
     default_val_arg = ""
     if need_callable_arg:
-        default_val_arg = ", DEVAL(Callable())"
+        default_val_arg = ", DEFVAL(Callable())"
 
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
@@ -1807,48 +1826,16 @@ def _is_need_skip_enum_value(ori_enum_type: str, enum_value: str) -> bool:
     return ori_enum_type in map and enum_value in map[ori_enum_type]
 
 
-def _get_enum_owned_interface(ori_filename: str, ori_enum_type: str) -> str:
-    lower = ""
-
-    # Hack
-    if ori_filename == "eos_types.h":
-        map = {
-            "EOS_ERTCBackgroundMode": "platform",
-            "EOS_EApplicationStatus": "platform",
-            "EOS_ENetworkStatus": "platform",
-            "EOS_EDesktopCrossplayStatus": "platform",
-        }
-        lower = map[ori_enum_type]
-    elif ori_filename.endswith("_types.h"):
-        lower = ori_filename.split("_")[1]
-    else:
-        # eos_common
-        map = {
-            "EOS_UI_EKeyCombination": "ui",
-            "EOS_UI_EInputStateButtonFlags": "ui",
-            "EOS_EResult": "",  # ALL
-            "EOS_ELoginStatus": "",  # auth connect
-            "EOS_EExternalAccountType": "",  # connect user_info
-            "EOS_EExternalCredentialType": "",  # auth connect
-            "EOS_EAttributeType": "",  # session lobby 因为内部由 Variant 进行转换，该枚举也许不需要
-            "EOS_EComparisonOp": "",  # session lobby 因为内部由转换，该枚举也许不需要
-        }
-        lower = map[ori_enum_type]
-
-    map = {
-        "anticheatclient": "anticheat_client",
-        "anticheatserver": "anticheat_server",
-        "custominvites": "custom_invites",
-        "integratedplatform": "integrated_platform",
-        "playerdatastorage": "player_data_storage",
-        "progressionsnapshot": "progression_snapshot",  #
-        "titlestorage": "title_storage",
-        "userinfo": "user_info",
-    }
-    if lower in map.keys():
-        lower = map[lower]
-
-    return _convert_interface_class_name(lower) if len(lower) else ""
+def _get_enum_owned_interface(ori_enum_type: str) -> str:
+    for infos in generate_infos.values():
+        if ori_enum_type in infos["enums"]:
+            print("ERROR UNSUPPORT ENUM:", ori_enum_type)
+            exit(1)
+        for h in infos["handles"]:
+            if ori_enum_type in infos["handles"][h]["enums"]:
+                return _convert_handle_class_name(h)
+    print("ERROR UNSUPPORT ENUM !:", ori_enum_type)
+    exit(1)
 
 
 def is_deprecated_field(field: str) -> bool:
@@ -2274,13 +2261,15 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
             r_file_lower2infos[interface_lower]["callbacks"][callback_name] = {
                 "return": args[0] if has_return else "",
-                "args": [
-                    {
-                        "type": args[len(args) - 1].rsplit(" ", 1)[0],
-                        "name": args[len(args) - 1].rsplit(" ", 1)[1],
-                    }
-                ],
+                "args": [],
             }
+            
+            for arg_idx in range((2 if has_return else 1), len(args)):
+                a = args[arg_idx]
+                r_file_lower2infos[interface_lower]["callbacks"][callback_name]["args"].append({
+                    "type": a.rsplit(" ", 1)[0],
+                    "name": a.rsplit(" ", 1)[1],
+                })
 
             i += 1
             continue
@@ -2447,7 +2436,7 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
     for e in enum_types:
         if _is_need_skip_enum_type(e):
             continue
-        if _get_enum_owned_interface(enum2file[e], e) != klass:
+        if _get_enum_owned_interface(e) != klass:
             continue
         ret.append(f"\tusing {_convert_enum_type(e)} = {e};")
         has_enum = True
@@ -2532,7 +2521,7 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
     for e in enum_types:
         if _is_need_skip_enum_type(e):
             continue
-        if _get_enum_owned_interface(enum2file[e], e) != klass:
+        if _get_enum_owned_interface(e) != klass:
             continue
         if not has_enum:
             ret.append("")
@@ -2569,7 +2558,7 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
     for e in enum_types:
         if _is_need_skip_enum_type(e):
             continue
-        if _get_enum_owned_interface(enum2file[e], e) != klass:
+        if _get_enum_owned_interface(e) != klass:
             continue
         ret.append(f"VARIANT_ENUM_CAST(godot::{klass}::{_convert_enum_type(e)});")
         has_enum = True
