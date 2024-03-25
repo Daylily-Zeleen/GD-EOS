@@ -139,14 +139,14 @@ def _gen_file(file_base_name: str, infos: dict):
     structs_cpp_file: str = os.path.join(gen_dir, "structs", file_base_name + ".structs.cpp")
 
     packed_result_h_file: str = os.path.join(gen_dir, "packed_results", file_base_name + ".packed_results.h")
+    packed_result_cpp_file: str = os.path.join(gen_dir, "packed_results", file_base_name + ".packed_results.cpp")
 
     handles_h_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.h")
     handles_cpp_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.cpp")
 
-    interface_handle_h_file: str = os.path.join(gen_dir, file_base_name + "gen.h")
-    interface_handle_cpp_file: str = os.path.join(gen_dir, file_base_name + "gen.cpp")
+    interface_handle_h_file: str = os.path.join(gen_dir, file_base_name + ".gen.h")
+    interface_handle_cpp_file: str = os.path.join(gen_dir, file_base_name + ".gen.cpp")
     #
-    enums_inl: str = gen_enums(handle_class, infos["enums"])
 
     methods: dict = {}
     for m in infos["methods"]:
@@ -155,67 +155,89 @@ def _gen_file(file_base_name: str, infos: dict):
         for m in infos["handles"][h]["methods"]:
             methods[m] = infos["handles"][h]["methods"][m]
 
-    packed_result_h_lines: list[str] = gen_packed_results(file_base_name, handle_class, methods)
-
-    # Enums inline file
-    f = open(enums_inline_file, "w")
-    f.write(enums_inl)
-    f.close()
-
-    # PackedResults h file
-    if len(packed_result_h_lines):
-        f = open(packed_result_h_file, "w")
-        f.write("\n".join(packed_result_h_lines))
-        f.close()
-
     # Handles
     interface_handle: str = ""
     sub_handles: dict = {}
-
     for h in infos["handles"]:
         if h.removeprefix("EOS_H") in interfaces:
             interface_handle = h
             continue
         sub_handles[h] = infos["handles"][h]
-
-    handles_cpp_lines: list[str] = [f'#include "{file_base_name + "handles.h"}"']
-    handles_hpp_lines: list[str] = gen_handles(handle_class, sub_handles, handles_cpp_lines)
-    if len(handles_hpp_lines):
-        f = open(handles_h_file, "w")
-        f.write("\n".join(handles_hpp_lines))
+        
+    # PackedResults h file
+    packed_result_h_lines: list[str] = []
+    packed_result_cpp_lines: list[str] = [f'#include "{file_base_name + ".packed_results.h"}"']
+    if len(sub_handles):
+        packed_result_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
+    packed_result_cpp_lines.append("")
+    packed_result_cpp_lines.append("namespace godot{")
+    has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, handle_class, methods, packed_result_h_lines, packed_result_cpp_lines)
+    packed_result_cpp_lines.append("} // namespace godot")
+    packed_result_cpp_lines.append("")
+    if has_packed_result:
+        f = open(packed_result_h_file, "w")
+        f.write("\n".join(packed_result_h_lines))
+        f.close()
+        f = open(packed_result_cpp_file, "w")
+        f.write("\n".join(packed_result_cpp_lines))
         f.close()
 
-        f = open(handles_cpp_file, "w")
-        f.write("\n".join(handles_cpp_lines))
+
+    # Handles Gen
+    if len(sub_handles):
+        handles_cpp_lines: list[str] = [f'#include "{file_base_name + ".handles.h"}"']
+        handles_cpp_lines.append(f"#include <{file_base_name}.h>")
+        handles_cpp_lines.append(f"")
+        additional_include_lines: list[str] = []
+        if has_packed_result:
+            additional_include_lines.append(f'#include "../packed_results/{file_base_name + ".packed_results.h"}"')
+        handles_hpp_lines: list[str] = gen_handles(handle_class, additional_include_lines, sub_handles, handles_cpp_lines)
+        if len(handles_hpp_lines):
+            f = open(handles_h_file, "w")
+            f.write("\n".join(handles_hpp_lines))
+            f.close()
+
+            f = open(handles_cpp_file, "w")
+            f.write("\n".join(handles_cpp_lines))
+            f.close()
+
+    if len(infos["structs"]):
+        structs_cpp_lines: list[str] = [f'#include "{file_base_name + ".structs.h"}"']
+        if len(sub_handles) and len(handles_hpp_lines):
+            structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
+        additional_include_lines: list[str] = []
+        if file_base_name.startswith("eos_anticheat"):
+            additional_include_lines.append("#include <eos_anticheatcommon_client.h>")
+        structs_h_lines: list[str] = gen_structs(
+            file_base_name,
+            eos_types_header,
+            handle_class,
+            infos["structs"],
+            additional_include_lines,
+            structs_cpp_lines,
+        )
+
+        # Structs h file
+        f = open(structs_h_file, "w")
+        f.write("\n".join(structs_h_lines))
         f.close()
 
-    structs_cpp_lines: list[str] = [f'#include "{file_base_name + ".structs.h"}"']
-    if len(handles_hpp_lines):
-        structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
-    additional_include_lines: list[str] = []
-    if file_base_name.startswith("eos_anticheat"):
-        additional_include_lines.append("#include <eos_anticheatcommon_client.h>")
-    structs_h_lines: list[str] = gen_structs(
-        file_base_name,
-        handle_class,
-        infos["structs"],
-        additional_include_lines,
-        structs_cpp_lines,
-    )
-    # Structs h file
-    f = open(structs_h_file, "w")
-    f.write("\n".join(structs_h_lines))
-    f.close()
-
-    # Structs cpp file
-    f = open(structs_cpp_file, "w")
-    f.write("\n".join(structs_cpp_lines))
-    f.close()
+        # Structs cpp file
+        f = open(structs_cpp_file, "w")
+        f.write("\n".join(structs_cpp_lines))
+        f.close()
 
     if len(interface_handle) <= 0:
         print("ERR has not interface handle:", file_base_name)
         return
         exit(1)
+
+    # Enums inline file
+    if len(infos["enums"]):
+        enums_inl: str = gen_enums(handle_class, infos["enums"])
+        f = open(enums_inline_file, "w")
+        f.write(enums_inl)
+        f.close()
 
     # 生成接口
     interface_handle_h_lines: list[str] = []
@@ -234,6 +256,7 @@ def _gen_file(file_base_name: str, infos: dict):
         [],
     )
     interface_handle_cpp_lines.append(f"}} // namespace godot")
+    interface_handle_cpp_lines.append(f"")
 
     interface_handle_h_lines.append(f"#define EOS_REGISTER_{handle_class}\\")
     interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({handle_class});\\")
@@ -292,6 +315,7 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
 
 def gen_structs(
     file_base_name: str,
+    types_include_file: str,
     handle_class: str,
     struct_infos: dict,
     additional_include_lines: str,
@@ -305,7 +329,7 @@ def gen_structs(
     lines.append("")
 
     # lines.append(f"#include <eos_sdk.h>")
-    lines.append(f"#include <{file_base_name}_types.h>")
+    lines.append(f"#include <{types_include_file}>")
     lines.append(f"#include <godot_cpp/classes/ref_counted.hpp>")
     lines.append("")
     lines.append(f"#include <{eos_data_class_h_file}>")
@@ -342,15 +366,16 @@ def gen_structs(
     return lines
 
 
-def gen_packed_results(file_base_name: str, handle_class: str, methods: dict) -> list[str]:
-    ret: list[str] = ["#pragma once"]
-    ret.append("")
-    ret.append("#include <godot_cpp/classes/ref_counted.hpp>")
-    ret.append(f"#include <{file_base_name}_types.h>")
-    ret.append(f"#include <core/eos_packed_result.h>")
-    ret.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
-    ret.append("")
-    ret.append("namespace godot{")
+def gen_packed_results(file_base_name: str, types_include_file: str, handle_class: str, methods: dict, r_h_lines: list[str], r_cpp_lines:list[str]) -> bool:
+    ret: bool = False
+    r_h_lines.append("#pragma once")
+    r_h_lines.append("")
+    r_h_lines.append("#include <godot_cpp/classes/ref_counted.hpp>")
+    r_h_lines.append(f"#include <core/eos_packed_result.h>")
+    r_h_lines.append(f"#include <{types_include_file}>")
+    r_h_lines.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
+    r_h_lines.append("")
+    r_h_lines.append("namespace godot{")
 
     register_lines: list[str] = [f"#define REGISTER_PACKED_RESULTS_{handle_class}()\\"]
     for method in methods:
@@ -358,26 +383,29 @@ def gen_packed_results(file_base_name: str, handle_class: str, methods: dict) ->
             continue
         if _is_need_skip_method(method):
             continue
-        _gen_packed_result_type(method, methods[method], ret, register_lines, [])
+        if len(_gen_packed_result_type(method, methods[method], r_h_lines,r_cpp_lines,  register_lines, [])):
+            ret = True
 
-    if len(ret):
-        ret.append("")
-        ret += register_lines
+    r_h_lines.append("")
+    r_h_lines += register_lines
 
-    ret.append("")
-    ret.append("} // namespace godot")
+    r_h_lines.append("")
+    r_h_lines.append("} // namespace godot")
+    r_h_lines.append("")
     return ret
 
 
-def gen_handles(interface_handle_class: str, p_handles: dict, r_cpp_lines: list[str]) -> list[str]:
+def gen_handles(interface_handle_class: str, additional_include_lines: list[str], p_handles: dict, r_cpp_lines: list[str]) -> list[str]:
     register_lines: list[str] = [f"#define REGISTER_HANDLES_OF_{interface_handle_class}()\\"]
 
     h_lines: list[str] = [f"#pragma once"]
 
-    h_lines.append(f'#include "{eos_data_class_h_file}"')
-    h_lines.append(f"#include <eos_sdk.h>")
+    # h_lines.append(f'#include "{eos_data_class_h_file}"')
     h_lines.append(f"#include <godot_cpp/classes/ref_counted.hpp>")
     h_lines.append(f"")
+    if len(additional_include_lines):
+        h_lines += additional_include_lines
+        h_lines.append(f"")
 
     r_cpp_lines.append(f"namespace godot {{")
     for h in p_handles:
@@ -387,6 +415,7 @@ def gen_handles(interface_handle_class: str, p_handles: dict, r_cpp_lines: list[
         h_lines += _gen_handle(h, p_handles[h], r_cpp_lines, register_lines)
 
     r_cpp_lines.append(f"}} // namespace godot")
+    r_cpp_lines.append(f"")
 
     return h_lines + register_lines
 
@@ -856,7 +885,8 @@ def _convert_result_type(method_name: str) -> str:
 def _gen_packed_result_type(
     method_name: str,
     method_info: dict,
-    r_define_lines: list[str],
+    r_h_lines: list[str],
+    r_cpp_lines:list[str],
     r_register_lines: list[str],
     r_need_convert_to_return_value: list[bool],
     get_type_name_only: bool = False,
@@ -896,13 +926,14 @@ def _gen_packed_result_type(
         decayed_type: str = _decay_eos_type(arg["type"])
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out"))
         if _is_handle_type(decayed_type):
-            menbers_lines.append(f"\tRef<{_convert_handle_class_name(decayed_type)}> {snake_name};")
+            # Handle 类型需要前向声明
+            menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif __is_struct_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif _is_enum_type(decayed_type):
             enum_owner: str = "EOS"
             for h in handles:
@@ -910,19 +941,19 @@ def _gen_packed_result_type(
                     enum_owner = _convert_interface_class_name(h)
             menbers_lines.append(f"\t{decayed_type} {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
+            bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif arg_type == "void*" and (i + 1) <= len(out_args) and out_args[i + 1]["type"].endswith("int32_t*"):
             if out_args[i + 1]["name"] != "OutBytesWritten":
                 print("WARN:", method_name)
             menbers_lines.append(f"\tPackedByteArray {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif decayed_type == "EOS_Bool":
             print("ERROR UNSUPPORT bool:", method_name, decayed_type)
@@ -936,36 +967,40 @@ def _gen_packed_result_type(
         else:
             menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
 
         i += 1
 
-    # r_define_lines.append("namespace godot {")
-    r_define_lines.append(f"class {typename}: public EOSPackedResult {{")
-    r_define_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
-    r_define_lines.append(f"public:")
+    # r_h_lines.append("namespace godot {")
+    r_h_lines.append(f"class {typename}: public EOSPackedResult {{")
+    r_h_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
+    r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
-        r_define_lines.append(f"\tEOS_EResult result_code;")
+        r_h_lines.append(f"\tEOS_EResult result_code;")
     else:
         print("ERROR unsupport to gen packed result:", method_name)
-    r_define_lines += menbers_lines
-    r_define_lines.append("")
-    r_define_lines.append(f"public:")
+    r_h_lines += menbers_lines
+    r_h_lines.append("")
+    r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
-        r_define_lines.append(f"\t_DEFINE_SETGET(result_code);")
-    r_define_lines += setget_lines
-    r_define_lines.append("")
-    r_define_lines.append(f"protected:")
-    r_define_lines.append(f"\tstatic void _bind_methods() {{")
-    r_define_lines.append(f"\t\t_BIND_BEGIN({typename});")
+        r_h_lines.append(f"\t_DEFINE_SETGET(result_code);")
+    r_h_lines += setget_lines
+    r_h_lines.append("")
+    r_h_lines.append(f"protected:")
+    r_h_lines.append(f"\tstatic void _bind_methods();")
+    r_h_lines.append(f"}};")
+    # r_h_lines.append("} // namespace godot")
+    r_h_lines.append(f"")
+    
+    # 
+    r_cpp_lines.append(f"void {typename}::_bind_methods() {{")
+    r_cpp_lines.append(f"\t_BIND_BEGIN({typename});")
     if method_info["return"] == "EOS_EResult":
-        r_define_lines.append(f'\t\t_BIND_PROP_ENUM(result_code, EOS_Common, {_convert_enum_type("EOS_EResult")})')
-    r_define_lines += bind_lines
-    r_define_lines.append(f"\t\t_BIND_END();")
-    r_define_lines.append(f"\t}}")
-    r_define_lines.append(f"}};")
-    # r_define_lines.append("} // namespace godot")
-    r_define_lines.append(f"")
+        r_cpp_lines.append(f'\t_BIND_PROP_ENUM(result_code, EOS_Common, {_convert_enum_type("EOS_EResult")})')
+    r_cpp_lines += bind_lines
+    r_cpp_lines.append(f"\t_BIND_END();")
+    r_cpp_lines.append(f"}}")
+    r_cpp_lines.append(f"")
 
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({typename});\\")
     return typename
@@ -1295,6 +1330,9 @@ def __make_packed_result(
         if has_result_code:
             r_after_call_lines.append(f"\tret->result_code = result_code;")
             r_after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
+        else:
+            print("Error UNSUPPORT:", method_name)
+            exit(1)
     acl_indents = "\t\t" if has_result_code else "\t"
     i = begin_idx
     while i < len(args):
@@ -1311,13 +1349,25 @@ def __make_packed_result(
                 r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
                 r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});")
         elif __is_struct_type(decayed_type):
-            r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
-            r_call_args.append(f"&{arg_name}")
-            if pack_result:
-                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});")
+            if arg_type.endswith("**"):
+                r_prepare_lines.append(f"\t{decayed_type} *{arg_name}{{ nullptr }};")
+                r_call_args.append(f"&{arg_name}")
+                if pack_result:
+                    r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos(*{arg_name});")
+                    r_after_call_lines.append(f"{acl_indents}{decayed_type}_Release({arg_name});")
+                else:
+                    return_type = remap_type(decayed_type, arg_name)
+                    r_return_type_if_convert_to_return.append(f"Ret<{return_type}>")
+                    r_after_call_lines.append(f"{acl_indents}Ret<{return_type}> ret; ret.instantiate(); ret->set_from_eos(*{arg_name});")
+                    r_after_call_lines.append(f"{acl_indents}{decayed_type}_Release({arg_name});")
             else:
-                r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
-                r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});")
+                r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
+                r_call_args.append(f"&{arg_name}")
+                if pack_result:
+                    r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});")
+                else:
+                    r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
+                    r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});")
 
         elif _is_enum_type(decayed_type):
             r_prepare_lines.append(f"\t{_convert_enum_type(decayed_type)} {arg_name};")
@@ -1416,7 +1466,7 @@ def _gen_method(
     callback_signal = ""
 
     out_to_ret: list[bool] = []
-    packed_result_type = _gen_packed_result_type(method_name, info, [], [], out_to_ret, True)
+    packed_result_type = _gen_packed_result_type(method_name, info, [],[], [], out_to_ret, True)
     need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
@@ -2667,7 +2717,7 @@ def _gen_struct(
             continue
 
         type: str = fields[field]
-        if __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
+        if not _is_need_skip_struct(_decay_eos_type(type)) and __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
             type = remap_type(_decay_eos_type(type), field)
         if _is_handle_type(_decay_eos_type(type)):
