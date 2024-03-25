@@ -616,7 +616,9 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         auto eos_data_arr = (_eos_data_type *)memalloc(sizeof(_eos_data_type) * r_eos_field_count); \
         memset(&eos_field, 0, sizeof(_eos_data_type) * r_eos_field_count);                          \
         for (decltype(r_eos_field_count) i = 0; i < r_eos_field_count; ++i) {                       \
-            Object::cast_to<gd_data_type>(gd_field[0])->set_to_eos(eos_data_arr[0]);                \
+            auto casted_data = Object::cast_to<gd_data_type>(gd_field[0]);                          \
+            ERR_BREAK(casted_data == nullptr);                                                      \
+            casted_data->set_to_eos(eos_data_arr[0]);                                               \
         }                                                                                           \
         eos_field = eos_data_arr;                                                                   \
     } else {                                                                                        \

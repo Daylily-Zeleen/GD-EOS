@@ -1283,6 +1283,7 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
 def __expend_input_struct(
     arg_type: str,
     arg_name: str,
+    invalid_arg_return_value:str,
     r_declare_args: list[str],
     r_call_args: list[str],
     r_bind_args: list[str],
@@ -1342,6 +1343,10 @@ def __expend_input_struct(
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_UNION({option_field}, p_{snake_field});")
         elif _is_handle_type(field_type, field):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            if len(invalid_arg_return_value):
+                r_prepare_lines.append(f'\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});')
+            else:
+                r_prepare_lines.append(f'\tERR_FAIL_NULL(p_{snake_field});')
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({option_field}, p_{snake_field});")
         elif _is_client_data_field(field_type, field):
             r_declare_args.append(f"const Variant &p_{snake_field}")
@@ -1352,6 +1357,10 @@ def __expend_input_struct(
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(decay_field_type)}, {option_field}, p_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            if len(invalid_arg_return_value):
+                r_prepare_lines.append(f'\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});')
+            else:
+                r_prepare_lines.append(f'\tERR_FAIL_NULL(p_{snake_field});')
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({option_field}, p_{snake_field});")
         elif _is_arr_field(field_type, field):
             r_declare_args.append(f"const {remap_type(field_type, field)} &p_{snake_field}")
@@ -1539,6 +1548,13 @@ def _gen_method(
         return_type = remap_type(info["return"], "")
     elif return_type == "":
         return_type = "void"
+    
+    invalid_arg_return_val:str = ""
+    if return_type != "void":
+        if return_type == "EOS_EResult":
+            invalid_arg_return_val = "EOS_EResult::EOS_InvalidParameters"
+        else:
+            invalid_arg_return_val = "{}"
 
     declare_args: list[str] = []
     call_args: list[str] = []
@@ -1565,6 +1581,10 @@ def _gen_method(
         if decayed_type == handle_type:
             # 句柄参数
             call_args.append("m_handle")
+            if len(invalid_arg_return_val):
+                prepare_lines.append(f"\tERR_FAIL_NULL_V(m_handle, {invalid_arg_return_val});")
+            else:
+                prepare_lines.append(f"\tERR_FAIL_NULL(m_handle);")
             static = False
         elif __is_callback_type(decayed_type):
             # 回调参数
@@ -1630,6 +1650,10 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name}"
                 options_prepare_identifier = f"{name}"
             # 未被展开的输入结构体（Options）
+            if len(invalid_arg_return_val):
+                prepare_lines.append(f"\tERR_FAIL_NULL_V(m_handle, {invalid_arg_return_val});")
+            else:
+                prepare_lines.append(f"\tERR_FAIL_NULL(m_handle);")
             declare_args.append(f"const {remap_type(decayed_type, name)}& p_{snake_name}")
             prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
             bind_args.append(f'"{snake_name}"')
@@ -1643,6 +1667,7 @@ def _gen_method(
             __expend_input_struct(
                 type,
                 name,
+                invalid_arg_return_val,
                 declare_args,
                 call_args,
                 bind_args,
