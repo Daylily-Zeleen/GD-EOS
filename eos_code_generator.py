@@ -126,37 +126,36 @@ def main():
 def _gen_file(file_base_name: str, infos: dict):
     gen_dir = "src/gen/"
 
+    eos_header = file_base_name + ".h"
+    eos_types_header = file_base_name + ".h"
+    if os.path.exists(os.path.join(sdk_inclide_dir, file_base_name + "_types.h")):
+        eos_types_header = file_base_name + "_types.h"
+
     handle_class: str = _convert_interface_class_name(file_base_name)
 
-    enums_inline_file: str = os.path.join(
-        gen_dir, "enums", file_base_name + ".enums.inl"
-    )
+    enums_inline_file: str = os.path.join(gen_dir, "enums", file_base_name + ".enums.inl")
 
-    structs_h_file: str = os.path.join(
-        gen_dir, "structs", file_base_name + ".structs.h"
-    )
-    structs_cpp_file: str = os.path.join(
-        gen_dir, "structs", file_base_name + ".structs.cpp"
-    )
+    structs_h_file: str = os.path.join(gen_dir, "structs", file_base_name + ".structs.h")
+    structs_cpp_file: str = os.path.join(gen_dir, "structs", file_base_name + ".structs.cpp")
 
-    packed_result_h_file: str = os.path.join(
-        gen_dir, "packed_results", file_base_name + ".packed_results.cpp"
-    )
+    packed_result_h_file: str = os.path.join(gen_dir, "packed_results", file_base_name + ".packed_results.h")
 
-    handles_h_file: str = os.path.join(
-        gen_dir, "handles", file_base_name + ".handles.h"
-    )
-    handles_cpp_file: str = os.path.join(
-        gen_dir, "handles", file_base_name + ".handles.cpp"
-    )
+    handles_h_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.h")
+    handles_cpp_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.cpp")
 
     interface_handle_h_file: str = os.path.join(gen_dir, file_base_name + "gen.h")
     interface_handle_cpp_file: str = os.path.join(gen_dir, file_base_name + "gen.cpp")
     #
     enums_inl: str = gen_enums(handle_class, infos["enums"])
-    packed_result_h_lines: list[str] = gen_packed_results(
-        file_base_name, handle_class, infos["methods"]
-    )
+
+    methods: dict = {}
+    for m in infos["methods"]:
+        methods[m] = infos["methods"][m]
+    for h in infos["handles"]:
+        for m in infos["handles"][h]["methods"]:
+            methods[m] = infos["handles"][h]["methods"][m]
+
+    packed_result_h_lines: list[str] = gen_packed_results(file_base_name, handle_class, methods)
 
     # Enums inline file
     f = open(enums_inline_file, "w")
@@ -180,9 +179,7 @@ def _gen_file(file_base_name: str, infos: dict):
         sub_handles[h] = infos["handles"][h]
 
     handles_cpp_lines: list[str] = [f'#include "{file_base_name + "handles.h"}"']
-    handles_hpp_lines: list[str] = gen_handles(
-        handle_class, sub_handles, handles_cpp_lines
-    )
+    handles_hpp_lines: list[str] = gen_handles(handle_class, sub_handles, handles_cpp_lines)
     if len(handles_hpp_lines):
         f = open(handles_h_file, "w")
         f.write("\n".join(handles_hpp_lines))
@@ -194,9 +191,7 @@ def _gen_file(file_base_name: str, infos: dict):
 
     structs_cpp_lines: list[str] = [f'#include "{file_base_name + ".structs.h"}"']
     if len(handles_hpp_lines):
-        structs_cpp_lines.append(
-            f'#include "../handles/{file_base_name + ".handles.h"}"'
-        )
+        structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
     additional_include_lines: list[str] = []
     if file_base_name.startswith("eos_anticheat"):
         additional_include_lines.append("#include <eos_anticheatcommon_client.h>")
@@ -224,7 +219,7 @@ def _gen_file(file_base_name: str, infos: dict):
 
     # 生成接口
     interface_handle_h_lines: list[str] = []
-    interface_handle_cpp_lines: list[str] = [f'#include "{file_base_name+"gen.h"}"']
+    interface_handle_cpp_lines: list[str] = [f'#include "{file_base_name+".gen.h"}"']
 
     interface_handle_h_lines: list[str] = [f"#pragma once"]
     interface_handle_h_lines.append(f"#include <{file_base_name}.h>")
@@ -242,6 +237,7 @@ def _gen_file(file_base_name: str, infos: dict):
 
     interface_handle_h_lines.append(f"#define EOS_REGISTER_{handle_class}\\")
     interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({handle_class});\\")
+    # TODO：注册相关结构体
 
     f = open(interface_handle_h_file, "w")
     f.write("\n".join(interface_handle_h_lines))
@@ -264,9 +260,7 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
         for e in enum_info[enum_type]:
             if _is_need_skip_enum_value(enum_type, e):
                 continue
-            lines.append(
-                f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}");\\'
-            )
+            lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}");\\')
         lines.append("")
 
     # Bind macro
@@ -290,9 +284,7 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
-        lines.append(
-            f"\tVARIANT_ENUM_CAST(godot::{handle_class}::{_convert_enum_type(enum_type)});\\"
-        )
+        lines.append(f"\tVARIANT_ENUM_CAST(godot::{handle_class}::{_convert_enum_type(enum_type)});\\")
     lines.append("")
 
     return "\n".join(lines)
@@ -338,29 +330,25 @@ def gen_structs(
 
     ######### 生成绑定宏 #########
     lines.append("// ====================")
-    lines.append(
-        f'#define REGISTER_DATA_CLASSES_OF_{handle_class.removeprefix("EOS")}()\\'
-    )
+    lines.append(f'#define REGISTER_DATA_CLASSES_OF_{handle_class.removeprefix("EOS")}()\\')
     for st in all_structs.keys():
         if _is_expended_struct(struct_type):
             continue
         if _is_need_skip_struct(struct_type):
             continue
 
-        lines.append(
-            f"\tGDREGISTER_ABSTRACT_CLASS(godot::{__convert_to_struct_class(st)});\\"
-        )
+        lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::{__convert_to_struct_class(st)});\\")
     lines.append("")
     return lines
 
 
-def gen_packed_results(
-    file_base_name: str, handle_class: str, methods: dict
-) -> list[str]:
+def gen_packed_results(file_base_name: str, handle_class: str, methods: dict) -> list[str]:
     ret: list[str] = ["#pragma once"]
     ret.append("")
     ret.append("#include <godot_cpp/classes/ref_counted.hpp>")
     ret.append(f"#include <{file_base_name}_types.h>")
+    ret.append(f"#include <core/eos_packed_result.h>")
+    ret.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
     ret.append("")
     ret.append("namespace godot{")
 
@@ -376,16 +364,13 @@ def gen_packed_results(
         ret.append("")
         ret += register_lines
 
+    ret.append("")
     ret.append("} // namespace godot")
     return ret
 
 
-def gen_handles(
-    interface_handle_class: str, p_handles: dict, r_cpp_lines: list[str]
-) -> list[str]:
-    register_lines: list[str] = [
-        f"#define REGISTER_HANDLES_OF_{interface_handle_class}()\\"
-    ]
+def gen_handles(interface_handle_class: str, p_handles: dict, r_cpp_lines: list[str]) -> list[str]:
+    register_lines: list[str] = [f"#define REGISTER_HANDLES_OF_{interface_handle_class}()\\"]
 
     h_lines: list[str] = [f"#pragma once"]
 
@@ -455,9 +440,7 @@ def _gen_handle(
         ret.append(f"\t}}")
     # Handle setget
     if not is_base_handle_type:
-        ret.append(
-            f"\tvoid set_handle({handle_name} p_handle) {{ ERR_FAIL_COND(m_handle); m_handle = p_handle; }}"
-        )
+        ret.append(f"\tvoid set_handle({handle_name} p_handle) {{ ERR_FAIL_COND(m_handle); m_handle = p_handle; }}")
         ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
         ret.append(f"")
     # Methods
@@ -529,12 +512,7 @@ def _convert_to_interface_lower(file_name: str) -> str:
         return "platform"
     # if f == "eos_logging.h":
     #     return "common"
-    return (
-        f.removesuffix("_types.h")
-        .removesuffix(".h")
-        .replace("_sdk", "_platform")
-        .removeprefix("eos_")
-    )
+    return f.removesuffix("_types.h").removesuffix(".h").replace("_sdk", "_platform").removeprefix("eos_")
 
 
 def _cheat_as_handle_method(method_name: str) -> str:
@@ -666,9 +644,7 @@ def parse_all_file():
                         # 移动到对应的handle中
                         if not method_name in to_remove_methods:
                             handle_type = arg_type
-                            _handles[handle_type]["methods"][method_name] = methods[
-                                method_name
-                            ]
+                            _handles[handle_type]["methods"][method_name] = methods[method_name]
                             to_remove_methods.append(method_name)
 
                     if arg_type.endswith("Callback") or arg_type.endswith("CallbackV2"):
@@ -683,9 +659,7 @@ def parse_all_file():
 
                 # 移动回调类型
                 if len(handle_type) and len(callback_type):
-                    _handles[handle_type]["callbacks"][callback_type] = infos[
-                        "callbacks"
-                    ][callback_type]
+                    _handles[handle_type]["callbacks"][callback_type] = infos["callbacks"][callback_type]
                     infos["callbacks"].pop(callback_type)
 
             for m in to_remove_methods:
@@ -707,18 +681,14 @@ def parse_all_file():
     for il in file_lower2infos:
         for h in file_lower2infos[il]["handles"]:
             handles[h] = file_lower2infos[il]["handles"][h]
-            generate_infos[file_lower2infos[il]["file"]]["handles"][h] = (
-                file_lower2infos[il]["handles"][h]
-            )
+            generate_infos[file_lower2infos[il]["file"]]["handles"][h] = file_lower2infos[il]["handles"][h]
         file_lower2infos[il].pop("handles")
 
     # 移动结构体
     for il in file_lower2infos:
         for s in file_lower2infos[il]["structs"]:
             structs[s] = file_lower2infos[il]["structs"][s]
-            generate_infos[file_lower2infos[il]["file"]]["structs"][s] = (
-                file_lower2infos[il]["structs"][s]
-            )
+            generate_infos[file_lower2infos[il]["file"]]["structs"][s] = file_lower2infos[il]["structs"][s]
         file_lower2infos[il].pop("structs")
 
     # 移动枚举
@@ -727,9 +697,7 @@ def parse_all_file():
         if interface in interfaces:
             handles["EOS_H" + interface]["enums"] = file_lower2infos[il]["enums"]
             for e in file_lower2infos[il]["enums"]:
-                generate_infos[file_lower2infos[il]["file"]]["enums"][e] = (
-                    file_lower2infos[il]["enums"][e]
-                )
+                generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[il]["enums"][e]
             file_lower2infos[il]["enums"].clear()
 
     # Cheat as handle's method
@@ -785,19 +753,13 @@ def parse_all_file():
             callbacks.pop(cb)
 
     # 复制特殊的回调
-    handles["EOS_HTitleStorageFileTransferRequest"]["callbacks"][
-        "EOS_TitleStorage_OnReadFileCompleteCallback"
-    ] = handles["EOS_HTitleStorage"]["callbacks"][
+    handles["EOS_HTitleStorageFileTransferRequest"]["callbacks"]["EOS_TitleStorage_OnReadFileCompleteCallback"] = handles["EOS_HTitleStorage"]["callbacks"][
         "EOS_TitleStorage_OnReadFileCompleteCallback"
     ]
-    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"][
-        "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
-    ] = handles["EOS_HPlayerDataStorage"]["callbacks"][
+    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"]["EOS_PlayerDataStorage_OnReadFileCompleteCallback"] = handles["EOS_HPlayerDataStorage"]["callbacks"][
         "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
     ]
-    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"][
-        "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
-    ] = handles["EOS_HPlayerDataStorage"]["callbacks"][
+    handles["EOS_HPlayerDataStorageFileTransferRequest"]["callbacks"]["EOS_PlayerDataStorage_OnWriteFileCompleteCallback"] = handles["EOS_HPlayerDataStorage"]["callbacks"][
         "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
     ]
 
@@ -806,21 +768,15 @@ def parse_all_file():
     for il in file_lower2infos:
         for cb in file_lower2infos[il]["callbacks"]:
             unhandled_callbacks[cb] = file_lower2infos[il]["callbacks"][cb]
-            generate_infos[file_lower2infos[il]["file"]]["callbacks"][cb] = (
-                file_lower2infos[il]["callbacks"][cb]
-            )
+            generate_infos[file_lower2infos[il]["file"]]["callbacks"][cb] = file_lower2infos[il]["callbacks"][cb]
 
         for m in file_lower2infos[il]["methods"]:
             unhandled_methods[m] = file_lower2infos[il]["methods"][m]
-            generate_infos[file_lower2infos[il]["file"]]["methods"][m] = (
-                file_lower2infos[il]["methods"][m]
-            )
+            generate_infos[file_lower2infos[il]["file"]]["methods"][m] = file_lower2infos[il]["methods"][m]
 
         for e in file_lower2infos[il]["enums"]:
             unhandled_enums[e] = file_lower2infos[il]["enums"][e]
-            generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[
-                il
-            ]["enums"][e]
+            generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[il]["enums"][e]
 
         if len(file_lower2infos[il]["callbacks"]):
             if not il in unhandled_infos:
@@ -870,9 +826,7 @@ def gen_foward_declare_file() -> str:
     ret.append("namespace godot {")
     ret.append("// Structs")
     for struct in structs:
-        ret.append(
-            f'class {remap_type(struct, "").removeprefix("Ref<").removesuffix(">")};'
-        )
+        ret.append(f'class {remap_type(struct, "").removeprefix("Ref<").removesuffix(">")};')
     ret.append("")
     ret.append("// Handles")
     for handle in handles:
@@ -882,9 +836,7 @@ def gen_foward_declare_file() -> str:
 
 
 def _convert_handle_class_name(handle_type: str) -> str:
-    return _convert_interface_class_name(
-        to_snake_case(handle_type.removeprefix("EOS_H"))
-    )
+    return _convert_interface_class_name(to_snake_case(handle_type.removeprefix("EOS_H")))
 
 
 def _is_enum_type(type: str) -> bool:
@@ -913,9 +865,7 @@ def _gen_packed_result_type(
     for i in range(len(method_info["args"])):
         arg_name: str = method_info["args"][i]["name"]
         arg_type: str = method_info["args"][i]["type"]
-        if (
-            arg_name.startswith("Out") or arg_name.startswith("InOut")
-        ) and arg_type.endswith("*"):
+        if (arg_name.startswith("Out") or arg_name.startswith("InOut")) and arg_type.endswith("*"):
             out_args.append(method_info["args"][i])
     if len(out_args) <= 0:
         return ""
@@ -925,13 +875,8 @@ def _gen_packed_result_type(
             r_need_convert_to_return_value.append[True]
             return ""
         if len(out_args) == 2:
-            if (
-                out_args[0]["type"] == "char*"
-                and out_args[1]["type"].endswith("int32_t*")
-                and out_args[1]["name"].endswith("Length")
-            ) or (
-                out_args[0]["type"] == "void*"
-                and out_args[1]["type"].endswith("int32_t*")
+            if (out_args[0]["type"] == "char*" and out_args[1]["type"].endswith("int32_t*") and out_args[1]["name"].endswith("Length")) or (
+                out_args[0]["type"] == "void*" and out_args[1]["type"].endswith("int32_t*")
             ):
                 r_need_convert_to_return_value.append[True]
                 return ""
@@ -949,19 +894,13 @@ def _gen_packed_result_type(
         arg_type: str = arg["type"]
         arg_name: str = arg["name"]
         decayed_type: str = _decay_eos_type(arg["type"])
-        snake_name: str = to_snake_case(
-            arg_name.removeprefix("IntOut").removeprefix("Out")
-        )
+        snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out"))
         if _is_handle_type(decayed_type):
-            menbers_lines.append(
-                f"\tRef<{_convert_handle_class_name(decayed_type)}> {snake_name};"
-            )
+            menbers_lines.append(f"\tRef<{_convert_handle_class_name(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
             bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
         elif __is_struct_type(decayed_type):
-            menbers_lines.append(
-                f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};"
-            )
+            menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
             bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
         elif _is_enum_type(decayed_type):
@@ -971,25 +910,14 @@ def _gen_packed_result_type(
                     enum_owner = _convert_interface_class_name(h)
             menbers_lines.append(f"\t{decayed_type} {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(
-                f"\t\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})"
-            )
-        elif (
-            arg_type == "char*"
-            and (i + 1) < len(out_args)
-            and out_args[i + 1]["type"].endswith("int32_t*")
-            and out_args[i + 1]["name"].endswith("Length")
-        ):
+            bind_lines.append(f"\t\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
+        elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
             bind_lines.append(f"\t\t_BIND_PROP({snake_name})")
             i += 1
-        elif (
-            arg_type == "void*"
-            and (i + 1) <= len(out_args)
-            and out_args[i + 1]["type"].endswith("int32_t*")
-        ):
+        elif arg_type == "void*" and (i + 1) <= len(out_args) and out_args[i + 1]["type"].endswith("int32_t*"):
             if out_args[i + 1]["name"] != "OutBytesWritten":
                 print("WARN:", method_name)
             menbers_lines.append(f"\tPackedByteArray {snake_name};")
@@ -1012,7 +940,7 @@ def _gen_packed_result_type(
 
         i += 1
 
-    r_define_lines.append("namespace godot {")
+    # r_define_lines.append("namespace godot {")
     r_define_lines.append(f"class {typename}: public EOSPackedResult {{")
     r_define_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
     r_define_lines.append(f"public:")
@@ -1031,14 +959,12 @@ def _gen_packed_result_type(
     r_define_lines.append(f"\tstatic void _bind_methods() {{")
     r_define_lines.append(f"\t\t_BIND_BEGIN({typename});")
     if method_info["return"] == "EOS_EResult":
-        r_define_lines.append(
-            f'\t\t_BIND_PROP_ENUM(result_code, EOS_Common, {_convert_enum_type("EOS_EResult")})'
-        )
+        r_define_lines.append(f'\t\t_BIND_PROP_ENUM(result_code, EOS_Common, {_convert_enum_type("EOS_EResult")})')
     r_define_lines += bind_lines
     r_define_lines.append(f"\t\t_BIND_END();")
     r_define_lines.append(f"\t}}")
     r_define_lines.append(f"}};")
-    r_define_lines.append("} // namespace godot")
+    # r_define_lines.append("} // namespace godot")
     r_define_lines.append(f"")
 
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({typename});\\")
@@ -1125,11 +1051,7 @@ def _gen_callback(
         r_bind_signal_lines.append(
             f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({remap_type(_decay_eos_type(arg_type), arg_name)}, {to_snake_case(arg_name)})));'
         )
-        gd_cb_info_type = (
-            remap_type(_decay_eos_type(arg_type), arg_name)
-            .removeprefix("Ref<")
-            .removesuffix(">")
-        )
+        gd_cb_info_type = remap_type(_decay_eos_type(arg_type), arg_name).removeprefix("Ref<").removesuffix(">")
         if callback_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
             return f'_EOS_USER_PRE_LOGOUT_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
         elif len(return_type):
@@ -1150,9 +1072,7 @@ def _gen_callback(
 
             field_type = fields[field]
             # 检出count字段
-            if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(
-                field_type, field
-            ):
+            if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
                 count_fields.append(_find_count_field(field, fields.keys()))
 
             # 检出Variant式的联合体类型字段
@@ -1170,20 +1090,14 @@ def _gen_callback(
             print("ERROR unsupport callback type:", callback_type)
             exit(1)
         else:
-            ret = (
-                f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
-            )
+            ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
 
         for field in fields:
             field_type: str = fields[field]
             if __is_api_version_field(field_type, field):
                 continue
 
-            if (
-                is_deprecated_field(field)
-                or field in count_fields
-                or field in variant_union_type_fileds
-            ):
+            if is_deprecated_field(field) or field in count_fields or field in variant_union_type_fileds:
                 continue
 
             if not ret.endswith(",\n\t\t\t"):
@@ -1193,9 +1107,7 @@ def _gen_callback(
             snake_case_field = to_snake_case(field)
             if _is_anticheat_client_handle_type(field_type):
                 ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type)}, data->{field})"
-                signal_bind_args += (
-                    f"_MAKE_PROP_INFO({remap_type(field_type)}, {snake_case_field})"
-                )
+                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type)}, {snake_case_field})"
             elif _is_requested_channel_ptr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::INT, "{snake_case_field}")'
@@ -1224,9 +1136,7 @@ def _gen_callback(
 
         if len(signal_bind_args):
             signal_bind_args = ", " + signal_bind_args
-        r_bind_signal_lines.append(
-            f'\tADD_SIGNAL(MethodInfo("{signal_name}"{signal_bind_args}));'
-        )
+        r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}"{signal_bind_args}));')
         return ret
 
 
@@ -1235,9 +1145,7 @@ def __get_api_latest_macro(struct_type: str) -> str:
     if (struct_type.upper() + "_API_LATEST") in api_latest_macros:
         return struct_type.upper() + "_API_LATEST"
     #
-    if (
-        struct_type.removesuffix("Options").upper() + "_API_LATEST"
-    ) in api_latest_macros:
+    if (struct_type.removesuffix("Options").upper() + "_API_LATEST") in api_latest_macros:
         return struct_type.removesuffix("Options").upper() + "_API_LATEST"
     #
     if (struct_type.upper() + "OPTIONS_API_LATEST") in api_latest_macros:
@@ -1310,9 +1218,7 @@ def __expend_input_struct(
 
         field_type = fields[field]
         # 检出count字段
-        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(
-            field_type, field
-        ):
+        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
             count_fields.append(_find_count_field(field, fields.keys()))
 
         # 检出Variant式的联合体类型字段
@@ -1331,11 +1237,7 @@ def __expend_input_struct(
             macro = __get_api_latest_macro(decayed_type)
             r_prepare_lines.append(f"\t{arg_name}.ApiVersion = {macro};")
             continue
-        elif (
-            is_deprecated_field(field)
-            or field in count_fields
-            or field in variant_union_type_fileds
-        ):
+        elif is_deprecated_field(field) or field in count_fields or field in variant_union_type_fileds:
             # 需要跳过的字段
             continue
 
@@ -1344,63 +1246,33 @@ def __expend_input_struct(
         option_field = f"{arg_name}.{field}"
         if _is_anticheat_client_handle_type(field_type):
             r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({option_field}, p_{snake_field});"
-            )
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({option_field}, p_{snake_field});")
         elif _is_requested_channel_ptr_field(field_type, field):
             r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL({option_field}, p_{snake_field});"
-            )
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL({option_field}, p_{snake_field});")
         elif field_type.startswith("Union"):
-            r_declare_args.append(
-                f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}"
-            )
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_UNION({option_field}, p_{snake_field});"
-            )
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_UNION({option_field}, p_{snake_field});")
         elif _is_handle_type(field_type, field):
-            r_declare_args.append(
-                f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}"
-            )
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_HANDLER({option_field}, p_{snake_field});"
-            )
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({option_field}, p_{snake_field});")
         elif _is_client_data_field(field_type, field):
             r_declare_args.append(f"const Variant &p_{snake_field}")
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_CLIENT_DATA({option_field}, p_{snake_field});"
-            )
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_CLIENT_DATA({option_field}, p_{snake_field});")
         elif _is_internal_struct_arr_field(field_type, field):
-            r_declare_args.append(
-                f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}"
-            )
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(decay_field_type)}, {option_field}, p_{snake_field}, {option_count_field});"
-            )
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(decay_field_type)}, {option_field}, p_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
-            r_declare_args.append(
-                f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}"
-            )
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_STRUCT({option_field}, p_{snake_field});"
-            )
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({option_field}, p_{snake_field});")
         elif _is_arr_field(field_type, field):
-            r_declare_args.append(
-                f"const {remap_type(field_type, field)} &p_{snake_field}"
-            )
+            r_declare_args.append(f"const {remap_type(field_type, field)} &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD_ARR({option_field}, p_{snake_field}, {option_count_field});"
-            )
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_ARR({option_field}, p_{snake_field}, {option_count_field});")
         else:
-            r_declare_args.append(
-                f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}"
-            )
-            r_prepare_lines.append(
-                f"\t_TO_EOS_FIELD({option_field.split('[')[0]}, p_{snake_field});"
-            )
+            r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD({option_field.split('[')[0]}, p_{snake_field});")
 
 
 def __make_packed_result(
@@ -1419,96 +1291,57 @@ def __make_packed_result(
     pack_result: bool = len(packed_result_type) > 0
 
     if pack_result:
-        r_after_call_lines.append(
-            f"\tRef<{packed_result_type}> ret; ret.instantiate();"
-        )
+        r_after_call_lines.append(f"\tRef<{packed_result_type}> ret; ret.instantiate();")
         if has_result_code:
             r_after_call_lines.append(f"\tret->result_code = result_code;")
-            r_after_call_lines.append(
-                f"\tif (result_code == EOS_EResult::EOS_Success) {{"
-            )
+            r_after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
     acl_indents = "\t\t" if has_result_code else "\t"
     i = begin_idx
     while i < len(args):
         arg_name: str = args[i]["name"]
         arg_type: str = args[i]["type"]
         decayed_type: str = _decay_eos_type(arg_type)
-        snake_name: str = to_snake_case(
-            arg_name.removeprefix("InOut").removeprefix("Out")
-        )
+        snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out"))
         if _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_handle({arg_name});"
-                )
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_handle({arg_name});")
             else:
-                r_return_type_if_convert_to_return.append(
-                    f"Ret<{remap_type(decayed_type, arg_name)}>"
-                )
-                r_after_call_lines.append(
-                    f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});"
-                )
+                r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
+                r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});")
         elif __is_struct_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});"
-                )
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});")
             else:
-                r_return_type_if_convert_to_return.append(
-                    f"Ret<{remap_type(decayed_type, arg_name)}>"
-                )
-                r_after_call_lines.append(
-                    f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});"
-                )
+                r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
+                r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});")
 
         elif _is_enum_type(decayed_type):
             r_prepare_lines.append(f"\t{_convert_enum_type(decayed_type)} {arg_name};")
             r_call_args.append(f"&{arg_name}")
 
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}ret->{snake_name} = {arg_name};"
-                )
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
             else:
-                r_return_type_if_convert_to_return.append(
-                    f"{remap_type(decayed_type, arg_name)}"
-                )
-                r_after_call_lines.append(
-                    f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};;"
-                )
-        elif (
-            arg_type == "char*"
-            and (i + 1) < len(args)
-            and args[i + 1]["type"].endswith("int32_t*")
-            and args[i + 1]["name"].endswith("Length")
-        ):
-            r_prepare_lines.append(
-                f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};"
-            )
-            r_prepare_lines.append(
-                f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = 0;'
-            )
+                r_return_type_if_convert_to_return.append(f"{remap_type(decayed_type, arg_name)}")
+                r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};;")
+        elif arg_type == "char*" and (i + 1) < len(args) and args[i + 1]["type"].endswith("int32_t*") and args[i + 1]["name"].endswith("Length"):
+            r_prepare_lines.append(f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};")
+            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = 0;')
 
             r_call_args.append(f"&{arg_name}[0]")
             r_call_args.append(f'&{args[i+1]["name"]}')
 
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}ret->{snake_name} = &{arg_name}[0];"
-                )
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = &{arg_name}[0];")
             else:
                 r_return_type_if_convert_to_return.append(f"String")
                 r_after_call_lines.append(f"{acl_indents}String ret = &{arg_name}[0];")
             i += 1
-        elif (
-            arg_type == "void*"
-            and (i + 1) <= len(args)
-            and args[i + 1]["type"].endswith("int32_t*")
-        ):
+        elif arg_type == "void*" and (i + 1) <= len(args) and args[i + 1]["type"].endswith("int32_t*"):
             # 查找大小字段
             length_variable: str = ""
             options_fields: dict[str, str] = __get_struct_fields(options_type)
@@ -1526,26 +1359,18 @@ def __make_packed_result(
 
             r_prepare_lines.append(f"\tPackedByteArray {arg_name};")
             r_prepare_lines.append(f"\t{arg_name}.resize({length_variable});")
-            r_prepare_lines.append(
-                f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = {length_variable};'
-            )
+            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = {length_variable};')
 
             r_call_args.append(f"{arg_name}.ptrw()")
             r_call_args.append(f'&{args[i+1]["name"]}')
 
-            r_after_call_lines.append(
-                f'{acl_indents}{arg_name}.resize({args[i+1]["name"]});'
-            )
+            r_after_call_lines.append(f'{acl_indents}{arg_name}.resize({args[i+1]["name"]});')
 
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}ret->{snake_name} = {arg_name};"
-                )
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
             else:
                 r_return_type_if_convert_to_return.append(f"PackedByteArray")
-                r_after_call_lines.append(
-                    f"{acl_indents}PackedByteArray ret = {arg_name};"
-                )
+                r_after_call_lines.append(f"{acl_indents}PackedByteArray ret = {arg_name};")
 
             i += 1
         elif decayed_type == "EOS_Bool":
@@ -1566,16 +1391,10 @@ def __make_packed_result(
             r_call_args.append(f"&{arg_name}")
 
             if pack_result:
-                r_after_call_lines.append(
-                    f"{acl_indents}_FROM_EOS_FIELD(ret->{snake_name}, {arg_name.split('[')[0]});"
-                )
+                r_after_call_lines.append(f"{acl_indents}_FROM_EOS_FIELD(ret->{snake_name}, {arg_name.split('[')[0]});")
             else:
-                r_return_type_if_convert_to_return.append(
-                    f"{remap_type(decayed_type, arg_name)}"
-                )
-                r_after_call_lines.append(
-                    f"{acl_indents}{remap_type(decayed_type, arg_name)} ret; _FROM_EOS_FIELD(ret, {arg_name.split('[')[0]});"
-                )
+                r_return_type_if_convert_to_return.append(f"{remap_type(decayed_type, arg_name)}")
+                r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret; _FROM_EOS_FIELD(ret, {arg_name.split('[')[0]});")
 
         i += 1
 
@@ -1597,9 +1416,7 @@ def _gen_method(
     callback_signal = ""
 
     out_to_ret: list[bool] = []
-    packed_result_type = _gen_packed_result_type(
-        method_name, info, [], [], out_to_ret, True
-    )
+    packed_result_type = _gen_packed_result_type(method_name, info, [], [], out_to_ret, True)
     need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
@@ -1658,17 +1475,11 @@ def _gen_method(
                 "EOS_TitleStorage_OnReadFileCompleteCallback",
             ]:
                 cb = decayed_type
-                gd_cb = (
-                    remap_type(decayed_type, name)
-                    .removeprefix("Ref<")
-                    .removesuffix(">")
-                )
+                gd_cb = remap_type(decayed_type, name).removeprefix("Ref<").removesuffix(">")
                 signal_name = __convert_to_signal_name(cb)
                 interface_signal_name = __convert_to_signal_name(cb)
 
-                prepare_lines.append(
-                    f"\tauto callback = &file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
-                )
+                prepare_lines.append(f"\tauto callback = &file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
                 call_args.append(f"callback")
             else:
                 call_args.append(f"{_gen_callback(decayed_type, [])}")
@@ -1678,9 +1489,7 @@ def _gen_method(
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
             bind_args.append('"client_data"')
-            if (i + 1) < len(info["args"]) and __is_callback_type(
-                _decay_eos_type(info["args"][i + 1]["type"])
-            ):
+            if (i + 1) < len(info["args"]) and __is_callback_type(_decay_eos_type(info["args"][i + 1]["type"])):
                 match _decay_eos_type(info["args"][i + 1]["type"]):
                     case "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
                         write_cb = f'{options_input_identifier}->p_{to_snake_case("WriteFileDataCallback")}'
@@ -1688,63 +1497,40 @@ def _gen_method(
                         completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
                         prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(
-                            f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {write_cb}, {progress_cb}, {completion_cb});"
-                        )
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {write_cb}, {progress_cb}, {completion_cb});")
                         call_args.append(f"transfer_data")
                         for_file_transfer = True
-                    case (
-                        "EOS_PlayerDataStorage_OnReadFileCompleteCallback"
-                        | "EOS_TitleStorage_OnReadFileCompleteCallback"
-                    ):
+                    case "EOS_PlayerDataStorage_OnReadFileCompleteCallback" | "EOS_TitleStorage_OnReadFileCompleteCallback":
                         read_cb = f'{options_input_identifier}->p_{to_snake_case("ReadFileDataCallback")}'
                         progress_cb = f'{options_input_identifier}->p_{to_snake_case("FileTransferProgressCallback")}'
                         completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
                         prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(
-                            f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {read_cb}, {progress_cb}, {completion_cb});"
-                        )
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {read_cb}, {progress_cb}, {completion_cb});")
                         call_args.append(f"transfer_data")
                         for_file_transfer = True
                     case "EOS_IntegratedPlatform_SetUserPreLogoutCallback":
-                        prepare_lines.append(
-                            "\tstatic auto client_data = _CallbackClientData(this, {}, {});"
-                        )
+                        prepare_lines.append("\tstatic auto client_data = _CallbackClientData(this, {}, {});")
                         prepare_lines.append("\tclient_data.handle_wrapper = this;")
-                        prepare_lines.append(
-                            "\tclient_data.client_data = p_client_data;"
-                        )
-                        prepare_lines.append(
-                            f'\tclient_data.callback = p_{to_snake_case(info["args"][i+1]["name"])};'
-                        )
+                        prepare_lines.append("\tclient_data.client_data = p_client_data;")
+                        prepare_lines.append(f'\tclient_data.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
                         call_args.append("&client_data")
                     case _:
-                        call_args.append(
-                            f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})'
-                        )
+                        call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})')
             else:
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data)")
 
-        elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(
-            decayed_type
-        ):
+        elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(decayed_type):
             if name.endswith("Options"):
                 options_type = decayed_type
                 options_input_identifier = f"p_{snake_name}"
                 options_prepare_identifier = f"{name}"
             # 未被展开的输入结构体（Options）
-            declare_args.append(
-                f"const {remap_type(decayed_type, name)}& p_{snake_name}"
-            )
-            prepare_lines.append(
-                f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();"
-            )
+            declare_args.append(f"const {remap_type(decayed_type, name)}& p_{snake_name}")
+            prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&{options_prepare_identifier}")
-        elif __is_method_input_only_struct(decayed_type) and _is_expended_struct(
-            decayed_type
-        ):
+        elif __is_method_input_only_struct(decayed_type) and _is_expended_struct(decayed_type):
             if name.endswith("Options"):
                 options_type = decayed_type
                 options_input_identifier = f"p_{snake_name} "
@@ -1790,9 +1576,7 @@ def _gen_method(
             # 普通参数
             declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
-            call_args.append(
-                f"to_eos_type<gd_arg_t<{remap_type(type, name)}>, {type}>(p_{snake_name})"
-            )
+            call_args.append(f"to_eos_type<gd_arg_t<{remap_type(type, name)}>, {type}>(p_{snake_name})")
         i += 1
 
     # 避免同类内方法重名
@@ -1808,28 +1592,18 @@ def _gen_method(
                 candidate_method_name = "".join([splited[1], splited[2]])
                 valid = False
                 break
-    snake_method_name = to_snake_case(candidate_method_name).removeprefix(
-        "e_"
-    )  # Hack, 去除枚举前缀
+    snake_method_name = to_snake_case(candidate_method_name).removeprefix("e_")  # Hack, 去除枚举前缀
 
     # ======= 声明 ===============
-    r_declare_lines.append(
-        f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});'
-    )
+    r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
-    r_define_lines.append(
-        f'{return_type} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{'
-    )
+    r_define_lines.append(f'{return_type} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{')
     r_define_lines += prepare_lines
     # 调用
     if _is_handle_type(_decay_eos_type(info["return"])):
-        r_define_lines.append(
-            f'\tauto return_handle = {method_name}({", ".join(call_args)});'
-        )
+        r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
-        r_define_lines.append(
-            f'\tEOS_EResult result_code = {method_name}({", ".join(call_args)});'
-        )
+        r_define_lines.append(f'\tEOS_EResult result_code = {method_name}({", ".join(call_args)});')
     elif return_type == "void" or return_type == "Signal" or need_out_to_ret:
         r_define_lines.append(f'\t{method_name}({", ".join(call_args)});')
     else:
@@ -1840,9 +1614,7 @@ def _gen_method(
     if _is_handle_type(_decay_eos_type(info["return"])):
         if not for_file_transfer:
             r_define_lines.append(f"\t{return_type} ret;")
-            r_define_lines.append(
-                f"\tif(return_handle) {{ ret.instantiate(); ret->set_handle(return_handle);}}"
-            )
+            r_define_lines.append(f"\tif(return_handle) {{ ret.instantiate(); ret->set_handle(return_handle);}}")
         else:
             r_define_lines.append(f"\tret->set_handle(return_handle);")
         r_define_lines.append(f"\treturn ret;")
@@ -1866,29 +1638,19 @@ def _gen_method(
     if need_callable_arg:
         default_val_arg = ", DEVAL(Callable())"
 
-    bind_prefix: str = (
-        "ClassDB::bind_static_method(get_class_static(), "
-        if static
-        else "ClassDB::bind_method("
-    )
-    r_bind_lines.append(
-        f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});'
-    )
+    bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
+    r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
     f = open("thirdparty\eos-sdk\SDK\Include\eos_result.h", "r")
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"][
-        "EOS_EResult"
-    ] = []
+    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = []
 
     for line in f.readlines():
         if not line.startswith("EOS_RESULT_VALUE"):
             continue
-        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"][
-            "EOS_EResult"
-        ].append(line.split("(", 1)[1].split(", ", 1)[0])
+        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"].append(line.split("(", 1)[1].split(", ", 1)[0])
 
     f.close()
 
@@ -1896,17 +1658,13 @@ def _get_EOS_EResult(r_file_lower2infos: list[str]):
 def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
     f = open("thirdparty\eos-sdk\SDK\Include\eos_ui_keys.h", "r")
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"][
-        "EOS_UI_EKeyCombination"
-    ] = []
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = []
     for line in f.readlines():
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"][
-            "EOS_UI_EKeyCombination"
-        ].append(splited[0] + splited[1])
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"].append(splited[0] + splited[1])
 
     f.close()
 
@@ -1914,17 +1672,13 @@ def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
 def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
     f = open("thirdparty\eos-sdk\SDK\Include\eos_ui_buttons.h", "r")
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"][
-        "EOS_UI_EInputStateButtonFlags"
-    ] = []
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = []
     for line in f.readlines():
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"][
-            "EOS_UI_EInputStateButtonFlags"
-        ].append(splited[0] + splited[1])
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"].append(splited[0] + splited[1])
 
     f.close()
 
@@ -2084,14 +1838,10 @@ def remap_type(type: str, field: str = "") -> str:
     todo_types = {
         #
         "EOS_PlayerDataStorage_OnReadFileDataCallback": ["ReadFileDataCallback"],
-        "EOS_PlayerDataStorage_OnFileTransferProgressCallback": [
-            "FileTransferProgressCallback"
-        ],
+        "EOS_PlayerDataStorage_OnFileTransferProgressCallback": ["FileTransferProgressCallback"],
         "EOS_PlayerDataStorage_OnWriteFileDataCallback": ["WriteFileDataCallback"],
         "EOS_TitleStorage_OnReadFileDataCallback": ["ReadFileDataCallback"],
-        "EOS_TitleStorage_OnFileTransferProgressCallback": [
-            "FileTransferProgressCallback"
-        ],
+        "EOS_TitleStorage_OnFileTransferProgressCallback": ["FileTransferProgressCallback"],
         # Arr
         "const EOS_Stats_IngestData*": ["Stats"],
         "const EOS_PresenceModification_DataRecordId*": ["Records"],
@@ -2199,9 +1949,7 @@ def to_snake_case(text: str) -> str:
     # SPECIAL: char SocketName[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
     text = text.split("[", 1)[0]
     #
-    snake_str = "".join(
-        ["_" + char.lower() if char.isupper() else char for char in text]
-    )
+    snake_str = "".join(["_" + char.lower() if char.isupper() else char for char in text])
     return (
         snake_str.lstrip("_")
         .replace("u_r_i", "uri")
@@ -2219,16 +1967,12 @@ def __is_arg_out_struct(struct_type: str) -> bool:
     for infos in handles.values():
         for method_info in infos["methods"].values():
             for arg in method_info["args"]:
-                if _decay_eos_type(arg["type"]) == struct_type and arg[
-                    "name"
-                ].startswith("Out"):
+                if _decay_eos_type(arg["type"]) == struct_type and arg["name"].startswith("Out"):
                     return True
 
     for method_info in unhandled_methods.values():
         for arg in method_info["args"]:
-            if _decay_eos_type(arg["type"]) == struct_type and arg["name"].startswith(
-                "Out"
-            ):
+            if _decay_eos_type(arg["type"]) == struct_type and arg["name"].startswith("Out"):
                 print(f"Warning: ", struct_type)
                 return True
     return False
@@ -2243,9 +1987,7 @@ def __is_input_struct(struct_type: str) -> bool:
 
             method_info = infos["methods"][method_name]
             for arg in method_info["args"]:
-                if _decay_eos_type(arg["type"]) == struct_type and not arg[
-                    "name"
-                ].startswith("Out"):
+                if _decay_eos_type(arg["type"]) == struct_type and not arg["name"].startswith("Out"):
                     return True
 
     for method_name in unhandled_methods:
@@ -2255,9 +1997,7 @@ def __is_input_struct(struct_type: str) -> bool:
 
         method_info = unhandled_methods[method_name]
         for arg in method_info["args"]:
-            if _decay_eos_type(arg["type"]) == struct_type and not arg[
-                "name"
-            ].startswith("Out"):
+            if _decay_eos_type(arg["type"]) == struct_type and not arg["name"].startswith("Out"):
                 print(f"Warning: ", struct_type)
                 return True
     return False
@@ -2290,11 +2030,7 @@ def __is_internal_struct(struct_type: str, r_owned_structs: list[str]) -> bool:
     for struct_name in structs:
         for field in structs[struct_name]:
             field_type = structs[struct_name][field]
-            if (
-                not struct_name in r_owned_structs
-                and not _is_internal_struct_arr_field(field_type, field)
-                and _decay_eos_type(field_type) == struct_type
-            ):
+            if not struct_name in r_owned_structs and not _is_internal_struct_arr_field(field_type, field) and _decay_eos_type(field_type) == struct_type:
                 r_owned_structs.append(struct_name)
     return len(r_owned_structs) > 0
 
@@ -2306,11 +2042,7 @@ def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) ->
     for struct_name in structs:
         for field in structs[struct_name]:
             field_type = structs[struct_name][field]
-            if (
-                not struct_name in r_owned_structs
-                and _is_internal_struct_arr_field(field_type, field)
-                and _decay_eos_type(field_type) == struct_type
-            ):
+            if not struct_name in r_owned_structs and _is_internal_struct_arr_field(field_type, field) and _decay_eos_type(field_type) == struct_type:
                 r_owned_structs.append(struct_name)
     return len(r_owned_structs) > 0
 
@@ -2318,9 +2050,7 @@ def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) ->
 def __is_method_input_only_struct(struct_type: str) -> bool:
     if not _decay_eos_type(struct_type) in structs:
         return False
-    if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(
-        struct_type, []
-    ):
+    if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(struct_type, []):
         return False
     if __is_arg_out_struct(struct_type) or __is_output_struct(struct_type):
         return False
@@ -2339,9 +2069,7 @@ def __is_method_input_only_struct(struct_type: str) -> bool:
 
 
 def __is_callback_output_only_struct(struct_type: str) -> bool:
-    if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(
-        struct_type, []
-    ):
+    if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(struct_type, []):
         return False
     if __is_arg_out_struct(struct_type) or __is_input_struct(struct_type):
         return False
@@ -2389,29 +2117,17 @@ def _make_additional_method_requirements():
         if __is_internal_struct_of_arr(struct_name, owned_structs):
             for s in owned_structs:
                 if __is_input_struct(s):
-                    struct2additional_method_requirements[struct_name][
-                        "set_to"
-                    ] = True  # 不需要 to 附带的实例字段
+                    struct2additional_method_requirements[struct_name]["set_to"] = True  # 不需要 to 附带的实例字段
                 if __is_output_struct(s) or __is_arg_out_struct(s):
-                    struct2additional_method_requirements[struct_name][
-                        "set_from"
-                    ] = True
+                    struct2additional_method_requirements[struct_name]["set_from"] = True
                     struct2additional_method_requirements[struct_name]["from"] = True
 
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
         field_count = len(structs[struct_type])
-        if (
-            max_options_fields_count_to_expend > 0
-            and field_count <= max_options_fields_count_to_expend
-            and __is_method_input_only_struct(struct_type)
-        ):
+        if max_options_fields_count_to_expend > 0 and field_count <= max_options_fields_count_to_expend and __is_method_input_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
-        if (
-            max_callback_fields_count_to_expend > 0
-            and field_count <= max_callback_fields_count_to_expend
-            and __is_callback_output_only_struct(struct_type)
-        ):
+        if max_callback_fields_count_to_expend > 0 and field_count <= max_callback_fields_count_to_expend and __is_callback_output_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
 
 
@@ -2460,9 +2176,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     continue
 
                 splited = line.split(" = ")
-                r_file_lower2infos[interface_lower]["enums"][enum_type].append(
-                    splited[0]
-                )
+                r_file_lower2infos[interface_lower]["enums"][enum_type].append(splited[0])
                 i += 1
 
             i += 1
@@ -2525,19 +2239,12 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
         elif line.startswith("EOS_STRUCT"):
             i += 1
 
-            struct_name = (
-                line.lstrip("EOS_STRUCT").lstrip("(").rstrip("\n").rstrip(", (")
-            )
+            struct_name = line.lstrip("EOS_STRUCT").lstrip("(").rstrip("\n").rstrip(", (")
             r_file_lower2infos[interface_lower]["structs"][struct_name] = {}
 
             while not lines[i].startswith("));"):
                 line = lines[i].lstrip("\t").rstrip("\n")
-                if (
-                    line.startswith("/")
-                    or line.startswith("*")
-                    or line.startswith(" ")
-                    or len(line) == 0
-                ):
+                if line.startswith("/") or line.startswith("*") or line.startswith(" ") or len(line) == 0:
                     i += 1
                     continue
 
@@ -2548,12 +2255,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     i += 2
                     while not lines[i].lstrip("\t").startswith("}"):
                         line = lines[i].lstrip("\t").rstrip("\n")
-                        if (
-                            line.startswith("/")
-                            or line.startswith("*")
-                            or line.startswith(" ")
-                            or len(line) == 0
-                        ):
+                        if line.startswith("/") or line.startswith("*") or line.startswith(" ") or len(line) == 0:
                             i += 1
                             continue
                         line = line.rsplit(";")[0]
@@ -2570,17 +2272,8 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         union_type += f"{union_fileds[union_f]} : {union_f}, "
                     union_type = union_type.rstrip(" ").rstrip(",") + "}"
 
-                    field = (
-                        lines[i]
-                        .lstrip("\t")
-                        .lstrip("}")
-                        .lstrip(" ")
-                        .rstrip("\n")
-                        .rstrip(";")
-                    )
-                    r_file_lower2infos[interface_lower]["structs"][struct_name][
-                        field
-                    ] = union_type
+                    field = lines[i].lstrip("\t").lstrip("}").lstrip(" ").rstrip("\n").rstrip(";")
+                    r_file_lower2infos[interface_lower]["structs"][struct_name][field] = union_type
                 else:
                     # Regular
                     splited = line.rsplit(" ", 1)
@@ -2588,9 +2281,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         print(f"ERROR: {fp}:{i}\n")
                         print(f"{lines[i]}")
                     else:
-                        r_file_lower2infos[interface_lower]["structs"][struct_name][
-                            splited[1]
-                        ] = splited[0]
+                        r_file_lower2infos[interface_lower]["structs"][struct_name][splited[1]] = splited[0]
 
                 i += 1
 
@@ -2761,18 +2452,14 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
                 signal = remap[signal]
             signals.append(signal + "_callback")
 
-        ret.append(
-            f'\t{method_declare.replace(" create(", " create_platform(")} {{ return IEOS::get_singleton()->{origin_method}({args_text}); }}'
-        )
+        ret.append(f'\t{method_declare.replace(" create(", " create_platform(")} {{ return IEOS::get_singleton()->{origin_method}({args_text}); }}')
     ret.append("")
 
     # signal callbacks
     if len(signals):
         ret.append("private:")
         for signal_name in signals:
-            ret.append(
-                f'\tvoid {signal_name}(const Ref<EOSDataClass> &p_callback_data) {{ emit_signal(SNAME("{signal_name}"), p_callback_data); }}'
-            )
+            ret.append(f'\tvoid {signal_name}(const Ref<EOSDataClass> &p_callback_data) {{ emit_signal(SNAME("{signal_name}"), p_callback_data); }}')
         ret.append("")
 
     # bind methods
@@ -2783,17 +2470,13 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
         args = ", ".join(methods[method_name])
         if len(args) > 0:
             args = ", " + args
-        ret.append(
-            f'\t\t_INTERFACE_BIND_METHOD({klass}, {method_name if method_name != "create" else "create_platform"}{args});'
-        )
+        ret.append(f'\t\t_INTERFACE_BIND_METHOD({klass}, {method_name if method_name != "create" else "create_platform"}{args});')
 
     # - bine signals
     if len(signals):
         ret.append("")
         for signal_name in signals:
-            ret.append(
-                f"\t\t_INTERFACE_BIND_SIGNAL({interface_name + '_interface_'}, {signal_name});"
-            )
+            ret.append(f"\t\t_INTERFACE_BIND_SIGNAL({interface_name + '_interface_'}, {signal_name});")
     # - bind enums
     has_enum = False
     for e in enum_types:
@@ -2812,9 +2495,7 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
     if len(signals):
         ret.append("\tvoid _notification(int p_what) {")
         for signal_name in signals:
-            ret.append(
-                f"\t\t_CONNECT_INTERFACE_SIGNAL({interface_name + '_interface_'}, {signal_name}, {klass});"
-            )
+            ret.append(f"\t\t_CONNECT_INTERFACE_SIGNAL({interface_name + '_interface_'}, {signal_name}, {klass});")
         ret.append("\t}")
         ret.append("")
 
@@ -2849,16 +2530,7 @@ def _gen_interface(interface_name: str, method_lines: list[str]) -> list[str]:
 
 
 def _decay_eos_type(t: str) -> str:
-    ret = (
-        t.lstrip("const")
-        .lstrip(" ")
-        .rstrip("*")
-        .rstrip("&")
-        .rstrip("*")
-        .rstrip("&")
-        .lstrip(" ")
-        .rstrip(" ")
-    )
+    ret = t.lstrip("const").lstrip(" ").rstrip("*").rstrip("&").rstrip("*").rstrip("&").lstrip(" ").rstrip(" ")
     return ret
 
 
@@ -2934,19 +2606,11 @@ def _find_count_field(field: str, fields: list[str]) -> str:
     for f in fields:
         if f == fields:
             continue
-        if (
-            f.endswith("Count")
-            or f.endswith("Size")
-            or f.endswith("Length")
-            or f.endswith("LengthBytes")
-            or f.endswith("SizeBytes")
-        ):
+        if f.endswith("Count") or f.endswith("Size") or f.endswith("Length") or f.endswith("LengthBytes") or f.endswith("SizeBytes"):
             fsplited = to_snake_case(f).split("_")
             similar = 0
             for i in range(min(2, len(fsplited), len(splited))):
-                if fsplited[i].removesuffix("s").removesuffix("y") == splited[
-                    i
-                ].removesuffix("ies").removesuffix("s"):
+                if fsplited[i].removesuffix("s").removesuffix("y") == splited[i].removesuffix("ies").removesuffix("s"):
                     similar += 1
                 else:
                     break
@@ -2984,9 +2648,7 @@ def _gen_struct(
 
         field_type = fields[field]
         # 检出count字段，Godot不需要及将其作为成员
-        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(
-            field_type, field
-        ):
+        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
             count_fields.append(_find_count_field(field, fields.keys()))
 
         # 检出Variant式的联合体类型字段，Godot不需要及将其作为成员
@@ -3005,16 +2667,12 @@ def _gen_struct(
             continue
 
         type: str = fields[field]
-        if __is_struct_type(
-            _decay_eos_type(type)
-        ) and not _is_internal_struct_arr_field(type, field):
+        if __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
             type = remap_type(_decay_eos_type(type), field)
         if _is_handle_type(_decay_eos_type(type)):
             # 句柄类型需要前向声明
-            type = "Ref<class " + remap_type(_decay_eos_type(type), field).removeprefix(
-                "Ref<"
-            )
+            type = "Ref<class " + remap_type(_decay_eos_type(type), field).removeprefix("Ref<")
         else:
             type = remap_type(type, field)
         initialize_expression = ""
@@ -3052,15 +2710,11 @@ def _gen_struct(
     if addtional_methods_requirements["set_from"]:
         lines.append(f"\tvoid set_from_eos(const {struct_type} &p_origin);")
     if addtional_methods_requirements["from"]:
-        lines.append(
-            f"\tstatic Ref<{typename}> from_eos(const {struct_type} &p_origin);"
-        )
+        lines.append(f"\tstatic Ref<{typename}> from_eos(const {struct_type} &p_origin);")
     if addtional_methods_requirements["set_to"]:
         lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
     if addtional_methods_requirements["to"]:
-        lines.append(
-            f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}"
-        )
+        lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
 
     # bind
     lines.append("protected:")
@@ -3091,9 +2745,7 @@ def _gen_struct(
 
     # ===
     if addtional_methods_requirements["from"]:
-        r_structs_cpp.append(
-            f"Ref<{typename}> {typename}::from_eos(const {struct_type} &p_origin) {{"
-        )
+        r_structs_cpp.append(f"Ref<{typename}> {typename}::from_eos(const {struct_type} &p_origin) {{")
         r_structs_cpp.append(f"\tRef<{typename}> ret;")
         r_structs_cpp.append(f"\tret.instantiate();")
         r_structs_cpp.append(f"\tret->set_from_eos(p_origin);")
@@ -3101,9 +2753,7 @@ def _gen_struct(
         r_structs_cpp.append("}")
 
     if addtional_methods_requirements["set_from"]:
-        r_structs_cpp.append(
-            f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{"
-        )
+        r_structs_cpp.append(f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{")
         for field in fields.keys():
             if is_deprecated_field(field):
                 continue
@@ -3114,41 +2764,25 @@ def _gen_struct(
 
             field_type = fields[field]
             if _is_anticheat_client_handle_type(field_type):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({to_snake_case(field)}, p_origin.{field});")
             elif field_type.startswith("Union"):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_UNION({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_UNION({to_snake_case(field)}, p_origin.{field});")
             elif _is_handle_type(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, p_origin.{field});")
             elif _is_client_data_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_CLIENT_DATA({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_CLIENT_DATA({to_snake_case(field)}, p_origin.{field});")
             elif _is_internal_struct_arr_field(field_type, field):
                 r_structs_cpp.append(
                     f"\t_FROM_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, {to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
                 )
             elif _is_internal_struct_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_STRUCT({to_snake_case(field)}, p_origin.{field});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_STRUCT({to_snake_case(field)}, p_origin.{field});")
             elif _is_arr_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             else:
-                r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split('[')[0]});"
-                )
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
         r_structs_cpp.append("}")
     if addtional_methods_requirements["set_to"]:
         r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
@@ -3162,71 +2796,43 @@ def _gen_struct(
 
             field_type = fields[field]
             if _is_anticheat_client_handle_type(field_type):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});")
             elif _is_requested_channel_ptr_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {to_snake_case(field)});")
             elif field_type.startswith("Union"):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_UNION(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_UNION(p_data.{field}, {to_snake_case(field)});")
             elif _is_handle_type(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {to_snake_case(field)});")
             elif _is_client_data_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_CLIENT_DATA(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_CLIENT_DATA(p_data.{field}, {to_snake_case(field)});")
             elif _is_internal_struct_arr_field(field_type, field):
                 r_structs_cpp.append(
                     f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});"
                 )
             elif _is_internal_struct_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {to_snake_case(field)});")
             elif _is_arr_field(field_type, field):
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});")
             elif __is_callback_type(_decay_eos_type(field_type)):
                 eos_cb_type = field_type
-                gd_cb_type = (
-                    remap_type(field_type).removeprefix("Ref<").removesuffix(">")
-                )
+                gd_cb_type = remap_type(field_type).removeprefix("Ref<").removesuffix(">")
                 signal_name = __convert_to_signal_name(eos_cb_type)
                 match field_type:
                     case "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = &read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = &read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>")
                     case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = &write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = &write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>")
                     case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>")
                     case "EOS_TitleStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = &title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = &title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>")
                     case "EOS_TitleStorage_OnFileTransferProgressCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = &file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>")
                     case _:
                         print("ERROR: ", field_type)
                         exit(1)
             else:
-                r_structs_cpp.append(
-                    f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});"
-                )
+                r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
         r_structs_cpp.append("}")
 
     return lines
