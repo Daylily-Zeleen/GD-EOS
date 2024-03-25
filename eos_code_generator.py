@@ -995,11 +995,15 @@ def _gen_packed_result_type(
             # Handle 类型需要前向声明
             menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {_convert_handle_class_name(decayed_type)})")
         elif __is_struct_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
-            bind_lines.append(f"\t_BIND_PROP({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
+        elif _is_anticheat_client_handle_type(decayed_type):
+            menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
+            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
         elif _is_enum_type(decayed_type):
             enum_owner: str = _get_enum_owned_interface(decayed_type)
             menbers_lines.append(f"\t{decayed_type} {snake_name};")
@@ -2602,6 +2606,8 @@ def _gen_struct(
         type: str = remap_type(fields[field], field)
         if type == "bool":
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({to_snake_case(field)})")
+        if __is_struct_type(_decay_eos_type(fields[field])) or _is_handle_type(_decay_eos_type(fields[field])):
+            r_structs_cpp.append(f'\t_BIND_PROP_OBJ({to_snake_case(field)}, {type.removeprefix("Ref<").removesuffix(">").removesuffix("*")})')
         else:
             r_structs_cpp.append(f"\t_BIND_PROP({to_snake_case(field)})")
     r_structs_cpp.append(f"\t_BIND_END()")

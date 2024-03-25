@@ -68,6 +68,13 @@ static StringName _get_class_name(const Variant &p_val) {
                          _get_class_name(tmp_obj->get_##field())),                                                                \
             "set_" #field, "get_" #field);
 
+#define _BIND_PROP_OBJ(field, obj_ty)                                                                             \
+    ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);        \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT,            \
+                         obj_ty::get_class_static()),                                                             \
+            "set_" #field, "get_" #field);
+
 #define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                                             \
     ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
