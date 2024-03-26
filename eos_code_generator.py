@@ -1,5 +1,6 @@
 import os
 
+# TODO: 生成绑定常量（xxxMAX_LENTGTH 等等）
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
@@ -105,7 +106,7 @@ def gen_all_in_one():
     register_classes_lines.append("#define REGISTER_EOS_CLASSES()\\")
 
     register_singleton_lines: list[str] = ["#define REGISTER_EOS_SINGLETONS()\\"]
-    unregister_singleton_lines: list[str] = ["#define UNREFISTER_EOS_SINGLETONS()\\"]
+    unregister_singleton_lines: list[str] = ["#define UNREGISTER_EOS_SINGLETONS()\\"]
 
     for fbn in generate_infos:
         if len(generate_infos[fbn]["handles"]) <= 0:
@@ -127,8 +128,8 @@ def gen_all_in_one():
         if fbn == "eos_sdk":
             fbn = "eos_platform"
         lines.append(f'#include "{fbn}_interface.h"')
-        register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::{handle_class}::get_class_static, handle_class::get_singleton());\\")
-        unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::{handle_class}::get_class_static);\\")
+        register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::{handle_class}::get_class_static(), {handle_class}::get_singleton());\\")
+        unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::{handle_class}::get_class_static());\\")
     register_singleton_lines.append("")
     unregister_singleton_lines.append("")
 
@@ -473,7 +474,7 @@ def gen_structs(
 
     ######### 生成绑定宏 #########
     lines.append("// ====================")
-    lines.append(f'#define REGISTER_DATA_CLASSES_OF_{handle_class.removeprefix("EOS")}()\\')
+    lines.append(f'#define REGISTER_DATA_CLASSES_OF_{handle_class}()\\')
     for st in struct_infos:
         if _is_expended_struct(st):
             continue
@@ -534,6 +535,8 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
 
     r_cpp_lines.append(f"}} // namespace godot")
     r_cpp_lines.append(f"")
+
+    register_lines.append("")
 
     return h_lines + register_lines
 
@@ -673,21 +676,23 @@ def _gen_handle(
                 r_cpp_lines.append(line)
         r_cpp_lines.append(f"}}")
 
-    # 特殊处理，设置 EOS_HRTCAudio 句柄
-    r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
-    r_cpp_lines.append(f"\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
-    if handle_name == "EOS_HRTC":
-        r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
-        r_cpp_lines.append(f"\tif (m_handle) {{")
-        r_cpp_lines.append(f"\t\tauto rtc_auduo_handle = EOS_RTC_GetAudioInterface(m_handle);")
-        r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_auduo_handle);')
-        r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
-        r_cpp_lines.append(f"\t}}")
-    if len(setup_nofities_lines):
-        for line in setup_nofities_lines:
-            r_cpp_lines.append(line)
-    r_cpp_lines.append(f"}}")
-    r_cpp_lines.append(f"")
+    
+    if not is_base_handle_type:
+        # 特殊处理，设置 EOS_HRTCAudio 句柄
+        r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
+        r_cpp_lines.append(f"\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
+        if handle_name == "EOS_HRTC":
+            r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
+            r_cpp_lines.append(f"\tif (m_handle) {{")
+            r_cpp_lines.append(f"\t\tauto rtc_auduo_handle = EOS_RTC_GetAudioInterface(m_handle);")
+            r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_auduo_handle);')
+            r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
+            r_cpp_lines.append(f"\t}}")
+        if len(setup_nofities_lines):
+            for line in setup_nofities_lines:
+                r_cpp_lines.append(line)
+        r_cpp_lines.append(f"}}")
+        r_cpp_lines.append(f"")
 
     ret: list[str] = []
 
