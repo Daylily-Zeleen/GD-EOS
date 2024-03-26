@@ -546,9 +546,7 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     signal_name = __convert_to_signal_name(_decay_eos_type(callback_type))
     id_identifier: str = f"notify_id_{signal_name}"
 
-    cb_arg_type = _get_callback_infos(_decay_eos_type(callback_type))["args"][0]["type"]
     remove_method = add_notify_method.replace("AddNotify", "RemoveNotify").removesuffix("_V2")
-    snake_options_identifier = to_snake_case(options_type.rsplit("_", 1)[1])
     # Hack
     cb = _gen_callback(_decay_eos_type(callback_type), [])
     if "_EOS_METHOD_CALLBACK" in cb:
@@ -560,10 +558,12 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
         exit(1)
 
     r_menber_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
-    r_setup_lines.append(f"\t{options_type} {snake_options_identifier};")
-    r_setup_lines.append(f"\t{snake_options_identifier}.ApiVersion =  {__get_api_latest_macro(options_type)};")
-    r_setup_lines.append(f"\tif (m_handle) {{ {id_identifier} = {add_notify_method}(m_handle, &{snake_options_identifier}, this, {cb}); }}")
-    r_setup_lines.append(f'\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ ERR_PRINT("EOS: Setup notify \\"{signal_name}\\" failed"); }}')
+    r_setup_lines.append("\t{")
+    r_setup_lines.append(f"\t\t{options_type} options;")
+    r_setup_lines.append(f"\t\toptions.ApiVersion = {__get_api_latest_macro(options_type)};")
+    r_setup_lines.append(f"\t\tif (m_handle) {{ {id_identifier} = {add_notify_method}(m_handle, &options, this, {cb}); }}")
+    r_setup_lines.append(f'\t\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ ERR_PRINT("EOS: Setup notify \\"{signal_name}\\" failed"); }}')
+    r_setup_lines.append("\t}")
     r_remove_lines.append(f"\tif ({id_identifier} != EOS_INVALID_NOTIFICATIONID) {remove_method}(m_handle, {id_identifier});")
 
 
