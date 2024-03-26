@@ -190,7 +190,7 @@ def gen_files(file_base_name: str, infos: dict):
 
         additional_include_lines: list[str] = []
         if file_base_name.startswith("eos_anticheat"):
-            additional_include_lines.append("#include <eos_anticheatcommon_client.h>")
+            additional_include_lines.append("#include <core/eos_anticheatcommon_client.h>")
         structs_h_lines: list[str] = gen_structs(
             file_base_name,
             eos_types_header,
@@ -287,6 +287,7 @@ def gen_files(file_base_name: str, infos: dict):
         _convert_handle_class_name("EOS") if file_base_name == "eos_common" else _convert_handle_class_name(interface_handle),
         interface_handle_cpp_lines,
         [],
+        True
     )
     interface_handle_cpp_lines.append(f"}} // namespace godot")
     interface_handle_cpp_lines.append(f"")
@@ -464,15 +465,22 @@ def _gen_handle(
     bind_macro_suffix: str,
     r_cpp_lines: list[str],
     r_register_lines: list[str],
+    need_singleton:bool = False,
 ) -> list[str]:
     is_base_handle_type = _is_base_handle_type(handle_name)
     base_class = _get_base_class(handle_name)
+    if is_base_handle_type:
+        need_singleton = False
 
     method_infos = infos["methods"]
     callback_infos = infos["callbacks"]
 
     klass = _convert_handle_class_name(handle_name)
     release_method: str = ""
+    
+    
+    if need_singleton:
+        r_cpp_lines.append(f'{klass} *{klass}::singleton{{ nullptr }};')
 
     method_bind_lines: list[str] = []
 
@@ -490,6 +498,9 @@ def _gen_handle(
     if not is_base_handle_type:
         ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
         ret.append(f"")
+    if need_singleton:
+        ret.append(f"\tstatic {klass} *singleton;")
+        ret.append(f"")
     ret.append(f"protected:")
     ret.append(f"\tstatic void _bind_methods();")
     ret.append(f"")
@@ -497,10 +508,18 @@ def _gen_handle(
     # USING 枚举
     if len(infos["enums"]):
         ret.append(f"\t_USING_ENUMS_{bind_macro_suffix}()")
-
+        ret.append(f"")
+    if need_singleton:
+        ret.append(f"\tstatic {klass} *get_singleton() {{ if (singleton == nullptr) {{singleton = memnew({klass});}} return singleton; }}")
+        ret.append(f"")
+    if need_singleton:
+        ret.append(f'\t{klass}();')
     # Destructor
     if len(release_method):  # and not is_base_handle_type:
         ret.append(f"\t~{klass}() {{")
+        if need_singleton:
+            ret.append(f'\t\tif(singleton != this) {{ ERR_PRINT("singleton != this"); }}')
+            ret.append(f'\t\telse {{ singleton = nullptr; }}')
         ret.append(f"\t\tif (m_handle) {{")
         ret.append(f"\t\t\t{release_method}(m_handle);")
         ret.append(f"\t\t}}")
@@ -511,6 +530,11 @@ def _gen_handle(
         ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
         ret.append(f"")
     # Methods
+    if need_singleton:
+        r_cpp_lines.append(f'{klass}::{klass}() {{')
+        r_cpp_lines.append(f'\tERR_FAIL_COND(singleton!= nullptr);')
+        r_cpp_lines.append(f'\tsingleton = this;')
+        r_cpp_lines.append(f'}}')
     for method in method_infos:
         if method.endswith("Release"):
             continue
@@ -596,8 +620,8 @@ def _cheat_as_handle_method(method_name: str) -> str:
         "EOS_Logging_SetLogLevel": "EOS",
         #
         "EOS_Initialize": "EOS",
+        "EOS_Shutdown": "EOS",
         "EOS_Platform_Create": "EOS_HPlatform",
-        "EOS_Shutdown": "EOS_HPlatform",
     }
     return map.get(method_name, "")
 
