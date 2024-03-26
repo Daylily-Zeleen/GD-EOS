@@ -686,27 +686,41 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 
 // 回调
-#define _EOS_METHOD_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
-    [](m_callbak_info_ty m_callback_identifier) {                                                     \
-        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);             \
-        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                  \
-        if (cd.get_callback().is_valid()) {                                                           \
-            cd.get_callback().call(cb_data);                                                          \
-        }                                                                                             \
-        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                      \
+#define _EOS_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)              \
+    [](m_callback_info_ty m_callback_identifier) {                                                                  \
+        if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
+            obj->emit_signal(SNAME(m_callback_signal), m_arg_type::from_eos(*m_callback_identifier));               \
+        }                                                                                                           \
     }
 
-#define _EOS_METHOD_CALLBACK_EXPANDED(m_callbak_info_ty, m_callback_identifier, m_callback_signal, ...) \
-    [](m_callbak_info_ty m_callback_identifier) {                                                       \
-        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);               \
-        if (cd.get_callback().is_valid()) {                                                             \
-            cd.get_callback().call(__VA_ARGS__);                                                        \
-        }                                                                                               \
-        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                  \
+#define _EOS_NOTIFY_CALLBACK_EXPAND(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...)              \
+    [](m_callback_info_ty m_callback_identifier) {                                                                  \
+        if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
+            obj->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                                              \
+        }                                                                                                           \
     }
 
-#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callbak_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                           \
-    [](m_callbak_info_ty m_callback_identifier) {                                                                                        \
+#define _EOS_METHOD_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
+    [](m_callback_info_ty m_callback_identifier) {                                                     \
+        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);              \
+        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                   \
+        if (cd.get_callback().is_valid()) {                                                            \
+            cd.get_callback().call(cb_data);                                                           \
+        }                                                                                              \
+        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                       \
+    }
+
+#define _EOS_METHOD_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...) \
+    [](m_callback_info_ty m_callback_identifier) {                                                       \
+        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);                \
+        if (cd.get_callback().is_valid()) {                                                              \
+            cd.get_callback().call(__VA_ARGS__);                                                         \
+        }                                                                                                \
+        cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
+    }
+
+#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                          \
+    [](m_callback_info_ty m_callback_identifier) {                                                                                       \
         auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                              \
         auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                                                     \
         auto return_action = EOS_EIntegratedPlatformPreLogoutAction::EOS_IPLA_ProcessLogoutImmediately;                                  \

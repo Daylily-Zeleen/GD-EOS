@@ -538,6 +538,35 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
     return h_lines + register_lines
 
 
+def _make_notify_code(add_notify_method: str, method_info: dict, options_type: str, r_menber_lines: list[str], r_setup_lines: list[str], r_remove_lines: list[str]):
+    callback_type: str = ""
+    for a in method_info["args"]:
+        if __is_callback_type(_decay_eos_type(a["type"])):
+            callback_type = a["type"]
+    signal_name = __convert_to_signal_name(_decay_eos_type(callback_type))
+    id_identifier: str = f"notify_id_{signal_name}"
+
+    cb_arg_type = _get_callback_infos(_decay_eos_type(callback_type))["args"][0]["type"]
+    remove_method = add_notify_method.replace("AddNotify", "RemoveNotify").removesuffix("_V2")
+    snake_options_identifier = to_snake_case(options_type.rsplit("_", 1)[1])
+    # Hack
+    cb = _gen_callback(_decay_eos_type(callback_type), [])
+    if "_EOS_METHOD_CALLBACK" in cb:
+        cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
+    elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
+        cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPAND")
+    else:
+        print("ERROR")
+        exit(1)
+
+    r_menber_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
+    r_setup_lines.append(f"\t{options_type} {snake_options_identifier};")
+    r_setup_lines.append(f"\t{snake_options_identifier}.ApiVersion =  {__get_api_latest_macro(options_type)};")
+    r_setup_lines.append(f"\tif (m_handle) {{ {id_identifier} = {add_notify_method}(m_handle, &{snake_options_identifier}, this, {cb}); }}")
+    r_setup_lines.append(f'\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ ERR_PRINT("EOS: Setup notify \\"{signal_name}\\" failed"); }}')
+    r_remove_lines.append(f"\tif ({id_identifier} != EOS_INVALID_NOTIFICATIONID) {remove_method}(m_handle, {id_identifier});")
+
+
 def _gen_handle(
     handle_name: str,
     infos: dict[str, dict],
@@ -562,10 +591,103 @@ def _gen_handle(
 
     method_bind_lines: list[str] = []
 
+    notifies_menber_lines: list[str] = []
+    setup_nofities_lines: list[str] = []
+    remove_nofities_lines: list[str] = []
+
     for method in method_infos:
         if method.endswith("Release"):
             release_method = method
             break
+
+    skip_remove_notify_methods: list[str] = []
+    # Methods
+    method_define_lines: list[str] = []
+    methods_name_list: list[str] = []
+    for m in method_infos:
+        methods_name_list.append(m)
+    methods_name_list.sort()
+    for method in methods_name_list:
+        if method.endswith("Release"):
+            continue
+        if _is_need_skip_method(method):
+            continue
+        if method.endswith("Interface"):
+            continue  # 跳过接口获取方法
+        if "AddNotify" in method:
+            options_arg: dict = method_infos[method]["args"][1]
+            options_type: str = options_arg["type"]
+            decayed_options_type: str = _decay_eos_type(options_type)
+            if __is_struct_type(decayed_options_type) and options_arg["name"].endswith("Options"):
+                options_fields: dict = __get_struct_fields(decayed_options_type)
+
+                valid_field_count = 0
+                for field in options_fields:
+                    if is_deprecated_field(field):  # 不计入弃用字段
+                        continue
+                    valid_field_count += 1
+
+                if valid_field_count == 1 and "ApiVersion" in options_fields:
+                    _make_notify_code(method, method_infos[method], decayed_options_type, notifies_menber_lines, setup_nofities_lines, remove_nofities_lines)
+
+                    for m in method_infos:
+                        if m == method:
+                            continue
+                        if method.replace("AddNotify", "RemoveNotify") in m:
+                            skip_remove_notify_methods.append(m)
+                    continue
+                else:
+                    print(method)
+
+        if "RemoveNotify" in method:
+            if method in skip_remove_notify_methods:
+                continue  # 已经成对处理
+        _gen_method(
+            handle_name,
+            method,
+            method_infos[method],
+            method_define_lines,
+            r_cpp_lines,
+            method_bind_lines,
+        )
+        r_cpp_lines.append("")
+
+    if need_singleton:
+        r_cpp_lines.append(f"{klass}::{klass}() {{")
+        r_cpp_lines.append(f"\tERR_FAIL_COND(singleton!= nullptr);")
+        r_cpp_lines.append(f"\tsingleton = this;")
+        r_cpp_lines.append(f"}}")
+        r_cpp_lines.append(f"")
+
+    if len(release_method) or len(remove_nofities_lines):
+        r_cpp_lines.append(f"{klass}::~{klass}() {{")
+        if need_singleton:
+            r_cpp_lines.append(f'\tif(singleton != this) {{ ERR_PRINT("singleton != this"); }}')
+            r_cpp_lines.append(f"\telse {{ singleton = nullptr; }}")
+        if len(release_method):
+            r_cpp_lines.append(f"\tif (m_handle) {{")
+            r_cpp_lines.append(f"\t\t{release_method}(m_handle);")
+            r_cpp_lines.append(f"\t}}")
+        if len(remove_nofities_lines):
+            for line in remove_nofities_lines:
+                r_cpp_lines.append(line)
+        r_cpp_lines.append(f"}}")
+
+    # 特殊处理，设置 EOS_HRTCAudio 句柄
+    r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
+    r_cpp_lines.append(f"\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
+    if handle_name == "EOS_HRTC":
+        r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
+        r_cpp_lines.append(f"\tif (m_handle) {{")
+        r_cpp_lines.append(f"\t\tauto rtc_auduo_handle = EOS_RTC_GetAudioInterface(m_handle);")
+        r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_auduo_handle);')
+        r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
+        r_cpp_lines.append(f"\t}}")
+    if len(setup_nofities_lines):
+        for line in setup_nofities_lines:
+            r_cpp_lines.append(line)
+    r_cpp_lines.append(f"}}")
+    r_cpp_lines.append(f"")
 
     ret: list[str] = []
 
@@ -576,6 +698,9 @@ def _gen_handle(
     if not is_base_handle_type:
         ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
         ret.append(f"")
+    if len(notifies_menber_lines):
+        ret += notifies_menber_lines
+        ret.append("")
     if need_singleton:
         ret.append(f"\tstatic {klass} *singleton;")
         # ret.append(f"\tfriend class EOSPlatform;")
@@ -595,62 +720,15 @@ def _gen_handle(
     if need_singleton:
         ret.append(f"\t{klass}();")
     # Destructor
-    if len(release_method):  # and not is_base_handle_type:
-        ret.append(f"\t~{klass}() {{")
-        if need_singleton:
-            ret.append(f'\t\tif(singleton != this) {{ ERR_PRINT("singleton != this"); }}')
-            ret.append(f"\t\telse {{ singleton = nullptr; }}")
-        ret.append(f"\t\tif (m_handle) {{")
-        ret.append(f"\t\t\t{release_method}(m_handle);")
-        ret.append(f"\t\t}}")
-        ret.append(f"\t}}")
+    if len(release_method) or len(remove_nofities_lines):  # and not is_base_handle_type:
+        ret.append(f"\t~{klass}();")
     # Handle setget
     if not is_base_handle_type:
-        if handle_name == "EOS_HRTC":
-            ret.append(f"\tvoid set_handle({handle_name} p_handle);")
-        else:
-            ret.append(f"\tvoid set_handle({handle_name} p_handle) {{")
-            ret.append(f"\t\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
-            ret.append(f"\t}}")
+        ret.append(f"\tvoid set_handle({handle_name} p_handle);")
         ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
         ret.append(f"")
-    # Methods
-    if need_singleton:
-        r_cpp_lines.append(f"{klass}::{klass}() {{")
-        r_cpp_lines.append(f"\tERR_FAIL_COND(singleton!= nullptr);")
-        r_cpp_lines.append(f"\tsingleton = this;")
-        r_cpp_lines.append(f"}}")
-        ret.append(f"")
 
-    if handle_name == "EOS_HRTC":
-        # 特殊处理，设置 EOS_HRTCAudio 句柄
-        r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
-        r_cpp_lines.append(f"\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
-        r_cpp_lines.append(f"\tif (m_handle) {{")
-        r_cpp_lines.append(f"\t\tauto rtc_auduo_handle = EOS_RTC_GetAudioInterface(m_handle);")
-        r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
-        r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_auduo_handle);')
-        r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
-        r_cpp_lines.append(f"\t}}")
-        r_cpp_lines.append(f"}}")
-        r_cpp_lines.append(f"")
-
-    for method in method_infos:
-        if method.endswith("Release"):
-            continue
-        if _is_need_skip_method(method):
-            continue
-        if method.endswith("Interface"):
-            continue  # 跳过接口获取方法
-        _gen_method(
-            handle_name,
-            method,
-            method_infos[method],
-            ret,
-            r_cpp_lines,
-            method_bind_lines,
-        )
-        r_cpp_lines.append("")
+    ret += method_define_lines
 
     ret.append(f"")
     ret.append(f"}};")
@@ -2103,7 +2181,8 @@ def is_deprecated_field(field: str) -> bool:
         # Hack
         or field == "Reserved"  # SDK要求保留
         or field == "SystemSpecificOptions"  # 内部处理
-        or field == "SystemMemoryMonitorReport"  # 暂不支持的字段
+        # Hack
+        or field == "SystemMemoryMonitorReport"  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
     )
 
 
