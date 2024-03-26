@@ -1,10 +1,12 @@
 #pragma once
 
 // #include <eos_anticheatcommon_client.h>
+#include <Windows/eos_Windows.h>
 #include <eos_sdk.h>
+#include <godot_cpp/classes/os.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
-#include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
 namespace godot {
@@ -411,10 +413,12 @@ inline RefOut to_godot_data(InArg p_in) {
 template <typename RefEOSData, typename Out, typename OutT = std::remove_const_t<Out>>
 inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     if constexpr (std::is_pointer_v<Out>) {
-        static_assert(false, "让我看看!");
-        r_out = *p_in->get_eos_data();
+        // static_assert(false, "让我看看!");
+        r_out = p_in.is_valid() ? *p_in->get_eos_data() : nullptr;
     } else {
-        p_in->set_to_eos(r_out);
+        if (p_in.is_valid()) {
+            p_in->set_to_eos(r_out);
+        }
     }
 }
 
@@ -758,5 +762,27 @@ protected:
     length_int_type out_length = 0
 #define _INPUT_STR_ARGUMENTS_FOR_CALL() out_str, out_length
 #define _MAKE_STR_RESULT(m_result_code) Ref<StrResult>(memnew(StrResult(m_result_code, out_str, out_length)))
+
+static void *get_rtc_platform_specific_options() {
+#if defined(_WIN32) || defined(_WIN64)
+    static EOS_Windows_RTCOptions windowsRTCOptions;
+    memset(&windowsRTCOptions, 0, sizeof(windowsRTCOptions));
+    windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
+    if (OS::get_singleton()->has_feature("editor")) {
+#if defined(_WIN32)
+        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path("res://addons/epic-online-services-godot/bin/windows/x86/xaudio2_9redist.dll").utf8();
+#else
+        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path("res://addons/epic-online-services-godot/bin/windows/x64/xaudio2_9redist.dll").utf8();
+#endif
+        windowsRTCOptions.XAudio29DllPath = xAudio29DllPath.get_data();
+    } else {
+        CharString xAudio29DllPath = OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll").utf8();
+        windowsRTCOptions.XAudio29DllPath = xAudio29DllPath.get_data();
+    }
+    return &windowsRTCOptions;
+#else
+    return nullptr;
+#endif
+}
 
 } // namespace godot
