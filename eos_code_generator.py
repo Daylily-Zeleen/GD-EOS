@@ -2516,8 +2516,15 @@ def _find_count_field(field: str, fields: list[str]) -> str:
 
     print("== error:", field, similars_fileds)
     print(field, fields)
-    # exit()
+    exit(1)
 
+
+def _is_todo_field(type:str, field:str) -> bool:
+    # TODO：暂未实现的字段
+    return type == "void*" and field == "SystemInitializeOptions"
+
+def _is_memory_func_type(type:str) -> bool:
+    return type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]
 
 def _gen_struct(
     struct_type: str,
@@ -2559,8 +2566,10 @@ def _gen_struct(
             continue
         if field in count_fields:
             continue
-        if type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]:
+        if _is_memory_func_type(type):
             continue # 内存分配方法不需要成员变量
+        if _is_todo_field(type, field):
+            continue
 
         if not _is_need_skip_struct(_decay_eos_type(type)) and __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
@@ -2598,8 +2607,10 @@ def _gen_struct(
             continue
         if field == "ApiVersion":  # 不需要提供setget给godot
             continue
-        if type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]:
+        if _is_memory_func_type(type):
             continue # 内存分配方法不需要成员变量
+        if _is_todo_field(type, field):
+            continue
 
         if type == "bool":
             lines.append(f"\t_DEFINE_SETGET_BOOL({to_snake_case(field)})")
@@ -2638,8 +2649,10 @@ def _gen_struct(
             continue
         if field == "ApiVersion":  # 不需要提供setget给godot
             continue
-        if type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]:
+        if _is_memory_func_type(type):
             continue # 内存分配方法不需要成员变量
+        if _is_todo_field(type, field):
+            continue
 
         if type == "bool":
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({to_snake_case(field)})")
@@ -2671,7 +2684,7 @@ def _gen_struct(
             if field in variant_union_type_fileds:
                 continue
             
-            if type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]:
+            if _is_memory_func_type(type):
                 # 内存分配方法不需要成员变量
                 print("ERROR Unsupport")
                 exit(1)
@@ -2706,6 +2719,8 @@ def _gen_struct(
             if field in count_fields:
                 continue
             if field in variant_union_type_fileds:
+                continue
+            if _is_todo_field(type, field):
                 continue
             
             field_type = fields[field]
