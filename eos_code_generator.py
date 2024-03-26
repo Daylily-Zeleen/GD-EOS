@@ -227,7 +227,7 @@ def _gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f"#include <godot_cpp/classes/object.hpp>")
         interface_handle_h_lines.append(f"#include <godot_cpp/core/binder_common.hpp>")
         interface_handle_h_lines.append(f"#include <core/utils.h>")
-        interface_handle_h_lines.append(f'#include <gen/structs/eos_init.structs.h>')
+        interface_handle_h_lines.append(f"#include <gen/structs/eos_init.structs.h>")
     elif file_base_name == "eos_anticheatcommon":
         interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
     elif file_base_name.startswith("eos_anticheat"):
@@ -1931,9 +1931,7 @@ def is_deprecated_field(field: str) -> bool:
         field.endswith("_DEPRECATED")
         # Hack
         or field == "Reserved"  # SDK要求保留
-        or field == "PlatformSpecificOptions"  # 暂不支持的字段
-        or field == "SystemSpecificOptions"  # 暂不支持的字段
-        or field == "InitOptions"  # 暂不支持的字段
+        or field == "SystemSpecificOptions"  # 内部处理
         or field == "IntegratedPlatformOptionsContainerHandle"  # 暂不支持的字段
         or field == "SystemMemoryMonitorReport"  # 暂不支持的字段
     )
@@ -2029,7 +2027,7 @@ def remap_type(type: str, field: str = "") -> str:
             # Options 新增
             "SystemSpecificOptions": "Variant",  # 暂不支持
             "PlatformSpecificData": "Variant",  # 暂不支持
-            "InitOptions": "Variant",  # 暂不支持
+            "InitOptions": "Ref<class EOSIntegratedPlatform_Steam_Options>",  # 暂不支持
             "SystemMemoryMonitorReport": "Variant",  # 暂不支持
         },
         "char": {
@@ -2478,7 +2476,7 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
     ]:
         return False
     if type == "const void*":
-        if field_or_arg in ["PlatformSpecificData", "SystemMemoryMonitorReport"]:
+        if field_or_arg in ["PlatformSpecificData", "SystemMemoryMonitorReport", "InitOptions"]:
             return False
 
     if field_or_arg.startswith("Out") or field_or_arg.startswith("InOut"):
@@ -2519,12 +2517,27 @@ def _find_count_field(field: str, fields: list[str]) -> str:
     exit(1)
 
 
-def _is_todo_field(type:str, field:str) -> bool:
+def _is_todo_field(type: str, field: str) -> bool:
     # TODO：暂未实现的字段
-    return type == "void*" and field == "SystemInitializeOptions"
+    map = {
+        "void*": [
+            "SystemInitializeOptions",
+        ],
+    }
+    return type in map and field in map[type]
 
-def _is_memory_func_type(type:str) -> bool:
+
+def _is_platform_specific_options_field(field: str) -> bool:
+    return field == "PlatformSpecificOptions"
+
+
+def _is_memory_func_type(type: str) -> bool:
     return type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]
+
+
+def _is_integreate_platform_init_option(type: str, field: str) -> bool:
+    return type == "const void*" and field == "InitOptions"
+
 
 def _gen_struct(
     struct_type: str,
@@ -2567,8 +2580,10 @@ def _gen_struct(
         if field in count_fields:
             continue
         if _is_memory_func_type(type):
-            continue # 内存分配方法不需要成员变量
+            continue  # 内存分配方法不需要成员变量
         if _is_todo_field(type, field):
+            continue
+        if _is_platform_specific_options_field(field):
             continue
 
         if not _is_need_skip_struct(_decay_eos_type(type)) and __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
@@ -2581,7 +2596,7 @@ def _gen_struct(
             type = remap_type(type, field)
         initialize_expression = ""
 
-        if type.startswith("Ref") and not type.startswith("Ref<class "):
+        if type.startswith("Ref") and not type.startswith("Ref<class ") and not _decay_eos_type(type) == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif type == "int32_t" and field == "ApiVersion":
             api_verision_macro = __get_api_latest_macro(struct_type)
@@ -2607,9 +2622,11 @@ def _gen_struct(
             continue
         if field == "ApiVersion":  # 不需要提供setget给godot
             continue
-        if _is_memory_func_type(type):
-            continue # 内存分配方法不需要成员变量
-        if _is_todo_field(type, field):
+        if _is_memory_func_type(fields[field]):
+            continue  # 内存分配方法不需要成员变量
+        if _is_todo_field(fields[field], field):
+            continue
+        if _is_platform_specific_options_field(field):
             continue
 
         if type == "bool":
@@ -2649,9 +2666,11 @@ def _gen_struct(
             continue
         if field == "ApiVersion":  # 不需要提供setget给godot
             continue
-        if _is_memory_func_type(type):
-            continue # 内存分配方法不需要成员变量
-        if _is_todo_field(type, field):
+        if _is_memory_func_type(fields[field]):
+            continue  # 内存分配方法不需要成员变量
+        if _is_todo_field(fields[field], field):
+            continue
+        if _is_platform_specific_options_field(field):
             continue
 
         if type == "bool":
@@ -2683,13 +2702,17 @@ def _gen_struct(
                 continue
             if field in variant_union_type_fileds:
                 continue
-            
-            if _is_memory_func_type(type):
+            if _is_todo_field(fields[field], field):
+                continue
+            if _is_memory_func_type(fields[field]):
                 # 内存分配方法不需要成员变量
                 print("ERROR Unsupport")
                 exit(1)
 
             field_type = fields[field]
+            if _is_platform_specific_options_field(field):
+                print("ERROR")
+                exit(1)
             if _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
@@ -2720,20 +2743,24 @@ def _gen_struct(
                 continue
             if field in variant_union_type_fileds:
                 continue
-            if _is_todo_field(type, field):
+            if _is_todo_field(fields[field], field):
                 continue
-            
+
             field_type = fields[field]
-            
+
             match field_type:
                 case "EOS_AllocateMemoryFunc":
-                    r_structs_cpp.append(f'\tp_data.AllocateMemoryFunction = [](size_t SizeInBytes, size_t Alignment) {{ return memalloc(SizeInBytes); }};')
+                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = [](size_t SizeInBytes, size_t Alignment) {{ return memalloc(SizeInBytes); }};")
                 case "EOS_ReallocateMemoryFunc":
-                    r_structs_cpp.append(f'\tp_data.ReallocateMemoryFunction = [](void *Pointer, size_t SizeInBytes, size_t Alignment) {{ return memrealloc(Pointer, SizeInBytes); }};')
+                    r_structs_cpp.append(
+                        f"\tp_data.ReallocateMemoryFunction = [](void *Pointer, size_t SizeInBytes, size_t Alignment) {{ return memrealloc(Pointer, SizeInBytes); }};"
+                    )
                 case "EOS_ReleaseMemoryFunc":
-                    r_structs_cpp.append(f'\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memdelete(Pointer); }};')
+                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memdelete(Pointer); }};")
                 case _:
-                    if _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
+                    if _is_platform_specific_options_field(field):
+                        r_structs_cpp.append(f"\tp_data.{field} = get_rtc_platform_specific_options();")
+                    elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});")
                     elif _is_requested_channel_ptr_field(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {to_snake_case(field)});")
@@ -2747,7 +2774,7 @@ def _gen_struct(
                         r_structs_cpp.append(
                             f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});"
                         )
-                    elif _is_internal_struct_field(field_type, field):
+                    elif _is_internal_struct_field(field_type, field) or _is_integreate_platform_init_option(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {to_snake_case(field)});")
                     elif _is_arr_field(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});")
