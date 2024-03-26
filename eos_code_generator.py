@@ -68,22 +68,43 @@ def main():
     parse_all_file()
     print("Parse finished")
 
+    preprocess()
+    print("Preprocess finished.")
+
     for fbn in generate_infos:
-        _gen_files(fbn, generate_infos[fbn])
+        gen_files(fbn, generate_infos[fbn])
+        print("Generated:", fbn)
 
-    print("Completed!")
-    return
+    print("All Completed!")
 
 
-def _gen_files(file_base_name: str, infos: dict):
+def preprocess():
+    # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 印象枚举的绑定
+    f = open(os.path.join(sdk_inclide_dir, "eos_base.h"), "r")
+    lines: list[str] = f.readlines()
+    f.close()
+
+    for i in range(len(lines)):
+        line = lines[i]
+        if "#define EOS_HAS_ENUM_CLASS" in line and not line.startswith("#"):
+            lines[i] = "#" + line
+
+    f = open(os.path.join(sdk_inclide_dir, "eos_base.h"), "w")
+    f.writelines(lines)
+    f.close()
+
+
+def gen_files(file_base_name: str, infos: dict):
     gen_dir = "src/gen/"
-
     eos_header = file_base_name + ".h"
     eos_types_header = file_base_name + ".h"
     if os.path.exists(os.path.join(sdk_inclide_dir, file_base_name + "_types.h")):
         eos_types_header = file_base_name + "_types.h"
     if not os.path.exists(os.path.join(sdk_inclide_dir, eos_header)):
         eos_header = eos_types_header
+
+    if file_base_name == "eos_sdk":
+        file_base_name = "eos_platform"
 
     handle_class: str = _convert_interface_class_name(file_base_name)
 
@@ -164,6 +185,9 @@ def _gen_files(file_base_name: str, infos: dict):
             structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
         if file_base_name.startswith("eos_titlestorage") or file_base_name.startswith("eos_playerdatastorage"):
             structs_cpp_lines.append(f"#include <core/file_transfer.inl>")
+        if file_base_name == "eos_platform":
+            structs_cpp_lines.append(f"#include <gen/handles/eos_integratedplatform.handles.h>")
+
         additional_include_lines: list[str] = []
         if file_base_name.startswith("eos_anticheat"):
             additional_include_lines.append("#include <eos_anticheatcommon_client.h>")
@@ -195,7 +219,8 @@ def _gen_files(file_base_name: str, infos: dict):
         print(file_base_name, infos["callbacks"].keys())
 
     if len(interface_handle) <= 0:
-        print("ERR has not interface handle:", file_base_name)
+        if not file_base_name in ["eos_init", "eos_logging"]:  # 该两文件的方法均已处理
+            print("ERR has not interface handle:", file_base_name)
         return
 
     # Enums inline file
@@ -282,6 +307,7 @@ def _gen_files(file_base_name: str, infos: dict):
     f = open(interface_handle_cpp_file, "w")
     f.write("\n".join(interface_handle_cpp_lines))
     f.close()
+
 
 
 def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
@@ -1932,7 +1958,6 @@ def is_deprecated_field(field: str) -> bool:
         # Hack
         or field == "Reserved"  # SDK要求保留
         or field == "SystemSpecificOptions"  # 内部处理
-        or field == "IntegratedPlatformOptionsContainerHandle"  # 暂不支持的字段
         or field == "SystemMemoryMonitorReport"  # 暂不支持的字段
     )
 
