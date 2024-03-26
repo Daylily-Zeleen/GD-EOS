@@ -4,6 +4,7 @@ import os
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
 sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
+gen_dir = "src/gen/"
 
 # 解析结果
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
@@ -52,7 +53,6 @@ eos_data_class_h_file = "core/eos_data_class.h"
 
 def main():
     # make dir
-    gen_dir = "src/gen/"
     if not os.path.exists(gen_dir):
         os.makedirs(gen_dir)
     if not os.path.exists(os.path.join(gen_dir, "enums")):
@@ -63,18 +63,19 @@ def main():
         os.makedirs(os.path.join(gen_dir, "packed_results"))
     if not os.path.exists(os.path.join(gen_dir, "handles")):
         os.makedirs(os.path.join(gen_dir, "handles"))
-
+    # 解析文件
     print("Parsing...")
     parse_all_file()
     print("Parse finished")
-
+    # 预处理
     preprocess()
     print("Preprocess finished.")
-
+    # 生成接口
     for fbn in generate_infos:
         gen_files(fbn, generate_infos[fbn])
         print("Generated:", fbn)
-
+    # 生成 eos_interfaces.h
+    gen_all_in_one()
     print("All Completed!")
 
 
@@ -86,22 +87,67 @@ def preprocess():
 
     for i in range(len(lines)):
         line = lines[i]
-        if "#define EOS_HAS_ENUM_CLASS" in line and not line.startswith("#"):
-            lines[i] = "#" + line
+        if "#define EOS_HAS_ENUM_CLASS" in line and not line.startswith("//"):
+            lines[i] = "//" + line
 
     f = open(os.path.join(sdk_inclide_dir, "eos_base.h"), "w")
-    f.writelines(lines)
+    f.write("".join(lines))
     f.close()
 
 
+def gen_all_in_one():
+    lines: list[str] = []
+    lines.append(f"#pragma once")
+    lines.append("")
 
-def _gen_disabled_macro(handle_type:str) ->str:
+    register_classes_lines: list[str] = [""]
+    register_classes_lines.append("namespace godot {")
+    register_classes_lines.append("#define REGISTER_EOS_CLASSES()\\")
+
+    register_singleton_lines: list[str] = ["#define REGISTER_EOS_SINGLETONS()\\"]
+    unregister_singleton_lines: list[str] = ["#define UNREFISTER_EOS_SINGLETONS()\\"]
+
+    for fbn in generate_infos:
+        if len(generate_infos[fbn]["handles"]) <= 0:
+            continue
+        handle_class: str = ""
+        for h in generate_infos[fbn]["handles"]:
+            # Hack
+            if h in ["EOS", "EOS_HAntiCheatCommon"]:
+                handle_class = h
+                break
+            if h.removeprefix("EOS_H") in interfaces:
+                handle_class = h
+                break
+        handle_class = _convert_handle_class_name(handle_class)
+
+        register_classes_lines.append(f"\tEOS_REGISTER_{handle_class}\\")
+        if fbn in ["eos_common", "eos_anticheatcommon"]:
+            continue
+        if fbn == "eos_sdk":
+            fbn = "eos_platform"
+        lines.append(f'#include "{fbn}_interface.h"')
+        register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::{handle_class}::get_class_static, handle_class::get_singleton());\\")
+        unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::{handle_class}::get_class_static);\\")
+    register_singleton_lines.append("")
+    unregister_singleton_lines.append("")
+
+    register_classes_lines.append("")
+    register_classes_lines.append("} // namesapce godot")
+    register_classes_lines.append("")
+
+    f = open(os.path.join(gen_dir, "eos_interfaces.h"), "w")
+    f.write("\n".join(lines + register_classes_lines + register_singleton_lines + unregister_singleton_lines))
+    f.close()
+
+
+def _gen_disabled_macro(handle_type: str) -> str:
     if handle_type in ["EOS", "EOS_HPlatform"]:
         return ""
     return "EOS_" + handle_type.removeprefix("EOS_H").upper() + "_DISABLED"
 
+
 def gen_files(file_base_name: str, infos: dict):
-    gen_dir = "src/gen/"
     eos_header = file_base_name + ".h"
     eos_types_header = file_base_name + ".h"
     if os.path.exists(os.path.join(sdk_inclide_dir, file_base_name + "_types.h")):
@@ -242,13 +288,16 @@ def gen_files(file_base_name: str, infos: dict):
         f.close()
 
     # 生成接口
-    disabled_macro:str=_gen_disabled_macro(interface_handle)
+    disabled_macro: str = _gen_disabled_macro(interface_handle)
     interface_handle_h_lines: list[str] = []
     interface_handle_cpp_lines: list[str] = []
-    if len(disabled_macro):
-        interface_handle_h_lines.append(f'#ifndef {disabled_macro}')
-        interface_handle_cpp_lines.append(f'#ifndef {disabled_macro}')
+    interface_handle_h_lines.append(f"#pragma once")
 
+    if len(disabled_macro):
+        interface_handle_h_lines.append(f"#ifndef {disabled_macro}")
+        interface_handle_cpp_lines.append(f"#ifndef {disabled_macro}")
+
+    interface_handle_cpp_lines.append(f"#include <{eos_header}>")
     interface_handle_cpp_lines.append(f'#include "{file_base_name+"_interface.h"}"')
     interface_handle_cpp_lines.append("")
     if file_base_name.startswith("eos_playerdatastorage") or file_base_name.startswith("eos_titlestorage"):
@@ -259,9 +308,9 @@ def gen_files(file_base_name: str, infos: dict):
         if m.endswith("Interface"):
             interface = m.rsplit("_", 1)[1].removesuffix("Interface").removeprefix("Get")
             interface_low = interface.lower()
-            
+
             _disabled_macro = _gen_disabled_macro("EOS_H" + "RTCAudio" if interface == "Audio" else interface)
-            
+
             if len(_disabled_macro) <= 0:
                 print("ERROR:", interface)
                 exit(1)
@@ -271,13 +320,11 @@ def gen_files(file_base_name: str, infos: dict):
             if interface_low == "rtcadmin":
                 interface_low = "rtc_admin"
 
-            interface_handle_cpp_lines.append(f'#ifndef {_disabled_macro}')
+            interface_handle_cpp_lines.append(f"#ifndef {_disabled_macro}")
             interface_handle_cpp_lines.append(f'#include "eos_{interface_low}_interface.h"')
-            interface_handle_cpp_lines.append(f'#endif // {_disabled_macro}')
+            interface_handle_cpp_lines.append(f"#endif // {_disabled_macro}")
     interface_handle_cpp_lines.append("")
 
-    interface_handle_h_lines.append(f"#pragma once")
-    interface_handle_h_lines.append(f"#include <{eos_header}>")
     if file_base_name == "eos_common":
         interface_handle_h_lines.append(f"#include <eos_types.h>")
         interface_handle_h_lines.append(f"#include <eos_logging.h>")
@@ -304,14 +351,14 @@ def gen_files(file_base_name: str, infos: dict):
 
     interface_handle_h_lines.append(f"")
     interface_handle_cpp_lines.append(f"namespace godot {{")
-    
+
     interface_handle_h_lines += _gen_handle(
         interface_handle,
         infos["handles"][interface_handle],
         _convert_handle_class_name("EOS") if file_base_name == "eos_common" else _convert_handle_class_name(interface_handle),
         interface_handle_cpp_lines,
         [],
-        True
+        True,
     )
     interface_handle_cpp_lines.append(f"}} // namespace godot")
     interface_handle_cpp_lines.append(f"")
@@ -325,8 +372,12 @@ def gen_files(file_base_name: str, infos: dict):
 
     interface_handle_h_lines.append(f"")
     if len(disabled_macro):
+        interface_handle_h_lines.append(f"#else // {disabled_macro}")
+        # 生成空注册宏
+        interface_handle_h_lines.append(f"#define EOS_REGISTER_{handle_class}")
         interface_handle_h_lines.append(f"#endif // {disabled_macro}")
         interface_handle_h_lines.append(f"")
+
         interface_handle_cpp_lines.append(f"#endif // {disabled_macro}")
         interface_handle_cpp_lines.append(f"")
 
@@ -337,7 +388,6 @@ def gen_files(file_base_name: str, infos: dict):
     f = open(interface_handle_cpp_file, "w")
     f.write("\n".join(interface_handle_cpp_lines))
     f.close()
-
 
 
 def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
@@ -494,7 +544,7 @@ def _gen_handle(
     bind_macro_suffix: str,
     r_cpp_lines: list[str],
     r_register_lines: list[str],
-    need_singleton:bool = False,
+    need_singleton: bool = False,
 ) -> list[str]:
     is_base_handle_type = _is_base_handle_type(handle_name)
     base_class = _get_base_class(handle_name)
@@ -506,10 +556,9 @@ def _gen_handle(
 
     klass = _convert_handle_class_name(handle_name)
     release_method: str = ""
-    
-    
+
     if need_singleton:
-        r_cpp_lines.append(f'{klass} *{klass}::singleton{{ nullptr }};')
+        r_cpp_lines.append(f"{klass} *{klass}::singleton{{ nullptr }};")
 
     method_bind_lines: list[str] = []
 
@@ -531,7 +580,7 @@ def _gen_handle(
         ret.append(f"\tstatic {klass} *singleton;")
         # ret.append(f"\tfriend class EOSPlatform;")
         ret.append(f"")
-        
+
     ret.append(f"protected:")
     ret.append(f"\tstatic void _bind_methods();")
     ret.append(f"")
@@ -544,13 +593,13 @@ def _gen_handle(
         ret.append(f"\tstatic {klass} *get_singleton() {{ if (singleton == nullptr) {{singleton = memnew({klass});}} return singleton; }}")
         ret.append(f"")
     if need_singleton:
-        ret.append(f'\t{klass}();')
+        ret.append(f"\t{klass}();")
     # Destructor
     if len(release_method):  # and not is_base_handle_type:
         ret.append(f"\t~{klass}() {{")
         if need_singleton:
             ret.append(f'\t\tif(singleton != this) {{ ERR_PRINT("singleton != this"); }}')
-            ret.append(f'\t\telse {{ singleton = nullptr; }}')
+            ret.append(f"\t\telse {{ singleton = nullptr; }}")
         ret.append(f"\t\tif (m_handle) {{")
         ret.append(f"\t\t\t{release_method}(m_handle);")
         ret.append(f"\t\t}}")
@@ -567,12 +616,12 @@ def _gen_handle(
         ret.append(f"")
     # Methods
     if need_singleton:
-        r_cpp_lines.append(f'{klass}::{klass}() {{')
-        r_cpp_lines.append(f'\tERR_FAIL_COND(singleton!= nullptr);')
-        r_cpp_lines.append(f'\tsingleton = this;')
-        r_cpp_lines.append(f'}}')
+        r_cpp_lines.append(f"{klass}::{klass}() {{")
+        r_cpp_lines.append(f"\tERR_FAIL_COND(singleton!= nullptr);")
+        r_cpp_lines.append(f"\tsingleton = this;")
+        r_cpp_lines.append(f"}}")
         ret.append(f"")
-    
+
     if handle_name == "EOS_HRTC":
         # 特殊处理，设置 EOS_HRTCAudio 句柄
         r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
@@ -585,14 +634,14 @@ def _gen_handle(
         r_cpp_lines.append(f"\t}}")
         r_cpp_lines.append(f"}}")
         r_cpp_lines.append(f"")
-        
+
     for method in method_infos:
         if method.endswith("Release"):
             continue
         if _is_need_skip_method(method):
             continue
         if method.endswith("Interface"):
-            continue # 跳过接口获取方法
+            continue  # 跳过接口获取方法
         _gen_method(
             handle_name,
             method,
@@ -1681,7 +1730,7 @@ def _gen_method(
             invalid_arg_return_val = "EOS_EResult::EOS_InvalidParameters"
         else:
             invalid_arg_return_val = "{}"
-    
+
     if method_name == "EOS_Platform_Create":
         # 特殊处理
         return_type = "void"
@@ -1870,13 +1919,13 @@ def _gen_method(
         for m in handles["EOS_HPlatform"]["methods"]:
             if not m.endswith("Interface"):
                 continue
-            interface:str= "EOS_H" + m.rsplit("_", 1)[1].removeprefix("Get").removesuffix("Interface")
+            interface: str = "EOS_H" + m.rsplit("_", 1)[1].removeprefix("Get").removesuffix("Interface")
             disable_macro = _gen_disabled_macro(interface)
-            r_define_lines.append(f'#ifndef {disable_macro}')
-            r_define_lines.append(f'\tauto {interface.lower()} = {m}(platform_handle);')
-            r_define_lines.append(f'\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({interface.lower()});;')
-            r_define_lines.append(f'#endif // {disable_macro}')
-        
+            r_define_lines.append(f"#ifndef {disable_macro}")
+            r_define_lines.append(f"\tauto {interface.lower()} = {m}(platform_handle);")
+            r_define_lines.append(f"\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({interface.lower()});;")
+            r_define_lines.append(f"#endif // {disable_macro}")
+
     elif _is_handle_type(_decay_eos_type(info["return"])):
         r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
@@ -1889,7 +1938,7 @@ def _gen_method(
     r_define_lines += after_call_lines
     # 返回
     if method_name == "EOS_Platform_Create":
-        pass # 特殊处理，不需要返回任何东西
+        pass  # 特殊处理，不需要返回任何东西
     elif _is_handle_type(_decay_eos_type(info["return"])):
         if not for_file_transfer:
             r_define_lines.append(f"\t{return_type} ret;")
