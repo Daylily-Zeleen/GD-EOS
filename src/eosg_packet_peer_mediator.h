@@ -94,8 +94,8 @@ public:
         return socket_packet_queues[socket_id].size();
     }
 
-    Array get_sockets() {
-        Array ret;
+    PackedStringArray get_sockets() {
+        PackedStringArray ret;
         for (KeyValue<String, List<PacketData *>> &E : socket_packet_queues) {
             ret.push_back(E.key);
         }
@@ -119,7 +119,7 @@ public:
         return pending_connection_requests.size();
     }
 
-    int get_packet_count_from_remote_user(const String &remote_user, const String &socket_id);
+    int get_packet_count_from_remote_user(const String &remote_user_id, const String &socket_id);
     bool poll_next_packet(const String &socket_id, PacketData **out_packet);
     bool next_packet_is_peer_id_packet(const String &socket_id);
     bool register_peer(EOSGMultiplayerPeer *peer);

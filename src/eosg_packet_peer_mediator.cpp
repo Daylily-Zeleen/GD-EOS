@@ -32,10 +32,12 @@ void EOSGPacketPeerMediator::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_sockets"), &EOSGPacketPeerMediator::get_sockets);
     ClassDB::bind_method(D_METHOD("get_packet_count_for_socket", "socket_id"), &EOSGPacketPeerMediator::get_packet_count_for_socket);
     ClassDB::bind_method(D_METHOD("has_socket"), &EOSGPacketPeerMediator::has_socket);
-    ClassDB::bind_method(D_METHOD("get_packet_count_from_remote_user"), &EOSGPacketPeerMediator::get_packet_count_from_remote_user);
+    ClassDB::bind_method(D_METHOD("get_packet_count_from_remote_user", "remote_user_id", "socket_id"), &EOSGPacketPeerMediator::get_packet_count_from_remote_user);
+    ClassDB::bind_method(D_METHOD("get_connection_request_count"), &EOSGPacketPeerMediator::get_connection_request_count);
+
     ClassDB::bind_method(D_METHOD("get_queue_size_limit"), &EOSGPacketPeerMediator::get_queue_size_limit);
     ClassDB::bind_method(D_METHOD("set_queue_size_limit", "limit"), &EOSGPacketPeerMediator::set_queue_size_limit);
-    ClassDB::bind_method(D_METHOD("get_connection_request_count"), &EOSGPacketPeerMediator::get_connection_request_count);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "queue_size_limit"), "set_queue_size_limit", "get_queue_size_limit");
 
     ADD_SIGNAL(MethodInfo("packet_queue_full"));
     ADD_SIGNAL(MethodInfo("connection_request_received", PropertyInfo(Variant::DICTIONARY, "callback_data")));
