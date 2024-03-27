@@ -152,6 +152,7 @@ def gen_all_in_one():
         lines.append(f'#include "{fbn}_interface.h"')
         register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::{handle_class}::get_class_static(), {handle_class}::get_singleton());\\")
         unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::{handle_class}::get_class_static());\\")
+        unregister_singleton_lines.append(f"\tmemdelete(godot::{handle_class}::get_singleton());\\")
     register_singleton_lines.append("")
     unregister_singleton_lines.append("")
 
@@ -396,7 +397,7 @@ def gen_files(file_base_name: str, infos: dict):
     
     if file_base_name.startswith("eos_platform"):
         interface_handle_h_lines.append(f'#include <godot_cpp/classes/engine.hpp>')
-        interface_handle_h_lines.append(f'#include <godot_cpp/classes/scene_tree.hpp>')
+        interface_handle_h_lines.append(f'#include <godot_cpp/classes/main_loop.hpp>')
     interface_handle_h_lines.append(f"")
 
     if len(enums):
