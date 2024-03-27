@@ -23,7 +23,7 @@ structs: dict[str, dict[str, str]] = {}
 handles: dict[str, dict] = {
     "EOS": {
         "methods": {},
-        "callbacks": {},
+        "callbacks": {"EOS_LogMessageFunc": {"return": "", "args": [{"type": "const EOS_LogMessage*", "name": "Message"}]}},
         "enums": {},
     },
     "EOS_HAntiCheatCommon": {
@@ -47,7 +47,7 @@ generate_infos: dict = {}
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
 max_options_fields_count_to_expend = 3
-max_callback_fields_count_to_expend = 3
+max_callback_fields_count_to_expend = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
@@ -206,6 +206,13 @@ def gen_files(file_base_name: str, infos: dict):
     has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, handle_class, methods, packed_result_h_lines, packed_result_cpp_lines)
     packed_result_cpp_lines.append("} // namespace godot")
     packed_result_cpp_lines.append("")
+    # if len(sub_handles):
+    #     # 插入handles.h TODO: hanle 和 packed result 互相引用
+    #     for i in range(len(packed_result_h_lines)):
+    #         if packed_result_h_lines[i].startswith("namespace"):
+    #             packed_result_h_lines.insert(i-1, f'#include "../handles/{file_base_name + ".handles.h"}"')
+    #             packed_result_h_lines.insert(i, "")
+    #             break
     if has_packed_result:
         f = open(packed_result_h_file, "w")
         f.write("\n".join(packed_result_h_lines))
@@ -271,7 +278,7 @@ def gen_files(file_base_name: str, infos: dict):
         print(file_base_name, infos["callbacks"].keys())
 
     if len(interface_handle) <= 0:
-        if not file_base_name in ["eos_init", "eos_logging"]:  # 该两文件的方法均已处理
+        if not file_base_name in ["eos_init", "eos_logging", "eos_types"]:  # 这些文件均已处理
             print("ERR has not interface handle:", file_base_name)
         return
 
@@ -474,7 +481,7 @@ def gen_structs(
 
     ######### 生成绑定宏 #########
     lines.append("// ====================")
-    lines.append(f'#define REGISTER_DATA_CLASSES_OF_{handle_class}()\\')
+    lines.append(f"#define REGISTER_DATA_CLASSES_OF_{handle_class}()\\")
     for st in struct_infos:
         if _is_expended_struct(st):
             continue
@@ -549,7 +556,7 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     signal_name = __convert_to_signal_name(_decay_eos_type(callback_type))
     id_identifier: str = f"notify_id_{signal_name}"
 
-    remove_method = add_notify_method.replace("AddNotify", "RemoveNotify").removesuffix("_V2")
+    remove_method = add_notify_method.replace("AddNotify", "RemoveNotify").removesuffix("V2")
     # Hack
     cb = _gen_callback(_decay_eos_type(callback_type), [])
     if "_EOS_METHOD_CALLBACK" in cb:
@@ -591,6 +598,8 @@ def _gen_handle(
 
     if need_singleton:
         r_cpp_lines.append(f"{klass} *{klass}::singleton{{ nullptr }};")
+    if klass == "EOS":
+        r_cpp_lines.append(f"Callable {klass}::log_message_callback{{}};")
 
     method_bind_lines: list[str] = []
 
@@ -639,8 +648,8 @@ def _gen_handle(
                         if method.replace("AddNotify", "RemoveNotify") in m:
                             skip_remove_notify_methods.append(m)
                     continue
-                else:
-                    print(method)
+                # else:
+                #     print(method)
 
         if "RemoveNotify" in method:
             if method in skip_remove_notify_methods:
@@ -676,7 +685,6 @@ def _gen_handle(
                 r_cpp_lines.append(line)
         r_cpp_lines.append(f"}}")
 
-    
     if not is_base_handle_type:
         # 特殊处理，设置 EOS_HRTCAudio 句柄
         r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
@@ -710,6 +718,8 @@ def _gen_handle(
         ret.append(f"\tstatic {klass} *singleton;")
         # ret.append(f"\tfriend class EOSPlatform;")
         ret.append(f"")
+    if klass == "EOS":
+        ret.append(f"\tstatic Callable log_message_callback;")
 
     ret.append(f"protected:")
     ret.append(f"\tstatic void _bind_methods();")
@@ -750,7 +760,9 @@ def _gen_handle(
     for callback in callback_infos:
         if _is_need_skip_callback(callback):
             continue
-
+        if callback == "EOS_LogMessageFunc":
+            # log 回调为静态成员，不能添加信号
+            continue
         _gen_callback(callback, r_cpp_lines, True)
     # BIND 枚举
     if len(infos["enums"]):
@@ -784,6 +796,7 @@ def _convert_to_interface_lower(file_name: str) -> str:
     splited = file_name.rsplit("\\", 1)
     f: str = splited[len(splited) - 1]
     if f == "eos_types.h":
+        # Hack
         return "platform"
     return f.removesuffix("_types.h").removesuffix(".h").replace("_sdk", "_platform").removeprefix("eos_")
 
@@ -824,6 +837,11 @@ def _cheat_as_handle_enum(enum_type: str) -> str:
         "EOS_EExternalCredentialType": "EOS",
         "EOS_EResult": "EOS",
         #
+        "EOS_ERTCBackgroundMode": "EOS",
+        "EOS_EApplicationStatus": "EOS",
+        "EOS_ENetworkStatus": "EOS",
+        "EOS_EDesktopCrossplayStatus": "EOS",
+        #
     }
     return map.get(enum_type, "")
 
@@ -839,6 +857,7 @@ def _cheat_as_handle_callback(callback_type: str) -> str:
         # "EOS_TitleStorage_OnReadFileCompleteCallback": "EOS_HTitleStorageFileTransferRequest",
         # "EOS_PlayerDataStorage_OnReadFileCompleteCallback": "EOS_HPlayerDataStorageFileTransferRequest",
         # "EOS_PlayerDataStorage_OnWriteFileCompleteCallback": "EOS_HPlayerDataStorageFileTransferRequest",
+        "EOS_LogMessageFunc": "EOS",
     }
     return map.get(callback_type, "")
 
@@ -847,6 +866,14 @@ def parse_all_file():
     file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
         "file": "eos_common",
+        "enums": {},
+        "methods": {},
+        "callbacks": {},
+        "structs": {},
+        "handles": {},
+    }
+    file_lower2infos["platform"] = {
+        "file": "eos_sdk",
         "enums": {},
         "methods": {},
         "callbacks": {},
@@ -1029,6 +1056,16 @@ def parse_all_file():
         for e in to_remove:
             enums.pop(e)
 
+    # Hack
+    to_remove_enum_types: list[str] = []
+    for enum in handles["EOS_HPlatform"]["enums"]:
+        cheat = _cheat_as_handle_enum(enum)
+        if len(cheat) and cheat != "EOS_HPlatform":
+            handles[cheat]["enums"][enum] = handles["EOS_HPlatform"]["enums"][enum]
+            to_remove_enum_types.append(enum)
+    for e in to_remove_enum_types:
+        handles["EOS_HPlatform"]["enums"].pop(e)
+
     for h in extra_handles_methods:
         for m in extra_handles_methods[h]:
             handles[h]["methods"][m] = extra_handles_methods[h][m]
@@ -1117,22 +1154,6 @@ def parse_all_file():
     # exit()
 
 
-def gen_foward_declare_file() -> str:
-    ret: list[str] = []
-    ret.append("#pragma once")
-    ret.append("")
-    ret.append("namespace godot {")
-    ret.append("// Structs")
-    for struct in structs:
-        ret.append(f'class {remap_type(struct, "").removeprefix("Ref<").removesuffix(">")};')
-    ret.append("")
-    ret.append("// Handles")
-    for handle in handles:
-        ret.append(f"class {_convert_handle_class_name(handle)};")
-    ret.append("} // namespace godot")
-    return "\n".join(ret)
-
-
 def _convert_interface_class_name(interface_name_lower: str) -> str:
     if interface_name_lower in ["eos_common", "common", "e_o_s"]:
         interface_name_lower = "eos"
@@ -1210,7 +1231,7 @@ def _gen_packed_result_type(
     for i in range(len(method_info["args"])):
         arg_name: str = method_info["args"][i]["name"]
         arg_type: str = method_info["args"][i]["type"]
-        if (arg_name.startswith("Out") or arg_name.startswith("InOut")) and arg_type.endswith("*"):
+        if (arg_name.startswith("Out") or arg_name.startswith("InOut") or arg_name.startswith("bOut")) and arg_type.endswith("*"):
             out_args.append(method_info["args"][i])
     if len(out_args) <= 0:
         return ""
@@ -1239,7 +1260,7 @@ def _gen_packed_result_type(
         arg_type: str = arg["type"]
         arg_name: str = arg["name"]
         decayed_type: str = _decay_eos_type(arg["type"])
-        snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out"))
+        snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
             menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
@@ -1272,8 +1293,10 @@ def _gen_packed_result_type(
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif decayed_type == "EOS_Bool":
-            print("ERROR UNSUPPORT bool:", method_name, decayed_type)
-            exit(1)
+            menbers_lines.append(f"\tbool {snake_name};")
+            setget_lines.append(f"\t_DEFINE_SETGET_BOOL({snake_name})")
+            bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
+            i += 1
         elif _is_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORT arr:", method_name, arg_type)
             exit(1)
@@ -1658,7 +1681,7 @@ def __make_packed_result(
         arg_name: str = args[i]["name"]
         arg_type: str = args[i]["type"]
         decayed_type: str = _decay_eos_type(arg_type)
-        snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out"))
+        snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
@@ -1696,7 +1719,7 @@ def __make_packed_result(
                 r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
             else:
                 r_return_type_if_convert_to_return.append(f"{remap_type(decayed_type, arg_name)}")
-                r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};;")
+                r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};")
         elif arg_type == "char*" and (i + 1) < len(args) and args[i + 1]["type"].endswith("int32_t*") and args[i + 1]["name"].endswith("Length"):
             r_prepare_lines.append(f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};")
             r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = 0;')
@@ -1743,8 +1766,16 @@ def __make_packed_result(
 
             i += 1
         elif decayed_type == "EOS_Bool":
-            print("ERROR UNSUPPORT bool:", method_name, decayed_type)
-            exit(1)
+            r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
+            r_call_args.append(f"&{arg_name}")
+
+            if pack_result:
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = {arg_name};")
+            else:
+                r_return_type_if_convert_to_return.append(f"{remap_type(decayed_type, arg_name)}")
+                r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};")
+
+            i += 1
         elif _is_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORT arr:", method_name, arg_type)
             exit(1)
@@ -1834,7 +1865,8 @@ def _gen_method(
 
     static: bool = True
     i: int = 0
-    need_callable_arg = False
+    need_callable_defval = False
+
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
         name: str = info["args"][i]["name"]
@@ -1850,28 +1882,33 @@ def _gen_method(
                 prepare_lines.append(f"\tERR_FAIL_NULL(m_handle);")
             static = False
         elif __is_callback_type(decayed_type):
-            # 回调参数
-            declare_args.append(f"const Callable& p_{snake_name} = {{}}")
-            bind_args.append(f'"{snake_name}"')
-
-            if decayed_type in [
-                "EOS_PlayerDataStorage_OnWriteFileCompleteCallback",
-                "EOS_PlayerDataStorage_OnReadFileCompleteCallback",
-                "EOS_TitleStorage_OnReadFileCompleteCallback",
-            ]:
-                cb = _decay_eos_type(_get_callback_infos(decayed_type)["args"][0]["type"])
-                gd_cb = remap_type(cb, name).removeprefix("Ref<").removesuffix(">")
-                signal_name = __convert_to_signal_name(decayed_type)
-                interface_signal_name = __convert_to_signal_name(decayed_type)
-                prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
-                if signal_name != interface_signal_name:
-                    prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
-                prepare_lines.append(f"\tauto callback = &godot::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
-                call_args.append(f"callback")
+            if method_name == "EOS_Logging_SetCallback":
+                declare_args.append(f"const Callable& p_{snake_name}")
+                bind_args.append(f'"{snake_name}"')
+                prepare_lines.append(f"EOS::log_message_callback = p_{snake_name};")
             else:
-                call_args.append(f"{_gen_callback(decayed_type, [])}")
+                # 回调参数
+                declare_args.append(f"const Callable& p_{snake_name} = {{}}")
+                bind_args.append(f'"{snake_name}"')
 
-            need_callable_arg = True
+                if decayed_type in [
+                    "EOS_PlayerDataStorage_OnWriteFileCompleteCallback",
+                    "EOS_PlayerDataStorage_OnReadFileCompleteCallback",
+                    "EOS_TitleStorage_OnReadFileCompleteCallback",
+                ]:
+                    cb = _decay_eos_type(_get_callback_infos(decayed_type)["args"][0]["type"])
+                    gd_cb = remap_type(cb, name).removeprefix("Ref<").removesuffix(">")
+                    signal_name = __convert_to_signal_name(decayed_type)
+                    interface_signal_name = __convert_to_signal_name(decayed_type)
+                    prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
+                    if signal_name != interface_signal_name:
+                        prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
+                    prepare_lines.append(f"\tauto callback = &godot::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
+                    call_args.append(f"callback")
+                else:
+                    call_args.append(f"{_gen_callback(decayed_type, [])}")
+
+                need_callable_defval = True
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
@@ -1937,7 +1974,7 @@ def _gen_method(
                 prepare_lines,
                 after_call_lines,
             )
-        elif name.startswith("Out") or name.startswith("InOut"):
+        elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
             __make_packed_result(
@@ -1986,6 +2023,8 @@ def _gen_method(
                 break
     snake_method_name = to_snake_case(candidate_method_name).removeprefix("e_")  # Hack, 去除枚举前缀
 
+    if method_name == "EOS_Logging_SetCallback":
+        snake_method_name = "set_logging_callback"
     # ======= 声明 ===============
     r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
@@ -2008,7 +2047,9 @@ def _gen_method(
             r_define_lines.append(f"\tauto {interface.lower()} = {m}(platform_handle);")
             r_define_lines.append(f"\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({interface.lower()});;")
             r_define_lines.append(f"#endif // {disable_macro}")
-
+    elif method_name == "EOS_Logging_SetCallback":
+        r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
+        snake_method_name = "set_logging_callback"
     elif _is_handle_type(_decay_eos_type(info["return"])):
         r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
@@ -2046,7 +2087,7 @@ def _gen_method(
     if len(bind_args_text):
         bind_args_text = ", " + bind_args_text
     default_val_arg = ""
-    if need_callable_arg:
+    if need_callable_defval:
         default_val_arg = ", DEFVAL(Callable())"
 
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
@@ -2188,6 +2229,7 @@ def is_deprecated_field(field: str) -> bool:
         or field == "SystemSpecificOptions"  # 内部处理
         # Hack
         or field == "SystemMemoryMonitorReport"  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
+        or field == "PlatformSpecificData"  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
     )
 
 
@@ -2241,8 +2283,11 @@ def remap_type(type: str, field: str = "") -> str:
         "EOS_Bool": "bool",
         "float": "float",
         "EOS_ProductUserId": "String",
+        "const EOS_ProductUserId": "String",
         "EOS_EpicAccountId": "String",
+        "const EOS_EpicAccountId": "String",
         "EOS_LobbyId": "String",
+        "const EOS_LobbyId": "String",
         "const char*": "String",
         "EOS_Ecom_SandboxId": "String",
         "const EOS_Ecom_CatalogItemId*": "PackedStringArray",
@@ -2310,14 +2355,16 @@ def _is_expended_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_FileTransferProgressCallbackInfo",
         "EOS_PlayerDataStorage_WriteFileCallbackInfo",
         "EOS_PlayerDataStorage_ReadFileCallbackInfo",
-        #
+        # 以下结构体已经以不展开的方式硬编码
         "EOS_IntegratedPlatform_UserPreLogoutCallbackInfo",
-        #
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
     ]:
         return False
+    if struct_type in ["EOS_LogMessage"]:
+        # 已经以展开方式硬编码
+        return True
     return _decay_eos_type(struct_type) in expended_as_args_structs
 
 
@@ -2733,7 +2780,7 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
         if field_or_arg in ["PlatformSpecificData", "SystemMemoryMonitorReport", "InitOptions"]:
             return False
 
-    if field_or_arg.startswith("Out") or field_or_arg.startswith("InOut"):
+    if field_or_arg.startswith("Out") or field_or_arg.startswith("InOut") or field_or_arg.startswith("bOut"):
         if type.endswith("**") or type.endswith("*"):
             return False  # 目前未发现有数组类型的Out参数
     return type.endswith("*")

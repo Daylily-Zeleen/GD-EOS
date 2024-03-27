@@ -28,14 +28,14 @@ namespace godot {
 #define STRNCPY_S(dest, destsz, src, count) strncpy(dest, src, count)
 #endif
 
-String eosg_epic_account_id_to_string(EOS_EpicAccountId accountId);
+String eosg_epic_account_id_to_string(const EOS_EpicAccountId accountId);
 
 static EOS_EpicAccountId eosg_string_to_epic_account_id(const char *p_account_id) {
     EOS_EpicAccountId accountId = EOS_EpicAccountId_FromString(p_account_id);
     return accountId;
 }
 
-String eosg_product_user_id_to_string(EOS_ProductUserId localUserId);
+String eosg_product_user_id_to_string(const EOS_ProductUserId localUserId);
 
 static EOS_ProductUserId eosg_string_to_product_user_id(const char *p_account_id) {
     EOS_ProductUserId accountId = EOS_ProductUserId_FromString(p_account_id);
@@ -176,16 +176,24 @@ template <>
 EOS_Bool to_eos_type(bool p_from) { return p_from; }
 
 // EOS_ProductUserId
+// template <>
+// String to_godot_type(EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
 template <>
-String to_godot_type(EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
+String to_godot_type(const EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
 template <>
 EOS_ProductUserId to_eos_type(const String &p_from) { return eosg_string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+template <>
+const EOS_ProductUserId to_eos_type(const String &p_from) { return eosg_string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 
 // EOS_EpicAccountId
+// template <>
+// String to_godot_type(EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
 template <>
-String to_godot_type(EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
+String to_godot_type(const EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
 template <>
 EOS_EpicAccountId to_eos_type(const String &p_from) { return eosg_string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+template <>
+const EOS_EpicAccountId to_eos_type(const String &p_from) { return eosg_string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 
 // const char *
 using cstr_t = const char *;
@@ -375,16 +383,16 @@ static const uint8_t *to_eos_requested_channel(uint16_t p_channel) {
 using eos_p2p_socketid_socked_name_t = char[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
 template <>
 String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
-    return &p_from[0];
+    return String(&p_from[0]);
 }
 
-template <typename From, typename To>
-inline void to_eos_type(From p_from, To &r_to) {
-    r_to = to_eos_type<std::remove_reference_t<To>, From>(p_from);
+template <typename From, typename To, typename FromArg = gd_arg_t<From>>
+inline void to_eos_type(FromArg p_from, To &r_to) {
+    r_to = to_eos_type<gd_arg_t<From>, To>(p_from);
 }
 
 template <>
-inline void to_eos_type(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+inline void to_eos_type<String>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.utf8().get_data(), MIN(p_from.utf8().length(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
 }
@@ -414,7 +422,7 @@ template <typename RefEOSData, typename Out, typename OutT = std::remove_const_t
 inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     if constexpr (std::is_pointer_v<Out>) {
         // static_assert(false, "让我看看!");
-        r_out = p_in.is_valid() ? *p_in->get_eos_data() : nullptr;
+        r_out = p_in.is_valid() ? &p_in->to_eos() : nullptr;
     } else {
         if (p_in.is_valid()) {
             p_in->set_to_eos(r_out);
@@ -674,7 +682,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     }
 }
 
-#define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<decltype((eos_field)), m_gd_Ty>((eos_field))
+#define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<std::conditional_t<std::is_same_v<decltype(eos_field), eos_p2p_socketid_socked_name_t>, const eos_p2p_socketid_socked_name_t &, decltype(eos_field)>, m_gd_Ty>((eos_field))
 #define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr((eos_field), (eos_field_count))
 // #define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype((eos_field)), m_gd_Ty>((eos_field), (eos_field_count))
 #define _EXPAND_TO_GODOT_VAL_CLIENT_DATA(m_gd_Ty, eos_field) ((_CallbackClientData *)eos_field)->client_data
@@ -686,6 +694,12 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 
 // 回调
+#define _EOS_LOGGING_CALLBACK() [](const EOS_LogMessage* Message) {\
+    if (EOS::log_message_callback.is_valid() && Message) {\
+        EOS::log_message_callback.call(Message->Category, Message->Message, Message->Level);\
+    }\
+}
+
 #define _EOS_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)              \
     [](m_callback_info_ty m_callback_identifier) {                                                                  \
         if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
@@ -742,40 +756,41 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &(m_gd_option->to_eos_data());
 
 #define _EOS_OPTIONS_IDENTIFY(m_options_ty) m_options_ty##_option
-#define _EOS_METHOD_OPTIONS_INTEGRATE(m_options_ty, m_api_version...) \
+
+#define _EOS_METHOD_OPTIONS_INTEGRATE(m_options_ty, m_api_version, ...) \
     m_options_ty _EOS_OPTIONS_IDENTIFY(m_options_ty);                 \
     _EOS_OPTIONS_IDENTIFY(m_options_ty)->ApiVersion = m_api_version;  \
     (##__VA_ARGS__);                                                  \
     m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &_EOS_OPTIONS_IDENTIFY(m_options_ty);
 
 // For string out parameters.
-class StrResult : public RefCounted {
-    GDCLASS(StrResult, RefCounted)
-    EOS_EResult result_code;
-    String result;
+// class StrResult : public RefCounted {
+//     GDCLASS(StrResult, RefCounted)
+//     EOS_EResult result_code;
+//     String result;
 
-public:
-    _DEFINE_SETGET(result_code);
-    _DEFINE_SETGET(result);
+// public:
+//     _DEFINE_SETGET(result_code);
+//     _DEFINE_SETGET(result);
 
-    StrResult() = default;
-    StrResult(EOS_EResult p_result_code, char *p_result, uint32_t p_length = -1) :
-            result_code(p_result_code), result(String::utf8(p_result, p_length)) {}
+//     StrResult() = default;
+//     StrResult(EOS_EResult p_result_code, char *p_result, uint32_t p_length = -1) :
+//             result_code(p_result_code), result(String::utf8(p_result, p_length)) {}
 
-protected:
-    static void _bind_methods() {
-        _BIND_BEGIN(StrResult);
-        _BIND_PROP(result_code);
-        _BIND_PROP(result);
-        _BIND_END();
-    }
-};
+// protected:
+//     static void _bind_methods() {
+//         _BIND_BEGIN(StrResult);
+//         _BIND_PROP(result_code);
+//         _BIND_PROP(result);
+//         _BIND_END();
+//     }
+// };
 
-#define _DEFINE_INOUT_STR_ARGUMENTS(m_max_length, length_int_type) \
-    char *out_str = (char *)memalloc(m_max_length);                \
-    length_int_type out_length = 0
-#define _INPUT_STR_ARGUMENTS_FOR_CALL() out_str, out_length
-#define _MAKE_STR_RESULT(m_result_code) Ref<StrResult>(memnew(StrResult(m_result_code, out_str, out_length)))
+// #define _DEFINE_INOUT_STR_ARGUMENTS(m_max_length, length_int_type) \
+//     char *out_str = (char *)memalloc(m_max_length);                \
+//     length_int_type out_length = 0
+// #define _INPUT_STR_ARGUMENTS_FOR_CALL() out_str, out_length
+// #define _MAKE_STR_RESULT(m_result_code) Ref<StrResult>(memnew(StrResult(m_result_code, out_str, out_length)))
 
 static void *get_rtc_platform_specific_options() {
 #if defined(_WIN32) || defined(_WIN64)

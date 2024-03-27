@@ -19,7 +19,7 @@ eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 
 # Add source files
 env.Append(CPPPATH=["src/", "src/core/", eos_sdk_folder + "Include/"])
-sources = Glob("src/*.cpp") + Glob("src/gen/*.cpp") + Glob("src/core/*.cpp")
+sources = Glob("src/*.cpp") + Glob("src/core/*.cpp") + Glob("src/gen/*.cpp") + Glob("src/gen/enums/*.cpp") + Glob("src/gen/handles/*.cpp") + Glob("src/gen/packed_results*.cpp") + Glob("src/gen/structs/*.cpp")
 platform = env["platform"]
 
 env.Append(CPPDEFINES=["NOT_NEED_ENUM_CALSS"])
