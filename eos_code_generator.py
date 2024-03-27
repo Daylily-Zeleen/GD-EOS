@@ -2427,6 +2427,7 @@ def _is_expended_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
+        "EOS_Connect_LoginCallbackInfo", # PackedPeerMediator 中使用
     ]:
         return False
     if struct_type in ["EOS_LogMessage"]:
