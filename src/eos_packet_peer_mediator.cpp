@@ -1,6 +1,7 @@
 /****************************************
  * EOSPacketPeerMediator
- * Author: Dallin Lovin aka LowFire
+ * Authors: Dallin Lovin aka LowFire
+ *          忘忧の aka Daylily-Zeleen (daylily-zeleen@foxmail.com)
  * Description: Manages EOS multiplayer instances when they are active.
  * Multiplayer instances register their socket id with the mediator when
  * they become active and unregister their socket id when they close.

@@ -1,6 +1,7 @@
 /****************************************
  * EOSMultiplayerPeer
- * Author: Dallin Lovin aka LowFire
+ * Authors: Dallin Lovin aka LowFire
+ *          忘忧の aka Daylily-Zeleen (daylily-zeleen@foxmail.com)
  * Description: Multiplayer peer that uses the EOS P2P Interface to allow users to
  * establish direct peer-to-peer connections with other players over the internet.
  * NAT punchthrough is handled automatically by the P2P interface and a relay server
