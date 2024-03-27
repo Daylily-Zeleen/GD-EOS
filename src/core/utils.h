@@ -1,6 +1,5 @@
 #pragma once
 
-// #include <eos_anticheatcommon_client.h>
 #include <Windows/eos_Windows.h>
 #include <eos_sdk.h>
 #include <godot_cpp/classes/os.hpp>
@@ -237,7 +236,7 @@ PackedStringArray to_godot_type_arr(cstr_t *p_from, Tint p_count) {
 
 // cstr_t*
 template <typename Tint>
-PackedStringArray to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
+PackedStringArray to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_count) {
     PackedStringArray ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
@@ -248,8 +247,8 @@ PackedStringArray to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
 
 // const cstr_t*
 template <typename Tint>
-PackedStringArray to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_count) {
-    return to_godot_type_arr(p_from, p_count);
+PackedStringArray to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
+    return to_godot_type_arr((const EOS_ProductUserId *)p_from, p_count);
 }
 
 // int16_t*
@@ -295,7 +294,7 @@ PackedInt32Array to_godot_type_arr(const uint8_t *p_from, Tint p_count) {
 
 // uint32_t*
 template <typename Tint>
-PackedInt64Array to_godot_type_arr(uint32_t *p_from, Tint p_count) {
+PackedInt64Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
     PackedInt64Array ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
@@ -319,8 +318,8 @@ uint32_t *to_eos_type_arr(const PackedInt64Array &p_from, Tint &r_count) {
 
 // const uint32_t*
 template <typename Tint>
-PackedInt64Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
-    return to_godot_type_arr(p_from, p_count);
+PackedInt64Array to_godot_type_arr(uint32_t *p_from, Tint p_count) {
+    return to_godot_type_arr((const uint32_t *)p_from, p_count);
 }
 
 // ===
@@ -425,7 +424,6 @@ inline RefOut to_godot_data(InArg p_in) {
 template <typename RefEOSData, typename Out, typename OutT = std::remove_const_t<Out>>
 inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     if constexpr (std::is_pointer_v<Out>) {
-        // static_assert(false, "让我看看!");
         r_out = p_in.is_valid() ? &p_in->to_eos() : nullptr;
     } else {
         if (p_in.is_valid()) {
@@ -440,7 +438,7 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
         switch (p_gd.get_type()) {
             case Variant::OBJECT: {
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle;
-                p_union.ClientHandle = Object::cast_to<Object>(p_gd); // (EOSAntiCheatCommon_Client *)
+                p_union.ClientHandle = Object::cast_to<Object>(p_gd);
             } break;
             case Variant::INT: {
                 p_union.Int64 = p_gd;
@@ -534,14 +532,19 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
                 return p_union.AsDouble;
             } break;
             case EOS_EAttributeType::EOS_AT_BOOLEAN: {
-                return p_union.AsBool;
+                return p_union.AsBool != EOS_FALSE;
             } break;
             case EOS_EAttributeType::EOS_AT_STRING: {
                 return String::utf8(p_union.AsUtf8);
             } break;
+            default: {
+                ERR_FAIL_V_MSG({}, vformat("Unsuppoert AttributeType: ", (int)p_union_type));
+            } break;
         }
+
     } else {
         static_assert(false, "Unsupport union type");
+        return {};
     }
 }
 
@@ -794,26 +797,22 @@ static void *get_rtc_platform_specific_options() {
 #endif
 }
 
-#define EOS_PLATFORM_TICK_SETUP()                                                                                 \
-protected:                                                                                                        \
-    void tick_internal() const {                                                                                  \
-        if (m_handle) {                                                                                           \
-            EOS_Platform_Tick(m_handle);                                                                          \
-        }                                                                                                         \
-    }                                                                                                             \
-    void setup_tick() const {                                                                                     \
-        Error err = Error::FAILED;                                                                                \
-        if (auto scene_tree = cast_to<godot::SceneTree>(godot::Engine::get_singleton()->get_main_loop())) {       \
-            err = scene_tree->connect("process_frame", callable_mp(this, &EOSPlatform::tick_internal));           \
-        }                                                                                                         \
-        if (err != OK) {                                                                                          \
-            WARN_PRINT("EOS wraning: Can't tick automatically, please call \"EOSPlatform::tick()\" by youself."); \
-        }                                                                                                         \
-    }                                                                                                             \
-    void _notification(int p_what) {                                                                              \
-        if (p_what == NOTIFICATION_POSTINITIALIZE) {                                                              \
-            callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                          \
-        }                                                                                                         \
+#define EOS_PLATFORM_TICK_SETUP()                                                                                                                                                     \
+protected:                                                                                                                                                                            \
+    void tick_internal() {                                                                                                                                                            \
+        if (m_handle) {                                                                                                                                                               \
+            EOS_Platform_Tick(m_handle);                                                                                                                                              \
+        }                                                                                                                                                                             \
+    }                                                                                                                                                                                 \
+    void setup_tick() {                                                                                                                                                               \
+        MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();                                                                                                        \
+        ERR_FAIL_COND_MSG(main_loop == nullptr || !main_loop->has_signal("process_frame"), "EOS wraning: Can't tick automatically, please call \"EOSPlatform::tick()\" by youself."); \
+        ERR_FAIL_COND(main_loop->connect("process_frame", callable_mp(this, &EOSPlatform::tick_internal)) != OK);                                                                     \
+    }                                                                                                                                                                                 \
+    void _notification(int p_what) {                                                                                                                                                  \
+        if (p_what == NOTIFICATION_POSTINITIALIZE) {                                                                                                                                  \
+            callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                                                                                              \
+        }                                                                                                                                                                             \
     }
 
 } // namespace godot
