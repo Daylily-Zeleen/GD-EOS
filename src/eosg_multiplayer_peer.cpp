@@ -465,10 +465,13 @@ int EOSGMultiplayerPeer::get_active_mode() {
  * the r_buffer and r_buffer_size out parameters.
  ****************************************/
 Error EOSGMultiplayerPeer::_get_packet(const uint8_t **r_buffer, int32_t *r_buffer_size) {
+    if (current_packet) {
+        memdelete(current_packet);
+    }
     current_packet = socket.pop_packet();
 
-    *r_buffer = current_packet.get_payload();
-    *r_buffer_size = current_packet.payload_size();
+    *r_buffer = current_packet->get_payload();
+    *r_buffer_size = current_packet->payload_size();
 
     return OK;
 }
@@ -511,7 +514,9 @@ Error EOSGMultiplayerPeer::_put_packet(const uint8_t *p_buffer, int32_t p_buffer
             channel = CH_RELIABLE;
         } break;
         case MultiplayerPeer::TRANSFER_MODE_UNRELIABLE_ORDERED: {
-            // TODO
+            WARN_PRINT("EOSGMultiplayerPeer does not support unreliable ordered. Setting to reliable instead.");
+            reliability = EOS_EPacketReliability::EOS_PR_ReliableOrdered;
+            channel = CH_RELIABLE;
         } break;
     }
     if (tr_channel > 0) {
@@ -700,12 +705,12 @@ void EOSGMultiplayerPeer::_poll() {
 
                 EOS_EPacketReliability reliability = static_cast<EOS_EPacketReliability>(data_ptr->ptrw()[INDEX_TRANSFER_MODE]);
 
-                EOSGPacket packet;
-                packet.store_payload(data_ptr->ptrw() + INDEX_PAYLOAD_DATA, packet_data.size() - EOSGPacket::PACKET_HEADER_SIZE);
-                packet.set_event(event);
-                packet.set_sender(peer_id);
-                packet.set_reliability(reliability);
-                packet.set_channel(packet_data.get_channel());
+                EOSGPacket *packet = memnew(EOSGPacket);
+                packet->store_payload(data_ptr->ptrw() + INDEX_PAYLOAD_DATA, packet_data.size() - EOSGPacket::PACKET_HEADER_SIZE);
+                packet->set_event(event);
+                packet->set_sender(peer_id);
+                packet->set_reliability(reliability);
+                packet->set_channel(packet_data.get_channel());
 
                 socket.push_packet(packet);
                 break;
@@ -1159,13 +1164,13 @@ EOSGMultiplayerPeer::~EOSGMultiplayerPeer() {
  * Sets the packet header.
  ****************************************/
 void EOSGMultiplayerPeer::EOSGPacket::prepare() {
-    if (packet == nullptr) {
+    if (packet.size() == 0) {
         _alloc_packet();
     }
 
-    packet->ptrw()[INDEX_EVENT_TYPE] = static_cast<uint8_t>(event);
-    packet->ptrw()[INDEX_TRANSFER_MODE] = static_cast<uint8_t>(reliability);
-    memcpy(packet->ptrw() + INDEX_PEER_ID, &from, sizeof(int));
+    packet.ptrw()[INDEX_EVENT_TYPE] = static_cast<uint8_t>(event);
+    packet.ptrw()[INDEX_TRANSFER_MODE] = static_cast<uint8_t>(reliability);
+    memcpy(packet.ptrw() + INDEX_PEER_ID, &from, sizeof(int));
 }
 
 /****************************************
@@ -1176,15 +1181,12 @@ void EOSGMultiplayerPeer::EOSGPacket::prepare() {
  * Description: Stores the passed payload data into the packet. Allocates the packet to the correct
  * size so that it can fit the payload.
  ****************************************/
-void EOSGMultiplayerPeer::EOSGPacket::store_payload(const uint8_t *payload_data, const uint32_t payload_size_bytes) {
-    if (packet == nullptr) {
-        _alloc_packet(payload_size_bytes + PACKET_HEADER_SIZE);
+void EOSGMultiplayerPeer::EOSGPacket::store_payload(const uint8_t *p_payload_data, const uint32_t p_payload_size_bytes) {
+    if (packet.size() != p_payload_size_bytes + PACKET_HEADER_SIZE) {
+        size_bytes = p_payload_size_bytes + PACKET_HEADER_SIZE;
+        packet.resize(size_bytes);
     }
-    if (packet->size() != payload_size_bytes + PACKET_HEADER_SIZE) {
-        size_bytes = payload_size_bytes + PACKET_HEADER_SIZE;
-        packet->resize(size_bytes);
-    }
-    memcpy(packet->ptrw() + INDEX_PAYLOAD_DATA, payload_data, payload_size_bytes);
+    memcpy(packet.ptrw() + INDEX_PAYLOAD_DATA, p_payload_data, p_payload_size_bytes);
 }
 
 /****************************************
@@ -1208,13 +1210,14 @@ void EOSGMultiplayerPeer::EOSGSocket::close() {
  * connected. Clears the packet queue.
  ****************************************/
 void EOSGMultiplayerPeer::EOSGSocket::clear_packets_from_peer(int p_peer) {
-    List<List<EOSGPacket>::Element *> del;
-    for (List<EOSGPacket>::Element *e = incoming_packets.front(); e != nullptr; e = e->next()) {
-        if (e->get().get_sender() != p_peer)
+    List<List<EOSGPacket *>::Element *> del;
+    for (List<EOSGPacket *>::Element *e = incoming_packets.front(); e != nullptr; e = e->next()) {
+        if (e->get()->get_sender() != p_peer)
             continue;
         del.push_back(e);
     }
-    for (List<EOSGPacket>::Element *e : del) {
+    for (List<EOSGPacket *>::Element *e : del) {
+        memdelete(e->get());
         e->erase();
     }
 }

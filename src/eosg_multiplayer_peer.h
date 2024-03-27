@@ -44,7 +44,7 @@ private:
 
     class EOSGPacket {
     private:
-        std::shared_ptr<PackedByteArray> packet;
+        PackedByteArray packet;
         uint8_t channel = 0;
         int32_t size_bytes = 0;
         EOS_EPacketReliability reliability;
@@ -52,8 +52,7 @@ private:
         int from = 0;
 
         void _alloc_packet(int size_bytes = PACKET_HEADER_SIZE) {
-            packet = std::make_shared<PackedByteArray>();
-            packet->resize(size_bytes);
+            packet.resize(size_bytes);
             this->size_bytes = size_bytes;
         }
 
@@ -61,7 +60,7 @@ private:
         static constexpr int PACKET_HEADER_SIZE = 6;
 
         void prepare();
-        void store_payload(const uint8_t *payload_data, const uint32_t payload_size_bytes);
+        void store_payload(const uint8_t *p_payload_data, const uint32_t p_payload_size_bytes);
 
         int payload_size() const {
             return size_bytes - PACKET_HEADER_SIZE;
@@ -71,42 +70,40 @@ private:
             return size_bytes;
         }
 
-        uint8_t *get_payload() const {
+        const uint8_t *get_payload() const {
             if (size_bytes == 0 || size_bytes == PACKET_HEADER_SIZE) {
                 return nullptr; //Return nullptr if there's no payload.
             }
-            return packet->ptrw() + INDEX_PAYLOAD_DATA;
+            return packet.ptr() + INDEX_PAYLOAD_DATA;
         }
 
-        uint8_t *get_packet() const {
-            if (packet.get() == nullptr) {
-                return nullptr; //Return nullptr if the packed has not been allocated
-            }
-            return packet->ptrw();
+        const uint8_t *get_packet() const {
+            //Return nullptr if the packed has not been allocated
+            return packet.ptr();
         }
 
         EOS_EPacketReliability get_reliability() const {
             return reliability;
         }
 
-        void set_reliability(EOS_EPacketReliability reliability) {
-            this->reliability = reliability;
+        void set_reliability(EOS_EPacketReliability p_reliability) {
+            this->reliability = p_reliability;
         }
 
         uint8_t get_channel() const {
             return channel;
         }
 
-        void set_channel(uint8_t channel) {
-            this->channel = channel;
+        void set_channel(uint8_t p_channel) {
+            this->channel = p_channel;
         }
 
         Event get_event() const {
             return event;
         }
 
-        void set_event(Event event) {
-            this->event = event;
+        void set_event(Event p_event) {
+            this->event = p_event;
         }
 
         int get_sender() const {
@@ -121,7 +118,7 @@ private:
     class EOSGSocket {
     private:
         EOS_P2P_SocketId socket;
-        List<EOSGPacket> incoming_packets;
+        List<EOSGPacket *> incoming_packets;
 
     public:
         const EOS_P2P_SocketId *get_id() const {
@@ -132,12 +129,12 @@ private:
             return socket.SocketName;
         }
 
-        void push_packet(EOSGPacket packet) {
+        void push_packet(EOSGPacket *packet) {
             incoming_packets.push_back(packet);
         }
 
-        EOSGPacket pop_packet() {
-            EOSGPacket ret = incoming_packets.front()->get();
+        EOSGPacket *pop_packet() {
+            EOSGPacket *ret = incoming_packets.front()->get();
             incoming_packets.pop_front();
             return ret;
         }
@@ -155,18 +152,18 @@ private:
         }
 
         EOS_EPacketReliability get_packet_reliability() const {
-            EOSGPacket packet = incoming_packets.front()->get();
-            return packet.get_reliability();
+            EOSGPacket *packet = incoming_packets.front()->get();
+            return packet->get_reliability();
         }
 
         int32_t get_packet_channel() const {
-            EOSGPacket packet = incoming_packets.front()->get();
-            return packet.get_channel();
+            EOSGPacket *packet = incoming_packets.front()->get();
+            return packet->get_channel();
         }
 
         int32_t get_packet_peer() const {
-            EOSGPacket packet = incoming_packets.front()->get();
-            return packet.get_sender();
+            EOSGPacket *packet = incoming_packets.front()->get();
+            return packet->get_sender();
         }
 
         void close();
@@ -199,7 +196,7 @@ private:
 
     static EOS_ProductUserId s_local_user_id;
 
-    EOSGPacket current_packet;
+    EOSGPacket *current_packet;
     uint32_t unique_id;
     int target_peer = 0;
     ConnectionStatus connection_status = CONNECTION_DISCONNECTED;
