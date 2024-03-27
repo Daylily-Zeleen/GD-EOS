@@ -58,7 +58,7 @@ static StringName _get_class_name(const Variant &p_val) {
     decltype(field) get_##field() const; \
     void set_##field(_ARG_TYPE(field) p_val);
 
-#define _DEFINE_SETGET(klass, field)                  \
+#define _DEFINE_SETGET(klass, field)                                    \
     decltype(klass::field) klass::get_##field() const { return field; } \
     void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
@@ -777,35 +777,6 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     (##__VA_ARGS__);                                                    \
     m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &_EOS_OPTIONS_IDENTIFY(m_options_ty);
 
-// For string out parameters.
-// class StrResult : public RefCounted {
-//     GDCLASS(StrResult, RefCounted)
-//     EOS_EResult result_code;
-//     String result;
-
-// public:
-//     _DEFINE_SETGET(result_code);
-//     _DEFINE_SETGET(result);
-
-//     StrResult() = default;
-//     StrResult(EOS_EResult p_result_code, char *p_result, uint32_t p_length = -1) :
-//             result_code(p_result_code), result(String::utf8(p_result, p_length)) {}
-
-// protected:
-//     static void _bind_methods() {
-//         _BIND_BEGIN(StrResult);
-//         _BIND_PROP(result_code);
-//         _BIND_PROP(result);
-//         _BIND_END();
-//     }
-// };
-
-// #define _DEFINE_INOUT_STR_ARGUMENTS(m_max_length, length_int_type) \
-//     char *out_str = (char *)memalloc(m_max_length);                \
-//     length_int_type out_length = 0
-// #define _INPUT_STR_ARGUMENTS_FOR_CALL() out_str, out_length
-// #define _MAKE_STR_RESULT(m_result_code) Ref<StrResult>(memnew(StrResult(m_result_code, out_str, out_length)))
-
 static void *get_rtc_platform_specific_options() {
 #if defined(_WIN32) || defined(_WIN64)
     static EOS_Windows_RTCOptions windowsRTCOptions;
@@ -827,5 +798,27 @@ static void *get_rtc_platform_specific_options() {
     return nullptr;
 #endif
 }
+
+#define EOS_PLATFORM_TICK_SETUP()                                                                                 \
+protected:                                                                                                        \
+    void tick_internal() const {                                                                                  \
+        if (m_handle) {                                                                                           \
+            EOS_Platform_Tick(m_handle);                                                                          \
+        }                                                                                                         \
+    }                                                                                                             \
+    void setup_tick() const {                                                                                     \
+        Error err = Error::FAILED;                                                                                \
+        if (auto scene_tree = cast_to<godot::SceneTree>(godot::Engine::get_singleton()->get_main_loop())) {       \
+            err = scene_tree->connect("process_frame", callable_mp(this, &EOSPlatform::tick_internal));           \
+        }                                                                                                         \
+        if (err != OK) {                                                                                          \
+            WARN_PRINT("EOS wraning: Can't tick automatically, please call \"EOSPlatform::tick()\" by youself."); \
+        }                                                                                                         \
+    }                                                                                                             \
+    void _notification(int p_what) {                                                                              \
+        if (p_what == NOTIFICATION_POSTINITIALIZE) {                                                              \
+            callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                          \
+        }                                                                                                         \
+    }
 
 } // namespace godot

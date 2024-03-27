@@ -393,6 +393,10 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f'#include "eos_anticheatcommon_interface.h"')
     else:
         interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
+    
+    if file_base_name.startswith("eos_platform"):
+        interface_handle_h_lines.append(f'#include <godot_cpp/classes/engine.hpp>')
+        interface_handle_h_lines.append(f'#include <godot_cpp/classes/scene_tree.hpp>')
     interface_handle_h_lines.append(f"")
 
     if len(enums):
@@ -789,6 +793,10 @@ def _gen_handle(
     ret += method_define_lines
 
     ret.append(f"")
+    if handle_name == "EOS_HPlatform":
+        # Platform自动Tick代码
+        ret.append("\tEOS_PLATFORM_TICK_SETUP()")
+        
     ret.append(f"}};")
     ret.append("} // namespace godot")
 
@@ -908,9 +916,6 @@ def _cheat_as_handle_callback(callback_type: str) -> str:
 
 
 def parse_all_file():
-    print(max_field_count_to_expend_of_input_options)
-    print(max_field_count_to_expend_of_callback_info)
-    exit()
     file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
         "file": "eos_common",
