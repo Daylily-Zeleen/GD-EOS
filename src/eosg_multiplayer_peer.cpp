@@ -1172,7 +1172,7 @@ void EOSGMultiplayerPeer::EOSGPacket::prepare() {
 
     packet.ptrw()[INDEX_EVENT_TYPE] = static_cast<uint8_t>(event);
     packet.ptrw()[INDEX_TRANSFER_MODE] = static_cast<uint8_t>(reliability);
-    memcpy(packet.ptrw() + INDEX_PEER_ID, &from, sizeof(int));
+    memcpy(packet.ptrw() + INDEX_PEER_ID, &sender_peer_id, sizeof(int));
 }
 
 /****************************************
@@ -1185,8 +1185,7 @@ void EOSGMultiplayerPeer::EOSGPacket::prepare() {
  ****************************************/
 void EOSGMultiplayerPeer::EOSGPacket::store_payload(const uint8_t *p_payload_data, const uint32_t p_payload_size_bytes) {
     if (packet.size() != p_payload_size_bytes + PACKET_HEADER_SIZE) {
-        size_bytes = p_payload_size_bytes + PACKET_HEADER_SIZE;
-        packet.resize(size_bytes);
+        packet.resize(p_payload_size_bytes + PACKET_HEADER_SIZE);
     }
     memcpy(packet.ptrw() + INDEX_PAYLOAD_DATA, p_payload_data, p_payload_size_bytes);
 }

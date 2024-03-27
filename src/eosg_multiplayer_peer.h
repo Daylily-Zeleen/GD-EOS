@@ -16,26 +16,26 @@ class EOSGMultiplayerPeer : public MultiplayerPeerExtension {
     GDCLASS(EOSGMultiplayerPeer, MultiplayerPeerExtension)
 
 private:
-    enum Event {
+    enum Event : int8_t {
         EVENT_STORE_PACKET,
         EVENT_RECIEVE_PEER_ID,
         EVENT_MESH_CONNECTION_REQUEST
     };
 
-    enum {
+    enum : int8_t {
         INDEX_EVENT_TYPE = 0,
         INDEX_TRANSFER_MODE = 1,
         INDEX_PEER_ID = 2,
         INDEX_PAYLOAD_DATA = 6,
     };
 
-    enum {
+    enum : int8_t {
         CH_RELIABLE = 0,
         CH_UNRELIABLE = 1,
         CH_MAX = 2,
     };
 
-    enum Mode {
+    enum Mode : int8_t {
         MODE_NONE,
         MODE_SERVER,
         MODE_CLIENT,
@@ -45,15 +45,13 @@ private:
     class EOSGPacket {
     private:
         PackedByteArray packet;
-        uint8_t channel = 0;
-        int32_t size_bytes = 0;
-        EOS_EPacketReliability reliability;
+        int sender_peer_id = 0;
         Event event;
-        int from = 0;
+        EOS_EPacketReliability reliability;
+        uint8_t channel = 0;
 
         void _alloc_packet(int size_bytes = PACKET_HEADER_SIZE) {
             packet.resize(size_bytes);
-            this->size_bytes = size_bytes;
         }
 
     public:
@@ -63,15 +61,15 @@ private:
         void store_payload(const uint8_t *p_payload_data, const uint32_t p_payload_size_bytes);
 
         int payload_size() const {
-            return size_bytes - PACKET_HEADER_SIZE;
+            return packet.size() - PACKET_HEADER_SIZE;
         }
 
         int packet_size() const {
-            return size_bytes;
+            return packet.size();
         }
 
         const uint8_t *get_payload() const {
-            if (size_bytes == 0 || size_bytes == PACKET_HEADER_SIZE) {
+            if (packet.size() <= PACKET_HEADER_SIZE) {
                 return nullptr; //Return nullptr if there's no payload.
             }
             return packet.ptr() + INDEX_PAYLOAD_DATA;
@@ -107,11 +105,11 @@ private:
         }
 
         int get_sender() const {
-            return from;
+            return sender_peer_id;
         }
 
         void set_sender(int p_id) {
-            from = p_id;
+            sender_peer_id = p_id;
         }
     };
 
