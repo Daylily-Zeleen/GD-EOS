@@ -27,7 +27,7 @@ using namespace godot;
 EOS_ProductUserId EOSGMultiplayerPeer::s_local_user_id = nullptr;
 
 void EOSGMultiplayerPeer::_bind_methods() {
-    ClassDB::bind_static_method("EOSGMultiplayerPeer", D_METHOD("get_local_user_id"), &EOSGMultiplayerPeer::get_local_user_id);
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local_user_id"), &EOSGMultiplayerPeer::get_local_user_id);
 
     ClassDB::bind_method(D_METHOD("create_server", "socket_id"), &EOSGMultiplayerPeer::create_server);
     ClassDB::bind_method(D_METHOD("create_client", "socket_id", "remote_user_id"), &EOSGMultiplayerPeer::create_client);
@@ -35,10 +35,6 @@ void EOSGMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("add_mesh_peer", "remote_user_id"), &EOSGMultiplayerPeer::add_mesh_peer);
     ClassDB::bind_method(D_METHOD("get_socket"), &EOSGMultiplayerPeer::get_socket);
     ClassDB::bind_method(D_METHOD("get_peer_id", "remote_user_id"), &EOSGMultiplayerPeer::get_peer_id);
-    ClassDB::bind_method(D_METHOD("set_allow_delayed_delivery", "allow"), &EOSGMultiplayerPeer::set_allow_delayed_delivery);
-    ClassDB::bind_method(D_METHOD("is_allowing_delayed_delivery"), &EOSGMultiplayerPeer::is_allowing_delayed_delivery);
-    ClassDB::bind_method(D_METHOD("is_auto_accepting_connection_requests"), &EOSGMultiplayerPeer::is_auto_accepting_connection_requests);
-    ClassDB::bind_method(D_METHOD("set_auto_accept_connection_requests", "enable"), &EOSGMultiplayerPeer::set_auto_accept_connection_requests);
     ClassDB::bind_method(D_METHOD("get_all_connection_requests"), &EOSGMultiplayerPeer::get_all_connection_requests);
     ClassDB::bind_method(D_METHOD("has_peer", "peer_id"), &EOSGMultiplayerPeer::has_peer);
     ClassDB::bind_method(D_METHOD("has_user_id", "remote_user_id"), &EOSGMultiplayerPeer::has_user_id);
@@ -48,9 +44,19 @@ void EOSGMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("deny_all_connection_requests"), &EOSGMultiplayerPeer::deny_all_connection_requests);
     ClassDB::bind_method(D_METHOD("get_active_mode"), &EOSGMultiplayerPeer::get_active_mode);
     ClassDB::bind_method(D_METHOD("get_all_peers"), &EOSGMultiplayerPeer::get_all_peers);
-    ClassDB::bind_method(D_METHOD("get_peer_user_id"), &EOSGMultiplayerPeer::get_peer_user_id);
-    ClassDB::bind_method(D_METHOD("is_polling"), &EOSGMultiplayerPeer::is_polling);
+    ClassDB::bind_method(D_METHOD("get_peer_user_id", "peer_id"), &EOSGMultiplayerPeer::get_peer_user_id);
+
+    ClassDB::bind_method(D_METHOD("is_auto_accepting_connection_requests"), &EOSGMultiplayerPeer::is_auto_accepting_connection_requests);
+    ClassDB::bind_method(D_METHOD("set_auto_accept_connection_requests", "enable"), &EOSGMultiplayerPeer::set_auto_accept_connection_requests);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_accepting_connection_requests"), "set_auto_accept_connection_requests", "is_auto_accepting_connection_requests");
+
+    ClassDB::bind_method(D_METHOD("set_allow_delayed_delivery", "allow"), &EOSGMultiplayerPeer::set_allow_delayed_delivery);
+    ClassDB::bind_method(D_METHOD("is_allowing_delayed_delivery"), &EOSGMultiplayerPeer::is_allowing_delayed_delivery);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "allow_delayed_delivery"), "set_allow_delayed_delivery", "is_allowing_delayed_delivery");
+
     ClassDB::bind_method(D_METHOD("set_is_polling", "polling"), &EOSGMultiplayerPeer::set_is_polling);
+    ClassDB::bind_method(D_METHOD("is_polling"), &EOSGMultiplayerPeer::is_polling);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "polling"), "set_is_polling", "is_polling");
 
     ADD_SIGNAL(MethodInfo("peer_connection_established", PropertyInfo(Variant::DICTIONARY, "callback_data")));
     ADD_SIGNAL(MethodInfo("peer_connection_interrupted", PropertyInfo(Variant::DICTIONARY, "callback_data")));
@@ -230,12 +236,12 @@ Array EOSGMultiplayerPeer::get_all_connection_requests() {
  * Description: Returns the remote user id of the given peer. Returns an empty string
  * if the peer could not be found.
  ****************************************/
-String EOSGMultiplayerPeer::get_peer_user_id(int p_id) {
+String EOSGMultiplayerPeer::get_peer_user_id(int peer_id) {
     String ret = "";
-    if (!peers.has(p_id)) {
+    if (!peers.has(peer_id)) {
         return ret;
     }
-    EOS_ProductUserId user_id = peers.get(p_id);
+    EOS_ProductUserId user_id = peers.get(peer_id);
     ret = eosg_product_user_id_to_string(user_id);
     return ret;
 }
@@ -1157,6 +1163,9 @@ void EOSGMultiplayerPeer::connection_request_callback(const ConnectionRequestDat
 EOSGMultiplayerPeer::~EOSGMultiplayerPeer() {
     if (active_mode != MODE_NONE) {
         _close();
+    }
+    if (current_packet){
+        memdelete(current_packet);
     }
 }
 

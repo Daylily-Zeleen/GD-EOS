@@ -526,6 +526,14 @@ EOSGPacketPeerMediator::~EOSGPacketPeerMediator() {
     if (singleton != this)
         return;
     singleton = nullptr;
+
+    for (auto &kv : socket_packet_queues) {
+        auto packets = kv.value;
+        while (!packets.is_empty()) {
+            memdelete(packets.front()->get());
+            packets.pop_front();
+        }
+    }
 }
 
 } //namespace godot

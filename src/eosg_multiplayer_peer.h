@@ -180,6 +180,13 @@ private:
             socket.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
             STRNCPY_S(socket.SocketName, EOS_P2P_SOCKETID_SOCKETNAME_SIZE, socket_name.utf8(), socket_name.length());
         }
+
+        ~EOSGSocket() {
+            while (!incoming_packets.is_empty()) {
+                memdelete(incoming_packets.front()->get());
+                incoming_packets.pop_front();
+            }
+        }
     };
 
     _FORCE_INLINE_ bool _is_active() const { return active_mode != MODE_NONE; }
@@ -225,12 +232,12 @@ public:
     Error create_server(const String &socket_id);
     Error create_client(const String &socket_id, const String &remote_user_id);
     Error create_mesh(const String &socket_id);
-    Error add_mesh_peer(const String &remote_user);
+    Error add_mesh_peer(const String &remote_user_id);
 
     String get_socket() const;
     Array get_all_connection_requests();
-    String get_peer_user_id(int p_id);
-    int get_peer_id(const String &user_id);
+    String get_peer_user_id(int peer_id);
+    int get_peer_id(const String &remote_user_id);
     bool has_peer(int peer_id);
     bool has_user_id(const String &remote_user_id);
     Dictionary get_all_peers();
