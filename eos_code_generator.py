@@ -1,4 +1,4 @@
-import os
+import os, sys
 
 # TODO: 生成绑定常量（xxxMAX_LENTGTH 等等）
 # TODO: 解析废弃成员避免硬编码
@@ -46,13 +46,35 @@ generate_infos: dict = {}
 
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
-max_options_fields_count_to_expend = 3
-max_callback_fields_count_to_expend = 1
+max_field_count_to_expend_of_input_options :int = 3
+max_field_count_to_expend_of_callback_info :int = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
 
-def main():
+def main(argv):
+    # 处理生成选项
+    global max_field_count_to_expend_of_input_options
+    global max_field_count_to_expend_of_callback_info
+    for arg in argv:
+        if arg in ["-h", "--help"]:
+            print("In order to reduce count of generated classes, here have 2 options:")
+            print("\tmax_field_count_to_expend_of_input_options: The max field count to expend input Options structs (except \"ApiVersion\" field).")
+            print("\t\tdefault:3")
+            print("\tmax_field_count_to_expend_of_callback_info: The max field count to expend CallbackInfo structs.")
+            print("\t\tdefault:1")
+            print("\tYou can override these option like this: max_field_count_to_expend_of_input_options=5")
+            exit()
+        splited:list[str] = arg.split("=", 1)
+        if len(splited) != 2 or not splited[1].isdecimal() or int(splited[1]) < 0 or not splited[0] in ["max_field_count_to_expend_of_input_options", "max_field_count_to_expend_of_callback_info"]:
+            print("Unsupported option:", arg)
+            print("Use \"-h\" or \"--help\" to get help.")
+            exit()
+        if splited[0] == "max_field_count_to_expend_of_input_options":
+            max_field_count_to_expend_of_input_options = int(splited[1])
+        elif splited[0] == "max_field_count_to_expend_of_callback_info":
+            max_field_count_to_expend_of_callback_info = int(splited[1])
+
     # make dir
     if not os.path.exists(gen_dir):
         os.makedirs(gen_dir)
@@ -551,7 +573,6 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
 
     h_lines: list[str] = [f"#pragma once"]
 
-    # h_lines.append(f'#include "{eos_data_class_h_file}"')
     h_lines.append(f"#include <godot_cpp/classes/ref_counted.hpp>")
     h_lines.append(f"")
     if len(additional_include_lines):
@@ -560,7 +581,6 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
 
     r_cpp_lines.append(f"namespace godot {{")
     for h in p_handles:
-        # TODO: 生成绑定宏
         h_lines += _gen_handle(h, p_handles[h], _convert_handle_class_name(h), r_cpp_lines, register_lines)
 
     r_cpp_lines.append(f"}} // namespace godot")
@@ -888,6 +908,9 @@ def _cheat_as_handle_callback(callback_type: str) -> str:
 
 
 def parse_all_file():
+    print(max_field_count_to_expend_of_input_options)
+    print(max_field_count_to_expend_of_callback_info)
+    exit()
     file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
         "file": "eos_common",
@@ -1420,7 +1443,6 @@ def __convert_to_signal_name(callback_type: str) -> str:
 
 
 def __convert_to_struct_class(strcut_type: str) -> str:
-    # TODO
     return _decay_eos_type(strcut_type).replace("EOS_", "EOS")
 
 
@@ -2593,9 +2615,9 @@ def _make_additional_method_requirements():
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
         field_count = len(structs[struct_type])
-        if max_options_fields_count_to_expend > 0 and field_count <= max_options_fields_count_to_expend and __is_method_input_only_struct(struct_type):
+        if max_field_count_to_expend_of_input_options > 0 and field_count <= max_field_count_to_expend_of_input_options and __is_method_input_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
-        if max_callback_fields_count_to_expend > 0 and field_count <= max_callback_fields_count_to_expend and __is_callback_output_only_struct(struct_type):
+        if max_field_count_to_expend_of_callback_info > 0 and field_count <= max_field_count_to_expend_of_callback_info and __is_callback_output_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
 
 
@@ -3192,6 +3214,5 @@ def _get_callback_infos(callback_type: str) -> dict:
     print("ERROR unknown callback type:", callback_type)
     exit(1)
 
-
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
