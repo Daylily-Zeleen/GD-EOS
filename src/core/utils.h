@@ -279,11 +279,6 @@ PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
     return to_godot_type_arr(p_from, p_count);
 }
 
-// template <typename Tint>
-// const int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
-//     return to_eos_type_arr(p_from, r_count);
-// }
-
 // uint8_t*
 template <typename Tint>
 PackedInt32Array to_godot_type_arr(uint8_t *p_from, Tint p_count) {
@@ -294,19 +289,6 @@ PackedInt32Array to_godot_type_arr(uint8_t *p_from, Tint p_count) {
     }
     return ret;
 }
-
-// template <typename Tint>
-// uint8_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
-//     uint8_t *ret = nullptr;
-//     if (p_from.size()) {
-//         ret = (uint8_t *)memalloc(sizeof(uint8_t) * p_from.size());
-//         for (int i = 0; i < p_from.size(); i++) {
-//             ret[i] = p_from[i];
-//         }
-//     }
-//     r_count = p_from.size();
-//     return ret;
-// }
 
 // uint32_t*
 template <typename Tint>
@@ -337,11 +319,6 @@ template <typename Tint>
 PackedInt64Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
     return to_godot_type_arr(p_from, p_count);
 }
-
-// template <typename Tint>
-// const uint32_t *to_eos_type_arr(const PackedInt64Array &p_from, Tint &r_count) {
-//     return to_eos_type_arr(p_from, r_count);
-// }
 
 // ===
 // const void *
@@ -386,19 +363,24 @@ String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
     return String(&p_from[0]);
 }
 
-template <typename From, typename To, typename FromArg = gd_arg_t<From>, typename ToArg = std::conditional_t<std::is_pointer_v<To>, To, To &>>
-inline void to_eos_type(FromArg p_from, ToArg r_to) {
+template <typename From, typename To>
+inline void to_eos_type_out(gd_arg_t<From> p_from, std::conditional_t<std::is_pointer_v<To>, To, To &> r_to) {
     r_to = to_eos_type<gd_arg_t<From>, To>(p_from);
 }
 
 template <>
-inline void to_eos_type<String, eos_p2p_socketid_socked_name_t>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+inline void to_eos_type_out<String, eos_p2p_socketid_socked_name_t>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+    memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
+    memcpy(&r_to[0], p_from.utf8().get_data(), MIN(p_from.utf8().length(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
+}
+template <>
+inline void to_eos_type_out<const String &, eos_p2p_socketid_socked_name_t>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.utf8().get_data(), MIN(p_from.utf8().length(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
 }
 
 template <>
-EOS_AntiCheatCommon_Vec3f to_eos_type<const Vector3 &>(const Vector3 &p_from) {
+EOS_AntiCheatCommon_Vec3f to_eos_type(const Vector3 &p_from) {
     return { p_from.x, p_from.y, p_from.z };
 }
 
@@ -408,12 +390,20 @@ EOS_AntiCheatCommon_Quat to_eos_type(const Quaternion &p_from) {
 }
 
 template <>
-inline void to_eos_type<Vector3, EOS_AntiCheatCommon_Vec3f *>(const Vector3 &p_from, EOS_AntiCheatCommon_Vec3f *r_to) {
+inline void to_eos_type_out<Vector3, EOS_AntiCheatCommon_Vec3f *>(const Vector3 &p_from, EOS_AntiCheatCommon_Vec3f *r_to) {
+    *r_to = to_eos_type<const Vector3 &, EOS_AntiCheatCommon_Vec3f>(p_from);
+}
+template <>
+inline void to_eos_type_out<const Vector3 &, EOS_AntiCheatCommon_Vec3f *>(const Vector3 &p_from, EOS_AntiCheatCommon_Vec3f *r_to) {
     *r_to = to_eos_type<const Vector3 &, EOS_AntiCheatCommon_Vec3f>(p_from);
 }
 
 template <>
-inline void to_eos_type<Quaternion, EOS_AntiCheatCommon_Quat *>(const Quaternion &p_from, EOS_AntiCheatCommon_Quat *r_to) {
+inline void to_eos_type_out<Quaternion, EOS_AntiCheatCommon_Quat *>(const Quaternion &p_from, EOS_AntiCheatCommon_Quat *r_to) {
+    *r_to = to_eos_type<const Quaternion &, EOS_AntiCheatCommon_Quat>(p_from);
+}
+template <>
+inline void to_eos_type_out<const Quaternion &, EOS_AntiCheatCommon_Quat *>(const Quaternion &p_from, EOS_AntiCheatCommon_Quat *r_to) {
     *r_to = to_eos_type<const Quaternion &, EOS_AntiCheatCommon_Quat>(p_from);
 }
 
@@ -461,11 +451,11 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
             } break;
             case Variant::VECTOR3:
             case Variant::VECTOR3I: {
-                to_eos_type<Vector3>(Vector3(p_gd), p_union.Vec3f);
+                to_eos_type_out<Vector3, decltype(p_union.Vec3f)>(Vector3(p_gd), p_union.Vec3f);
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Vector3f;
             } break;
             case Variant::QUATERNION: {
-                to_eos_type<Quaternion>(Quaternion(p_gd), p_union.Quat);
+                to_eos_type_out<Quaternion, decltype(p_union.Quat)>(Quaternion(p_gd), p_union.Quat);
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat;
             } break;
             default: {
@@ -495,7 +485,7 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
                 r_union_type = EOS_EAttributeType::EOS_AT_STRING;
             } break;
             default: {
-                assert(false, "Unsupport");
+                ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
             } break;
         }
     } else {
@@ -535,16 +525,16 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
     } else if constexpr (std::is_same_v<UnionType, EOS_EAttributeType>) {
         switch (p_union_type) {
             case EOS_EAttributeType::EOS_AT_INT64: {
-                return p_union->AsInt64;
+                return p_union.AsInt64;
             } break;
             case EOS_EAttributeType::EOS_AT_DOUBLE: {
-                return p_union->AsDouble;
+                return p_union.AsDouble;
             } break;
             case EOS_EAttributeType::EOS_AT_BOOLEAN: {
-                return p_union->AsBool;
+                return p_union.AsBool;
             } break;
             case EOS_EAttributeType::EOS_AT_STRING: {
-                return String::utf8(p_union->AsUtf8);
+                return String::utf8(p_union.AsUtf8);
             } break;
         }
     } else {
@@ -596,12 +586,17 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 // gd_field = to_godot_type_arr<decltype(eos_field), decltype(gd_field)>(eos_field, eos_field_count)
 #define _FROM_EOS_FIELD_CLIENT_DATA(gd_field, eos_field) \
     gd_field = ((_CallbackClientData *)eos_field)->client_data
-#define _FROM_EOS_FIELD_STRUCT(gd_field, eos_field)                                   \
-    if (!eos_field) {                                                                 \
-        gd_field.unref();                                                             \
-    } else {                                                                          \
-        gd_field = to_godot_data<decltype(gd_field), decltype(eos_field)>(eos_field); \
+#define _FROM_EOS_FIELD_STRUCT(gd_field, eos_field) \
+    if (!eos_field) {                               \
+        gd_field.unref();                           \
+    } else {                                        \
+        if (gd_field.is_null()) {                   \
+            gd_field.instantiate();                 \
+        }                                           \
+        gd_field->set_from_eos(*eos_field);         \
     }
+// gd_field = to_godot_data<decltype(gd_field), decltype(eos_field)>(eos_field);
+
 #define _FROM_EOS_FIELD_STRUCT_ARR(gd_data_type, gd_field, eos_field, eos_filed_count) \
     gd_field.resize(eos_filed_count);                                                  \
     for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                  \
@@ -625,7 +620,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     }
 
 #define _TO_EOS_FIELD(eos_field, gd_field) \
-    to_eos_type<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(gd_field, eos_field)
+    to_eos_type_out<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(std::move(gd_field), eos_field)
 #define _TO_EOS_FIELD_ARR(eos_field, gd_field, r_eos_field_count) \
     eos_field = (decltype(eos_field))to_eos_type_arr(gd_field, r_eos_field_count)
 #define _TO_EOS_FIELD_CLIENT_DATA(eos_field, gd_field) \

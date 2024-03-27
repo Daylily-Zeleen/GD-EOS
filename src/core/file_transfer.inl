@@ -97,7 +97,7 @@ EOS_TitleStorage_EReadResult title_storage_read_file_data_callback(const EOSCall
 template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
 inline void file_transfer_progress_callback(const EOSCallbackInfoTy *p_data) {
     auto file_transfer_data = (_FileTransferData *)(p_data->ClientData);
-    auto data = GDCallbackInfoTy::from_eos(p_data);
+    auto data = GDCallbackInfoTy::from_eos(*p_data);
 
     if (file_transfer_data->progress_callback.is_valid()) {
         file_transfer_data->progress_callback.call(data);

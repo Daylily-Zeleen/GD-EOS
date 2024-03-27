@@ -196,6 +196,8 @@ def gen_files(file_base_name: str, infos: dict):
             continue
         sub_handles[h] = infos["handles"][h]
 
+    macro_suffix = _convert_handle_class_name(interface_handle)
+
     # PackedResults h file
     packed_result_h_lines: list[str] = []
     packed_result_cpp_lines: list[str] = [f'#include "{file_base_name + ".packed_results.h"}"']
@@ -210,16 +212,9 @@ def gen_files(file_base_name: str, infos: dict):
 
     packed_result_cpp_lines.append("")
     packed_result_cpp_lines.append("namespace godot{")
-    has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, handle_class, methods, packed_result_h_lines, packed_result_cpp_lines)
+    has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, macro_suffix, methods, packed_result_h_lines, packed_result_cpp_lines)
     packed_result_cpp_lines.append("} // namespace godot")
     packed_result_cpp_lines.append("")
-    # if len(sub_handles):
-    #     # 插入handles.h TODO: hanle 和 packed result 互相引用
-    #     for i in range(len(packed_result_h_lines)):
-    #         if packed_result_h_lines[i].startswith("namespace"):
-    #             packed_result_h_lines.insert(i-1, f'#include "../handles/{file_base_name + ".handles.h"}"')
-    #             packed_result_h_lines.insert(i, "")
-    #             break
     if has_packed_result:
         f = open(packed_result_h_file, "w")
         f.write("\n".join(packed_result_h_lines))
@@ -243,7 +238,7 @@ def gen_files(file_base_name: str, infos: dict):
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f'#include "../packed_results/{file_base_name + ".packed_results.h"}"')
-        handles_hpp_lines: list[str] = gen_handles(handle_class, additional_include_lines, sub_handles, handles_cpp_lines)
+        handles_hpp_lines: list[str] = gen_handles(interface_handle, additional_include_lines, sub_handles, handles_cpp_lines)
 
         if len(handles_hpp_lines):
             f = open(handles_h_file, "w")
@@ -254,7 +249,15 @@ def gen_files(file_base_name: str, infos: dict):
             f.write("\n".join(handles_cpp_lines))
             f.close()
 
-    if len(infos["structs"]):
+    structs_to_gen: dict = {}
+    for st in infos["structs"]:
+        if _is_expended_struct(st):
+            continue
+        if _is_need_skip_struct(st):
+            continue
+        structs_to_gen[st] = infos["structs"][st]
+
+    if len(structs_to_gen):
         structs_cpp_lines: list[str] = [f'#include "{file_base_name + ".structs.h"}"']
         if len(sub_handles) and len(handles_hpp_lines):
             structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
@@ -275,8 +278,8 @@ def gen_files(file_base_name: str, infos: dict):
         structs_h_lines: list[str] = gen_structs(
             file_base_name,
             eos_types_header,
-            handle_class,
-            infos["structs"],
+            interface_handle,
+            structs_to_gen,
             additional_include_lines,
             structs_cpp_lines,
         )
@@ -300,7 +303,7 @@ def gen_files(file_base_name: str, infos: dict):
         print(file_base_name, infos["callbacks"].keys())
 
     if len(interface_handle) <= 0:
-        if not file_base_name in ["eos_init", "eos_logging", "eos_types"]:  # 这些文件均已处理
+        if not file_base_name in ["eos_logging"]:  # , "eos_init","eos_types"]:  # 这些文件均已处理
             print("ERR has not interface handle:", file_base_name)
         return
 
@@ -312,7 +315,7 @@ def gen_files(file_base_name: str, infos: dict):
         for e in infos["handles"][h]["enums"]:
             enums[e] = infos["handles"][h]["enums"][e]
     if len(enums):
-        enums_inl: str = gen_enums(handle_class, enums)
+        enums_inl: str = gen_enums(macro_suffix, interface_handle, enums)
         f = open(enums_inline_file, "w")
         f.write(enums_inl)
         f.close()
@@ -361,7 +364,7 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f"#include <godot_cpp/classes/object.hpp>")
         interface_handle_h_lines.append(f"#include <godot_cpp/core/binder_common.hpp>")
         interface_handle_h_lines.append(f"#include <core/utils.h>")
-        interface_handle_h_lines.append(f"#include <gen/structs/eos_init.structs.h>")
+        # interface_handle_h_lines.append(f"#include <gen/structs/eos_init.structs.h>")
     elif file_base_name == "eos_anticheatcommon":
         interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
     elif file_base_name.startswith("eos_anticheat"):
@@ -372,7 +375,7 @@ def gen_files(file_base_name: str, infos: dict):
 
     if len(enums):
         interface_handle_h_lines.append(f'#include <gen/enums/{file_base_name+".enums.inl"}>')
-    if len(infos["structs"]):
+    if len(structs_to_gen):
         interface_handle_h_lines.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
     if has_packed_result:
         interface_handle_h_lines.append(f'#include <gen/packed_results/{file_base_name+".packed_results.h"}>')
@@ -385,7 +388,7 @@ def gen_files(file_base_name: str, infos: dict):
     interface_handle_h_lines += _gen_handle(
         interface_handle,
         infos["handles"][interface_handle],
-        _convert_handle_class_name("EOS") if file_base_name == "eos_common" else _convert_handle_class_name(interface_handle),
+        _convert_handle_class_name("EOS") if file_base_name == "eos_common" else macro_suffix,
         interface_handle_cpp_lines,
         [],
         True,
@@ -393,18 +396,18 @@ def gen_files(file_base_name: str, infos: dict):
     interface_handle_cpp_lines.append(f"}} // namespace godot")
     interface_handle_cpp_lines.append(f"")
 
-    interface_handle_h_lines.append(f"#define EOS_REGISTER_{handle_class}\\")
-    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({handle_class});\\")
-    if len(infos["structs"]):
-        interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{handle_class}();\\")
+    interface_handle_h_lines.append(f"#define EOS_REGISTER_{macro_suffix}\\")
+    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({macro_suffix});\\")
+    if len(structs_to_gen):
+        interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{macro_suffix}();\\")
     if has_packed_result:
-        interface_handle_h_lines.append(f"\tREGISTER_PACKED_RESULTS_{handle_class}();\\")
+        interface_handle_h_lines.append(f"\tREGISTER_PACKED_RESULTS_{macro_suffix}();\\")
 
     interface_handle_h_lines.append(f"")
     if len(disabled_macro):
         interface_handle_h_lines.append(f"#else // {disabled_macro}")
         # 生成空注册宏
-        interface_handle_h_lines.append(f"#define EOS_REGISTER_{handle_class}")
+        interface_handle_h_lines.append(f"#define EOS_REGISTER_{macro_suffix}")
         interface_handle_h_lines.append(f"#endif // {disabled_macro}")
         interface_handle_h_lines.append(f"")
 
@@ -420,7 +423,7 @@ def gen_files(file_base_name: str, infos: dict):
     f.close()
 
 
-def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
+def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[str]]) -> str:
     lines = ["#pragma once"]
     lines.append("")
 
@@ -436,7 +439,7 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
         lines.append("")
 
     # Bind macro
-    lines.append(f"#define _BIND_ENUMS_{handle_class}()\\")
+    lines.append(f"#define _BIND_ENUMS_{macro_suffix}()\\")
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
@@ -444,7 +447,7 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
     lines.append("")
 
     # Using macro
-    lines.append(f"#define _USING_ENUMS_{handle_class}()\\")
+    lines.append(f"#define _USING_ENUMS_{macro_suffix}()\\")
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
@@ -452,11 +455,11 @@ def gen_enums(handle_class: str, enum_info: dict[str, list[str]]) -> str:
     lines.append("")
 
     # Variant cast macro
-    lines.append(f"#define _CAST_ENUMS_{handle_class}()\\")
+    lines.append(f"#define _CAST_ENUMS_{macro_suffix}()\\")
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
-        lines.append(f"\tVARIANT_ENUM_CAST(godot::{handle_class}::{_convert_enum_type(enum_type)});\\")
+        lines.append(f"\tVARIANT_ENUM_CAST(godot::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)});\\")
     lines.append("")
 
     return "\n".join(lines)
@@ -503,7 +506,7 @@ def gen_structs(
 
     ######### 生成绑定宏 #########
     lines.append("// ====================")
-    lines.append(f"#define REGISTER_DATA_CLASSES_OF_{handle_class}()\\")
+    lines.append(f"#define REGISTER_DATA_CLASSES_OF_{_convert_handle_class_name(handle_class)}()\\")
     for st in struct_infos:
         if _is_expended_struct(st):
             continue
@@ -514,7 +517,7 @@ def gen_structs(
     return lines
 
 
-def gen_packed_results(file_base_name: str, types_include_file: str, handle_class: str, methods: dict, r_h_lines: list[str], r_cpp_lines: list[str]) -> bool:
+def gen_packed_results(file_base_name: str, types_include_file: str, register_macro_suffix: str, methods: dict, r_h_lines: list[str], r_cpp_lines: list[str]) -> bool:
     ret: bool = False
     r_h_lines.append("#pragma once")
     r_h_lines.append("")
@@ -525,7 +528,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, handle_clas
     r_h_lines.append("")
     r_h_lines.append("namespace godot{")
 
-    register_lines: list[str] = [f"#define REGISTER_PACKED_RESULTS_{handle_class}()\\"]
+    register_lines: list[str] = [f"#define REGISTER_PACKED_RESULTS_{register_macro_suffix}()\\"]
     for method in methods:
         if method.endswith("Release"):
             continue
@@ -557,8 +560,6 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
 
     r_cpp_lines.append(f"namespace godot {{")
     for h in p_handles:
-        r_cpp_lines.append(f"// ========= {h} =========")
-        h_lines.append(f"// ========= {h} =========")
         # TODO: 生成绑定宏
         h_lines += _gen_handle(h, p_handles[h], _convert_handle_class_name(h), r_cpp_lines, register_lines)
 
@@ -602,7 +603,7 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
 def _gen_handle(
     handle_name: str,
     infos: dict[str, dict],
-    bind_macro_suffix: str,
+    macro_suffix: str,
     r_cpp_lines: list[str],
     r_register_lines: list[str],
     need_singleton: bool = False,
@@ -749,7 +750,7 @@ def _gen_handle(
     ret.append(f"public:")
     # USING 枚举
     if len(infos["enums"]):
-        ret.append(f"\t_USING_ENUMS_{bind_macro_suffix}()")
+        ret.append(f"\t_USING_ENUMS_{macro_suffix}()")
         ret.append(f"")
     if need_singleton:
         ret.append(f"\tstatic {klass} *get_singleton() {{ if (singleton == nullptr) {{singleton = memnew({klass});}} return singleton; }}")
@@ -773,7 +774,7 @@ def _gen_handle(
 
     # CAST 枚举
     if len(infos["enums"]):
-        ret.append(f"_CAST_ENUMS_{bind_macro_suffix}()")
+        ret.append(f"_CAST_ENUMS_{macro_suffix}()")
     ret.append(f"")
 
     # bind
@@ -788,7 +789,7 @@ def _gen_handle(
         _gen_callback(callback, r_cpp_lines, True)
     # BIND 枚举
     if len(infos["enums"]):
-        r_cpp_lines.append(f"\t_BIND_ENUMS_{bind_macro_suffix}()")
+        r_cpp_lines.append(f"\t_BIND_ENUMS_{macro_suffix}()")
     r_cpp_lines.append(f"}}")
 
     # 注册宏
@@ -820,6 +821,8 @@ def _convert_to_interface_lower(file_name: str) -> str:
     if f == "eos_types.h":
         # Hack
         return "platform"
+    if f == "eos_init.h":
+        return "common"
     return f.removesuffix("_types.h").removesuffix(".h").replace("_sdk", "_platform").removeprefix("eos_")
 
 
@@ -1223,7 +1226,11 @@ def _convert_handle_class_name(handle_type: str) -> str:
     text = handle_type.removeprefix("EOS_H")
     if text == "EOS":
         return text
-    return "EOS" + text
+    if text.startswith("EOS_"):
+        text = text.replace("EOS_", "EOS")
+    if not text.startswith("EOS"):
+        text = "EOS" + text
+    return text
 
 
 def _is_enum_type(type: str) -> bool:
@@ -2243,12 +2250,17 @@ def _get_enum_owned_interface(ori_enum_type: str) -> str:
 def is_deprecated_field(field: str) -> bool:
     return (
         field.endswith("_DEPRECATED")
-        # Hack
-        or field == "Reserved"  # SDK要求保留
-        or field == "SystemSpecificOptions"  # 内部处理
-        # Hack
-        or field == "SystemMemoryMonitorReport"  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
-        or field == "PlatformSpecificData"  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
+        or field
+        in [
+            "Reserved",  # SDK要求保留
+            "SystemSpecificOptions",  # 内部处理
+        ]
+        or field
+        in [
+            "SystemAuthCredentialsOptions",  # 暂不支持的字段，下载的sdk里没有 (System)/eos_(system).h
+            "SystemMemoryMonitorReport",  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
+            "PlatformSpecificData",  # 暂不支持的字段，下载的sdk里没有 eos_<platform>_ui.h 文件
+        ]
     )
 
 
@@ -2587,7 +2599,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
     while i < len(lines):
         line = lines[i]
 
-        # 句柄类型 ApiVersion 宏
+        # ApiVersion 宏
         if line.startswith("#define EOS_") and "_API_LATEST" in line:
             macro = line.split(" ", 2)[1]
             api_latest_macros.append(macro)
@@ -2818,8 +2830,11 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
 
 
 def _is_handle_type(type: str, filed: str = "") -> bool:
-    # 有些为struct指针
-    return type.startswith("EOS_H") or type in ["EOS_ContinuanceToken"]
+    if type in ["EOS_EpicAccountId", "EOS_ProductUserId"]:
+        # Hack
+        return False
+    return type in handles or (type.startswith("EOS") and "_H" in type) or type in ["EOS_ContinuanceToken"]
+    # return type.startswith("EOS_H") or type in
 
 
 def _find_count_field(field: str, fields: list[str]) -> str:
