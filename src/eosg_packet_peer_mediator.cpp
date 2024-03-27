@@ -24,8 +24,6 @@
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/main_loop.hpp>
 
-// #include "core/utils.h"
-
 namespace godot {
 EOSGPacketPeerMediator *EOSGPacketPeerMediator::singleton = nullptr;
 
@@ -105,11 +103,11 @@ void EOSGPacketPeerMediator::_on_process_frame() {
             if (!socket_packet_queues.has(socket_id_str))
                 return; //invalid socket. Drop the packet.
 
-            PacketData packet;
-            packet.store(packet_data.ptrw(), max_packet_size);
-            packet.set_channel(channel);
-            packet.set_sender(remote_user);
-            uint8_t event = packet.get_data()->ptrw()[0];
+            PacketData *packet = memnew(PacketData);
+            packet->store(packet_data.ptrw(), max_packet_size);
+            packet->set_channel(channel);
+            packet->set_sender(remote_user);
+            uint8_t event = packet->get_data().ptr()[0];
             if (event == 1) {
                 socket_packet_queues[socket_id_str].push_front(packet);
             } else {
@@ -131,13 +129,13 @@ void EOSGPacketPeerMediator::_on_process_frame() {
  * Description: Polls the next packet available for the given socket.
  * Returns true if a packet has been successfully polled. False otherwise.
  ****************************************/
-bool EOSGPacketPeerMediator::poll_next_packet(const String &socket_id, PacketData *out_packet) {
+bool EOSGPacketPeerMediator::poll_next_packet(const String &socket_id, PacketData **out_packet) {
     if (!socket_packet_queues.has(socket_id))
         return false;
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
 
-    PacketData next_packet = socket_packet_queues[socket_id].front()->get();
+    PacketData *next_packet = socket_packet_queues[socket_id].front()->get();
     *out_packet = next_packet;
     socket_packet_queues[socket_id].pop_front();
     return true;
@@ -156,7 +154,7 @@ bool EOSGPacketPeerMediator::register_peer(EOSGMultiplayerPeer *peer) {
     ERR_FAIL_COND_V_MSG(active_peers.has(peer->get_socket()), false, "Failed to register peer. This peer has already been registered.");
 
     active_peers.insert(peer->get_socket(), peer);
-    socket_packet_queues.insert(peer->get_socket(), List<PacketData>());
+    socket_packet_queues.insert(peer->get_socket(), List<PacketData *>());
 
     _forward_pending_connection_requests(peer);
 
@@ -203,13 +201,14 @@ void EOSGPacketPeerMediator::clear_packet_queue(const String &socket_id) {
 void EOSGPacketPeerMediator::clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id) {
     ERR_FAIL_COND_MSG(!socket_packet_queues.has(socket_id), vformat("Failed to clear packet queue for socket \"%s\". Socket was not registered.", socket_id));
 
-    List<List<PacketData>::Element *> del;
-    for (List<PacketData>::Element *e = socket_packet_queues[socket_id].front(); e != nullptr; e = e->next()) {
-        if (e->get().get_sender() != remote_user_id)
+    List<List<PacketData *>::Element *> del;
+    for (List<PacketData *>::Element *e = socket_packet_queues[socket_id].front(); e != nullptr; e = e->next()) {
+        if (e->get()->get_sender() != remote_user_id)
             continue;
         del.push_back(e);
     }
-    for (List<PacketData>::Element *e : del) {
+    for (List<PacketData *>::Element *e : del) {
+        memdelete(e->get());
         e->erase();
     }
 }
@@ -269,8 +268,8 @@ void EOSGPacketPeerMediator::_terminate() {
 int EOSGPacketPeerMediator::get_packet_count_from_remote_user(const String &remote_user, const String &socket_id) {
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), 0, vformat("Failed to get packet count for remote user. Socket \"%s\" does not exist", socket_id));
     int ret = 0;
-    for (PacketData &data : socket_packet_queues[socket_id]) {
-        if (data.get_sender() == remote_user) {
+    for (PacketData *data : socket_packet_queues[socket_id]) {
+        if (data->get_sender() == remote_user) {
             ret++;
         }
     }
@@ -288,8 +287,8 @@ bool EOSGPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), false, "Failed to check next packet. Socket \"%s\" does not exist.");
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
-    PacketData packet = socket_packet_queues[socket_id][0];
-    uint8_t event = packet.get_data()->ptrw()[0];
+    PacketData *packet = socket_packet_queues[socket_id][0];
+    uint8_t event = packet->get_data().ptr()[0];
     if (event == 1)
         return true;
     return false;

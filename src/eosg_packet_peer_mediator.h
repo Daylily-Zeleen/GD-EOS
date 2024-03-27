@@ -5,23 +5,18 @@
 namespace godot {
 struct PacketData {
 private:
-    std::shared_ptr<PackedByteArray> data;
+    PackedByteArray data;
     String remote_user_id;
-    int size_bytes = 0;
     int channel = 0;
 
 public:
-    void store(uint8_t *packet, int size_bytes) {
-        if (data == nullptr) {
-            data = std::make_shared<PackedByteArray>();
-        }
-        this->size_bytes = size_bytes;
-        data->resize(size_bytes);
-        memcpy(data->ptrw(), packet, size_bytes);
+    void store(uint8_t *p_packet, int p_size_bytes) {
+        data.resize(p_size_bytes);
+        memcpy(data.ptrw(), p_packet, p_size_bytes);
     }
 
     int size() {
-        return size_bytes;
+        return data.size();
     }
 
     int get_channel() {
@@ -40,8 +35,8 @@ public:
         remote_user_id = eosg_product_user_id_to_string(sender);
     }
 
-    PackedByteArray *get_data() {
-        return data.get();
+    const PackedByteArray &get_data() {
+        return data;
     }
 };
 
@@ -55,7 +50,7 @@ private:
     static void _bind_methods();
 
     HashMap<String, EOSGMultiplayerPeer *> active_peers;
-    HashMap<String, List<PacketData>> socket_packet_queues;
+    HashMap<String, List<PacketData *>> socket_packet_queues;
     List<ConnectionRequestData> pending_connection_requests;
     int max_queue_size = 5000;
     bool initialized = false;
@@ -68,6 +63,7 @@ private:
     static void EOS_CALL _on_peer_connection_interrupted(const EOS_P2P_OnPeerConnectionInterruptedInfo *data);
     static void EOS_CALL _on_remote_connection_closed(const EOS_P2P_OnRemoteConnectionClosedInfo *data);
     static void EOS_CALL _on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data);
+
     void _on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info);
     bool _add_connection_established_callback();
     bool _add_connection_closed_callback();
@@ -87,7 +83,7 @@ public:
 
     int get_total_packet_count() {
         int ret = 0;
-        for (KeyValue<String, List<PacketData>> &E : socket_packet_queues) {
+        for (KeyValue<String, List<PacketData *>> &E : socket_packet_queues) {
             ret += E.value.size();
         }
         return ret;
@@ -100,7 +96,7 @@ public:
 
     Array get_sockets() {
         Array ret;
-        for (KeyValue<String, List<PacketData>> &E : socket_packet_queues) {
+        for (KeyValue<String, List<PacketData *>> &E : socket_packet_queues) {
             ret.push_back(E.key);
         }
         return ret;
@@ -115,7 +111,7 @@ public:
     }
 
     void set_queue_size_limit(int limit) {
-        ERR_FAIL_COND_MSG(limit < 1, "Cannot set queue size limit. Limit must be greater than 0");
+        ERR_FAIL_COND_MSG(limit <= 0, "Cannot set queue size limit. Limit must be greater than 0");
         max_queue_size = limit;
     }
 
@@ -124,7 +120,7 @@ public:
     }
 
     int get_packet_count_from_remote_user(const String &remote_user, const String &socket_id);
-    bool poll_next_packet(const String &socket_id, PacketData *out_packet);
+    bool poll_next_packet(const String &socket_id, PacketData **out_packet);
     bool next_packet_is_peer_id_packet(const String &socket_id);
     bool register_peer(EOSGMultiplayerPeer *peer);
     void unregister_peer(EOSGMultiplayerPeer *peer);

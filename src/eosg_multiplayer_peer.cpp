@@ -679,8 +679,8 @@ void EOSGMultiplayerPeer::_poll() {
     if (EOSGPacketPeerMediator::get_singleton()->get_packet_count_for_socket(socket.get_name()) == 0)
         return; //No packets available
 
-    List<PacketData> packets;
-    PacketData next_packet;
+    List<PacketData *> packets;
+    PacketData *next_packet{ nullptr };
     if (!polling) { //The next packet should be a peer id packet if we're at this point
         while (EOSGPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket.get_name())) {
             EOSGPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name(), &next_packet);
@@ -693,24 +693,24 @@ void EOSGMultiplayerPeer::_poll() {
     }
 
     //process all the packets
-    for (PacketData &packet_data : packets) {
-        PackedByteArray *data_ptr = packet_data.get_data();
-        Event event = static_cast<Event>(data_ptr->ptrw()[INDEX_EVENT_TYPE]);
+    for (PacketData *packet_data : packets) {
+        const PackedByteArray &data_ptr = packet_data->get_data();
+        Event event = static_cast<Event>(data_ptr.ptr()[INDEX_EVENT_TYPE]);
         switch (event) {
             case Event::EVENT_STORE_PACKET: {
-                uint32_t peer_id = *reinterpret_cast<uint32_t *>(data_ptr->ptrw() + INDEX_PEER_ID);
+                uint32_t peer_id = *reinterpret_cast<const uint32_t *>(data_ptr.ptr() + INDEX_PEER_ID);
                 if (!peers.has(peer_id)) {
                     return; //ignore the packet if we don't have the peer
                 }
 
-                EOS_EPacketReliability reliability = static_cast<EOS_EPacketReliability>(data_ptr->ptrw()[INDEX_TRANSFER_MODE]);
+                EOS_EPacketReliability reliability = static_cast<EOS_EPacketReliability>(data_ptr.ptr()[INDEX_TRANSFER_MODE]);
 
                 EOSGPacket *packet = memnew(EOSGPacket);
-                packet->store_payload(data_ptr->ptrw() + INDEX_PAYLOAD_DATA, packet_data.size() - EOSGPacket::PACKET_HEADER_SIZE);
+                packet->store_payload(data_ptr.ptr() + INDEX_PAYLOAD_DATA, packet_data->size() - EOSGPacket::PACKET_HEADER_SIZE);
                 packet->set_event(event);
                 packet->set_sender(peer_id);
                 packet->set_reliability(reliability);
-                packet->set_channel(packet_data.get_channel());
+                packet->set_channel(packet_data->get_channel());
 
                 socket.push_packet(packet);
                 break;
@@ -718,21 +718,21 @@ void EOSGMultiplayerPeer::_poll() {
             case Event::EVENT_RECIEVE_PEER_ID: {
                 ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT && connection_status == CONNECTION_CONNECTED, "Client has recieved a EVENT_RECIEVE_PEER_ID packet when already connected. This shouldn't have happened!");
 
-                uint32_t peer_id = *reinterpret_cast<uint32_t *>(data_ptr->ptrw() + INDEX_PEER_ID);
+                uint32_t peer_id = *reinterpret_cast<const uint32_t *>(data_ptr.ptr() + INDEX_PEER_ID);
                 if (active_mode == MODE_CLIENT && peer_id != 1) {
                     _close();
                     ERR_FAIL_MSG("Failed to connect. Instance is not a server.");
                 }
 
-                EOS_ProductUserId remote_user = eosg_string_to_product_user_id(packet_data.get_sender().utf8());
+                EOS_ProductUserId remote_user = eosg_string_to_product_user_id(packet_data->get_sender().utf8());
                 if (peer_id < 1 || peers.has(peer_id) || unique_id == peer_id) {
                     _disconnect_remote_user(remote_user); //Invalid peer id. reject the peer.
                     break;
                 }
 
-                if (has_user_id(packet_data.get_sender())) {
+                if (has_user_id(packet_data->get_sender())) {
                     //Peer may have reconnected with a new multiplayer instance. Remove their old peer id.
-                    int old_id = get_peer_id(packet_data.get_sender());
+                    int old_id = get_peer_id(packet_data->get_sender());
                     peers.erase(old_id);
                     emit_signal("peer_disconnected", old_id);
                 }
@@ -748,6 +748,8 @@ void EOSGMultiplayerPeer::_poll() {
             case Event::EVENT_MESH_CONNECTION_REQUEST:
                 break;
         }
+
+        memdelete(packet_data);
     }
 }
 
