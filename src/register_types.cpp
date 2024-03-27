@@ -1,24 +1,8 @@
 #include "register_types.h"
 
-// #include "eos_constants.h"
-// #include "eosg_active_session.h"
-// #include "eosg_continuance_token.h"
-// #include "eosg_file_transfer_request.h"
-// #include "eosg_lobby_details.h"
-// #include "eosg_lobby_modification.h"
-// #include "eosg_lobby_search.h"
-// #include "eosg_multiplayer_peer.h"
-// #include "eosg_packet_peer_mediator.h"
-// #include "eosg_presence_modification.h"
-// #include "eosg_session_details.h"
-// #include "eosg_session_modification.h"
-// #include "eosg_session_search.h"
-// #include "eosg_transaction.h"
-// #include "godot_cpp/godot.hpp"
-// #include "ieos.h"
-
 #include "gen/eos_interfaces.h"
-#include "godot_cpp/classes/engine.hpp"
+
+#include "eos_packet_peer_mediator.h"
 
 using namespace godot;
 
@@ -28,46 +12,25 @@ void initialize_eosg_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
-
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSGFileTransferRequest);
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSGPlayerDataStorageFileTransferRequest);
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSGTitleStorageFileTransferRequest);
-
-    // GDREGISTER_CLASS(godot::EOSGActiveSession);
-    // GDREGISTER_CLASS(godot::EOSGContinuanceToken);
-    // GDREGISTER_CLASS(godot::EOSGLobbyDetails);
-    // GDREGISTER_CLASS(godot::EOSGLobbyModification);
-    // GDREGISTER_CLASS(godot::EOSGLobbySearch);
-    // GDREGISTER_CLASS(godot::EOSGMultiplayerPeer);
-    // GDREGISTER_CLASS(godot::EOSGPresenceModification);
-    // GDREGISTER_CLASS(godot::EOSGSessionDetails);
-    // GDREGISTER_CLASS(godot::EOSGSessionModification);
-    // GDREGISTER_CLASS(godot::EOSGSessionSearch);
-    // GDREGISTER_CLASS(godot::EOSGTransaction);
-
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSConstants);
-
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSDataClassOptions);
-    // GDREGISTER_ABSTRACT_CLASS(godot::EOSDataClass);
-    // REGISTER_DATA_CLASSES();
-
-    // REGISTER_AND_ADD_SINGLETON(godot::IEOS);
-    // REGISTER_AND_ADD_SINGLETON(godot::EOSGPacketPeerMediator);
-    // REGISTER_INTERFACE_SINGLETONS();
     REGISTER_EOS_CLASSES()
     REGISTER_EOS_SINGLETONS()
+
+    GDREGISTER_ABSTRACT_CLASS(EOSPacketPeerMediator);
+    memnew(EOSPacketPeerMediator);
+    Engine::get_singleton()->register_singleton(EOSPacketPeerMediator::get_class_static(), EOSPacketPeerMediator::get_singleton());
+
+    GDREGISTER_CLASS(EOSMultiplayerPeer);
 }
 
 void uninitialize_eosg_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
-    
-    UNREGISTER_EOS_SINGLETONS()
 
-    // UNREGISTER_INTERFACE_SINGLETONS()
-    // UNREGISTER_AND_DELETE_SINGLETON(godot::IEOS);
-    // UNREGISTER_AND_DELETE_SINGLETON(godot::EOSGPacketPeerMediator);
+    Engine::get_singleton()->unregister_singleton(EOSPacketPeerMediator::get_class_static());
+    memdelete(EOSPacketPeerMediator::get_singleton());
+
+    UNREGISTER_EOS_SINGLETONS()
 }
 
 extern "C" {

@@ -1,6 +1,6 @@
-#include "eosg_multiplayer_peer.h"
-
 #include <gen/eos_connect_interface.h>
+
+#include "eos_multiplayer_peer.h"
 
 namespace godot {
 struct PacketData {
@@ -40,15 +40,15 @@ public:
     }
 };
 
-class EOSGPacketPeerMediator : public Object {
-    GDCLASS(EOSGPacketPeerMediator, Object)
+class EOSPacketPeerMediator : public Object {
+    GDCLASS(EOSPacketPeerMediator, Object)
 
 private:
-    static EOSGPacketPeerMediator *singleton;
+    static EOSPacketPeerMediator *singleton;
 
     static void _bind_methods();
 
-    HashMap<String, EOSGMultiplayerPeer *> active_peers;
+    HashMap<String, EOSMultiplayerPeer *> active_peers;
     HashMap<String, List<PacketData *>> socket_packet_queues;
     List<ConnectionRequestData> pending_connection_requests;
     int max_queue_size = 5000;
@@ -70,7 +70,7 @@ private:
     bool _add_connection_closed_callback();
     bool _add_connection_interrupted_callback();
     bool _add_connection_request_callback();
-    void _forward_pending_connection_requests(EOSGMultiplayerPeer *peer);
+    void _forward_pending_connection_requests(EOSMultiplayerPeer *peer);
 
     EOS_NotificationId connection_established_callback_id = EOS_INVALID_NOTIFICATIONID;
     EOS_NotificationId connection_interrupted_callback_id = EOS_INVALID_NOTIFICATIONID;
@@ -78,7 +78,7 @@ private:
     EOS_NotificationId connection_request_callback_id = EOS_INVALID_NOTIFICATIONID;
 
 public:
-    static EOSGPacketPeerMediator *get_singleton() {
+    static EOSPacketPeerMediator *get_singleton() {
         return singleton;
     }
 
@@ -123,14 +123,14 @@ public:
     int get_packet_count_from_remote_user(const String &remote_user_id, const String &socket_id);
     bool poll_next_packet(const String &socket_id, PacketData **out_packet);
     bool next_packet_is_peer_id_packet(const String &socket_id);
-    bool register_peer(EOSGMultiplayerPeer *peer);
-    void unregister_peer(EOSGMultiplayerPeer *peer);
+    bool register_peer(EOSMultiplayerPeer *peer);
+    void unregister_peer(EOSMultiplayerPeer *peer);
     void clear_packet_queue(const String &socket_id);
     void clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id);
 
     void _notification(int p_what);
 
-    EOSGPacketPeerMediator();
-    ~EOSGPacketPeerMediator();
+    EOSPacketPeerMediator();
+    ~EOSPacketPeerMediator();
 };
 } //namespace godot

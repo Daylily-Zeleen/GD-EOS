@@ -1,7 +1,7 @@
 /****************************************
- * EOSGPacketPeerMediator
+ * EOSPacketPeerMediator
  * Author: Dallin Lovin aka LowFire
- * Description: Manages EOSG multiplayer instances when they are active.
+ * Description: Manages EOS multiplayer instances when they are active.
  * Multiplayer instances register their socket id with the mediator when
  * they become active and unregister their socket id when they close.
  * The mediator receives packets from the EOS P2P interface every process
@@ -17,26 +17,26 @@
  * the connection request times out.
  ****************************************/
 
-#include "eosg_packet_peer_mediator.h"
 #include "gen/eos_p2p_interface.h"
-
 #include <eos_p2p.h>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/main_loop.hpp>
 
+#include "eos_packet_peer_mediator.h"
+
 namespace godot {
-EOSGPacketPeerMediator *EOSGPacketPeerMediator::singleton = nullptr;
+EOSPacketPeerMediator *EOSPacketPeerMediator::singleton = nullptr;
 
-void EOSGPacketPeerMediator::_bind_methods() {
-    ClassDB::bind_method(D_METHOD("get_total_packet_count"), &EOSGPacketPeerMediator::get_total_packet_count);
-    ClassDB::bind_method(D_METHOD("get_sockets"), &EOSGPacketPeerMediator::get_sockets);
-    ClassDB::bind_method(D_METHOD("get_packet_count_for_socket", "socket_id"), &EOSGPacketPeerMediator::get_packet_count_for_socket);
-    ClassDB::bind_method(D_METHOD("has_socket"), &EOSGPacketPeerMediator::has_socket);
-    ClassDB::bind_method(D_METHOD("get_packet_count_from_remote_user", "remote_user_id", "socket_id"), &EOSGPacketPeerMediator::get_packet_count_from_remote_user);
-    ClassDB::bind_method(D_METHOD("get_connection_request_count"), &EOSGPacketPeerMediator::get_connection_request_count);
+void EOSPacketPeerMediator::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_total_packet_count"), &EOSPacketPeerMediator::get_total_packet_count);
+    ClassDB::bind_method(D_METHOD("get_sockets"), &EOSPacketPeerMediator::get_sockets);
+    ClassDB::bind_method(D_METHOD("get_packet_count_for_socket", "socket_id"), &EOSPacketPeerMediator::get_packet_count_for_socket);
+    ClassDB::bind_method(D_METHOD("has_socket"), &EOSPacketPeerMediator::has_socket);
+    ClassDB::bind_method(D_METHOD("get_packet_count_from_remote_user", "remote_user_id", "socket_id"), &EOSPacketPeerMediator::get_packet_count_from_remote_user);
+    ClassDB::bind_method(D_METHOD("get_connection_request_count"), &EOSPacketPeerMediator::get_connection_request_count);
 
-    ClassDB::bind_method(D_METHOD("get_queue_size_limit"), &EOSGPacketPeerMediator::get_queue_size_limit);
-    ClassDB::bind_method(D_METHOD("set_queue_size_limit", "limit"), &EOSGPacketPeerMediator::set_queue_size_limit);
+    ClassDB::bind_method(D_METHOD("get_queue_size_limit"), &EOSPacketPeerMediator::get_queue_size_limit);
+    ClassDB::bind_method(D_METHOD("set_queue_size_limit", "limit"), &EOSPacketPeerMediator::set_queue_size_limit);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "queue_size_limit"), "set_queue_size_limit", "get_queue_size_limit");
 
     ADD_SIGNAL(MethodInfo("packet_queue_full"));
@@ -53,15 +53,15 @@ void EOSGPacketPeerMediator::_bind_methods() {
  * are peer id packets (packets with EVENT_RECIEVE_PEER_ID) and pushed to the front. Packets will
  * stop being polled if the queue size limit is reached.
  ****************************************/
-void EOSGPacketPeerMediator::_on_process_frame() {
-    if (EOSGMultiplayerPeer::get_local_user_id().is_empty())
+void EOSPacketPeerMediator::_on_process_frame() {
+    if (EOSMultiplayerPeer::get_local_user_id().is_empty())
         return;
     if (socket_packet_queues.size() == 0)
         return;
     if (get_total_packet_count() >= max_queue_size)
         return;
 
-    String local_user_id_str = EOSGMultiplayerPeer::get_local_user_id();
+    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
     EOS_ProductUserId local_user_id = eosg_string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_GetNextReceivedPacketSizeOptions packet_size_options;
     packet_size_options.ApiVersion = EOS_P2P_GETNEXTRECEIVEDPACKETSIZE_API_LATEST;
@@ -131,7 +131,7 @@ void EOSGPacketPeerMediator::_on_process_frame() {
  * Description: Polls the next packet available for the given socket.
  * Returns true if a packet has been successfully polled. False otherwise.
  ****************************************/
-bool EOSGPacketPeerMediator::poll_next_packet(const String &socket_id, PacketData **out_packet) {
+bool EOSPacketPeerMediator::poll_next_packet(const String &socket_id, PacketData **out_packet) {
     if (!socket_packet_queues.has(socket_id))
         return false;
     if (socket_packet_queues[socket_id].size() == 0)
@@ -150,8 +150,8 @@ bool EOSGPacketPeerMediator::poll_next_packet(const String &socket_id, PacketDat
  * Description: Registers a peer and it's socket with the mediator.
  * Once registered, a peer can receive packets, EOS notifications, and connection requests.
  ****************************************/
-bool EOSGPacketPeerMediator::register_peer(EOSGMultiplayerPeer *peer) {
-    ERR_FAIL_COND_V_MSG(!initialized, false, "Failed to register peer. EOSGPacketPeerMediator has not been initialized. Call EOSGPacketPeerMediator.init() before starting a multiplayer instance.");
+bool EOSPacketPeerMediator::register_peer(EOSMultiplayerPeer *peer) {
+    ERR_FAIL_COND_V_MSG(!initialized, false, "Failed to register peer. EOSPacketPeerMediator has not been initialized. Call EOSPacketPeerMediator.init() before starting a multiplayer instance.");
     ERR_FAIL_COND_V_MSG(peer->get_socket().is_empty(), false, "Failed to register peer. Peer is not active.");
     ERR_FAIL_COND_V_MSG(active_peers.has(peer->get_socket()), false, "Failed to register peer. This peer has already been registered.");
 
@@ -171,7 +171,7 @@ bool EOSGPacketPeerMediator::register_peer(EOSGMultiplayerPeer *peer) {
  * Peers can no longer receive packets, notifications, or connection requests once this is done.
  * unregistration usually happens when a peer closes.
  ****************************************/
-void EOSGPacketPeerMediator::unregister_peer(EOSGMultiplayerPeer *peer) {
+void EOSPacketPeerMediator::unregister_peer(EOSMultiplayerPeer *peer) {
     if (!active_peers.has(peer->get_socket()))
         return;
 
@@ -186,7 +186,7 @@ void EOSGPacketPeerMediator::unregister_peer(EOSGMultiplayerPeer *peer) {
  *   socket_id - The socket to clear packets from.
  * Description: Removes all packets queued for the given socket.
  ****************************************/
-void EOSGPacketPeerMediator::clear_packet_queue(const String &socket_id) {
+void EOSPacketPeerMediator::clear_packet_queue(const String &socket_id) {
     ERR_FAIL_COND_MSG(!socket_packet_queues.has(socket_id), vformat("Failed to clear packet queue for socket \"%s\". Socket was not registered.", socket_id));
 
     socket_packet_queues[socket_id].clear();
@@ -200,7 +200,7 @@ void EOSGPacketPeerMediator::clear_packet_queue(const String &socket_id) {
  * Description: Removes all packets queued for the given socket and from the given remote user.
  * This is usually called when a peer disconnects. All packets from that peer are removed.
  ****************************************/
-void EOSGPacketPeerMediator::clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id) {
+void EOSPacketPeerMediator::clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id) {
     ERR_FAIL_COND_MSG(!socket_packet_queues.has(socket_id), vformat("Failed to clear packet queue for socket \"%s\". Socket was not registered.", socket_id));
 
     List<List<PacketData *>::Element *> del;
@@ -217,17 +217,17 @@ void EOSGPacketPeerMediator::clear_packets_from_remote_user(const String &socket
 
 /****************************************
  * _init
- * Description: Initialized EOSGPacketPeerMediator. Connects _on_process_frame to the
+ * Description: Initialized EOSPacketPeerMediator. Connects _on_process_frame to the
  * main loop's process signal. Adds EOS callbacks so that it can receive notifications.
  ****************************************/
-void EOSGPacketPeerMediator::_init() {
-    ERR_FAIL_COND_MSG(EOSGMultiplayerPeer::get_local_user_id().is_empty(), "Failed to initialize EOSGPacketPeerMediator. Local user id has not been set.");
+void EOSPacketPeerMediator::_init() {
+    ERR_FAIL_COND_MSG(EOSMultiplayerPeer::get_local_user_id().is_empty(), "Failed to initialize EOSPacketPeerMediator. Local user id has not been set.");
     if (initialized)
         return;
 
     MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
-    ERR_FAIL_COND_MSG(!main_loop->has_signal("process_frame"), "Failed to initialize EOSGPacketPeerMediator. Main loop does not have the \"process_frame\" signal.");
-    main_loop->connect("process_frame", callable_mp(this, &EOSGPacketPeerMediator::_on_process_frame));
+    ERR_FAIL_COND_MSG(!main_loop->has_signal("process_frame"), "Failed to initialize EOSPacketPeerMediator. Main loop does not have the \"process_frame\" signal.");
+    main_loop->connect("process_frame", callable_mp(this, &EOSPacketPeerMediator::_on_process_frame));
 
     //Register callbacks
     _add_connection_closed_callback();
@@ -240,15 +240,15 @@ void EOSGPacketPeerMediator::_init() {
 
 /****************************************
  * _terminate
- * Description: Terminates EOSGPacketPeerMediator. Disconnects from the
+ * Description: Terminates EOSPacketPeerMediator. Disconnects from the
  * main loop's process signal. Removes all EOS callbacks.
  ****************************************/
-void EOSGPacketPeerMediator::_terminate() {
+void EOSPacketPeerMediator::_terminate() {
     if (!initialized)
         return;
 
     MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
-    main_loop->disconnect("process_frame", callable_mp(this, &EOSGPacketPeerMediator::_on_process_frame));
+    main_loop->disconnect("process_frame", callable_mp(this, &EOSPacketPeerMediator::_on_process_frame));
 
     //Unregister callbacks
     auto p2p_interface_handle = EOSP2P::get_singleton()->get_handle();
@@ -272,7 +272,7 @@ void EOSGPacketPeerMediator::_terminate() {
  * Description: Counts the number of packets from the given remote user and for
  * the given socket. Returns the packet count.
  ****************************************/
-int EOSGPacketPeerMediator::get_packet_count_from_remote_user(const String &remote_user, const String &socket_id) {
+int EOSPacketPeerMediator::get_packet_count_from_remote_user(const String &remote_user, const String &socket_id) {
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), 0, vformat("Failed to get packet count for remote user. Socket \"%s\" does not exist", socket_id));
     int ret = 0;
     for (PacketData *data : socket_packet_queues[socket_id]) {
@@ -290,7 +290,7 @@ int EOSGPacketPeerMediator::get_packet_count_from_remote_user(const String &remo
  * Description: Checks if there is a peer id packet queued for the given socket.
  * Returns true if there is, false otherwise.
  ****************************************/
-bool EOSGPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_id) {
+bool EOSPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_id) {
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), false, "Failed to check next packet. Socket \"%s\" does not exist.");
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
@@ -308,7 +308,7 @@ bool EOSGPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_
  * Description: An EOS callback that is called when a connection is established with a peer.
  * Forwards the data to the appropriate multiplayer instance using the socket id provided in the data.
  ****************************************/
-void EOS_CALL EOSGPacketPeerMediator::_on_peer_connection_established(const EOS_P2P_OnPeerConnectionEstablishedInfo *data) {
+void EOS_CALL EOSPacketPeerMediator::_on_peer_connection_established(const EOS_P2P_OnPeerConnectionEstablishedInfo *data) {
     String socket_id = data->SocketId->SocketName;
     if (!singleton->active_peers.has(socket_id))
         return;
@@ -322,7 +322,7 @@ void EOS_CALL EOSGPacketPeerMediator::_on_peer_connection_established(const EOS_
  * Description: An EOS callback that is called when the connection with a peer is interrupted.
  * Forwards the data to the appropriate multiplayer instance using the socket id provided in the data.
  ****************************************/
-void EOS_CALL EOSGPacketPeerMediator::_on_peer_connection_interrupted(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
+void EOS_CALL EOSPacketPeerMediator::_on_peer_connection_interrupted(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
     String socket_id = data->SocketId->SocketName;
     if (!singleton->active_peers.has(socket_id))
         return;
@@ -338,7 +338,7 @@ void EOS_CALL EOSGPacketPeerMediator::_on_peer_connection_interrupted(const EOS_
  * If so, it removes that connection request. Forwards the data to the appropriate multiplayer instance using
  * the socket id provided in the data.
  ****************************************/
-void EOS_CALL EOSGPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
+void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
     String socket_name = data->SocketId->SocketName;
     //Check if any connection requests need to be removed.
     List<ConnectionRequestData>::Element *e = singleton->pending_connection_requests.front();
@@ -366,7 +366,7 @@ void EOS_CALL EOSGPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P
  * the destination socket id. If there isn't, stores the connection request for later.
  * If there is, forward the connection request to that multiplayer instance.
  ****************************************/
-void EOS_CALL EOSGPacketPeerMediator::_on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data) {
+void EOS_CALL EOSPacketPeerMediator::_on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data) {
     ConnectionRequestData request_data;
     request_data.local_user_id = eosg_product_user_id_to_string(data->LocalUserId);
     request_data.remote_user_id = eosg_product_user_id_to_string(data->RemoteUserId);
@@ -385,22 +385,22 @@ void EOS_CALL EOSGPacketPeerMediator::_on_incoming_connection_request(const EOS_
  * Parameters:
  * 	data - Contains info about the login.
  * Description: Called when the user logs into the connect interface. Sets the
- * local user id received from the login and initialized EOSGPacketPeerMediator.
+ * local user id received from the login and initialized EOSPacketPeerMediator.
  ****************************************/
-void EOSGPacketPeerMediator::_on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info) {
+void EOSPacketPeerMediator::_on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info) {
     ERR_FAIL_COND(initialized);
     ERR_FAIL_COND(p_login_callback_info->get_result_code() != EOS_EResult::EOS_Success);
     String local_user_id = p_login_callback_info->get_local_user_id();
     ERR_FAIL_COND_MSG(local_user_id.is_empty(), "Local user id was not set on connect interface login.");
-    EOSGMultiplayerPeer::set_local_user_id(local_user_id);
+    EOSMultiplayerPeer::set_local_user_id(local_user_id);
     _init();
 }
 
-void EOSGPacketPeerMediator::_on_connect_interface_login_statues_changed(const Ref<EOSConnect_LoginStatusChangedCallbackInfo> &p_callback_info) {
+void EOSPacketPeerMediator::_on_connect_interface_login_statues_changed(const Ref<EOSConnect_LoginStatusChangedCallbackInfo> &p_callback_info) {
     if (p_callback_info->get_current_status() == EOS_ELoginStatus::EOS_LS_LoggedIn) {
         return;
     }
-    EOSGMultiplayerPeer::set_local_user_id("");
+    EOSMultiplayerPeer::set_local_user_id("");
     _terminate();
 }
 
@@ -410,8 +410,8 @@ void EOSGPacketPeerMediator::_on_connect_interface_login_statues_changed(const R
  * Description: Adds the peer connection established callback. This is called
  * in _init()
  ****************************************/
-bool EOSGPacketPeerMediator::_add_connection_established_callback() {
-    String local_user_id_str = EOSGMultiplayerPeer::get_local_user_id();
+bool EOSPacketPeerMediator::_add_connection_established_callback() {
+    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
     EOS_ProductUserId local_user_id = eosg_string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionEstablishedOptions connection_established_options;
     connection_established_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONESTABLISHED_API_LATEST;
@@ -428,8 +428,8 @@ bool EOSGPacketPeerMediator::_add_connection_established_callback() {
  * Description: Adds the peer connection interrupted callback. This is called
  * in _init()
  ****************************************/
-bool EOSGPacketPeerMediator::_add_connection_interrupted_callback() {
-    String local_user_id_str = EOSGMultiplayerPeer::get_local_user_id();
+bool EOSPacketPeerMediator::_add_connection_interrupted_callback() {
+    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
     EOS_ProductUserId local_user_id = eosg_string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionInterruptedOptions connection_interrupted_options;
     connection_interrupted_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONINTERRUPTED_API_LATEST;
@@ -446,8 +446,8 @@ bool EOSGPacketPeerMediator::_add_connection_interrupted_callback() {
  * Description: Adds the peer connection closed callback. This is called
  * in _init()
  ****************************************/
-bool EOSGPacketPeerMediator::_add_connection_closed_callback() {
-    String local_user_id_str = EOSGMultiplayerPeer::get_local_user_id();
+bool EOSPacketPeerMediator::_add_connection_closed_callback() {
+    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
     EOS_ProductUserId local_user_id = eosg_string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionClosedOptions connection_closed_options;
     connection_closed_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST;
@@ -464,8 +464,8 @@ bool EOSGPacketPeerMediator::_add_connection_closed_callback() {
  * Description: Adds the peer connection request callback. This is called
  * in _init()
  ****************************************/
-bool EOSGPacketPeerMediator::_add_connection_request_callback() {
-    String local_user_id_str = EOSGMultiplayerPeer::get_local_user_id();
+bool EOSPacketPeerMediator::_add_connection_request_callback() {
+    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
     EOS_ProductUserId local_user_id = eosg_string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionRequestOptions connection_request_options;
     connection_request_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST;
@@ -485,7 +485,7 @@ bool EOSGPacketPeerMediator::_add_connection_request_callback() {
  * If none of the pending requests match the multiplayer instance's socket, then no connection requests
  * are forwarded.
  ****************************************/
-void EOSGPacketPeerMediator::_forward_pending_connection_requests(EOSGMultiplayerPeer *peer) {
+void EOSPacketPeerMediator::_forward_pending_connection_requests(EOSMultiplayerPeer *peer) {
     List<ConnectionRequestData>::Element *e = pending_connection_requests.front();
     List<List<ConnectionRequestData>::Element *> del;
     for (; e != nullptr; e = e->next()) {
@@ -500,29 +500,29 @@ void EOSGPacketPeerMediator::_forward_pending_connection_requests(EOSGMultiplaye
     }
 }
 
-void EOSGPacketPeerMediator::_notification(int p_what) {
+void EOSPacketPeerMediator::_notification(int p_what) {
     if (p_what == NOTIFICATION_POSTINITIALIZE) {
-        EOSConnect::get_singleton()->connect("on_login", callable_mp(this, &EOSGPacketPeerMediator::_on_connect_interface_login));
-        EOSConnect::get_singleton()->connect("on_login_status_changed", callable_mp(this, &EOSGPacketPeerMediator::_on_connect_interface_login_statues_changed));
+        EOSConnect::get_singleton()->connect("on_login", callable_mp(this, &EOSPacketPeerMediator::_on_connect_interface_login));
+        EOSConnect::get_singleton()->connect("on_login_status_changed", callable_mp(this, &EOSPacketPeerMediator::_on_connect_interface_login_statues_changed));
     }
 }
 
 /****************************************
- * EOSGPacketPeerMediator
+ * EOSPacketPeerMediator
  * Description: Default constructor. Sets the singleton. Connects
  * to the connect interface login callback so that the class knows
  * when to initialize.
  ****************************************/
-EOSGPacketPeerMediator::EOSGPacketPeerMediator() {
-    ERR_FAIL_COND_MSG(singleton != nullptr, "EOSGPacketPeerMediator already initialized");
+EOSPacketPeerMediator::EOSPacketPeerMediator() {
+    ERR_FAIL_COND_MSG(singleton != nullptr, "EOSPacketPeerMediator already initialized");
     singleton = this;
 }
 
 /****************************************
- * !EOSGPacketPeerMediator
+ * !EOSPacketPeerMediator
  * Description: Destructor. Sets singleton to null.
  ****************************************/
-EOSGPacketPeerMediator::~EOSGPacketPeerMediator() {
+EOSPacketPeerMediator::~EOSPacketPeerMediator() {
     if (singleton != this)
         return;
 

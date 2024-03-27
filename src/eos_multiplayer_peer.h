@@ -1,8 +1,9 @@
 #pragma once
 
-#include "core/utils.h"
 #include <godot_cpp/classes/multiplayer_peer_extension.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
+
+#include "core/utils.h"
 
 namespace godot {
 
@@ -20,8 +21,8 @@ struct ConnectionRequestData {
     }
 };
 
-class EOSGMultiplayerPeer : public MultiplayerPeerExtension {
-    GDCLASS(EOSGMultiplayerPeer, MultiplayerPeerExtension)
+class EOSMultiplayerPeer : public MultiplayerPeerExtension {
+    GDCLASS(EOSMultiplayerPeer, MultiplayerPeerExtension)
 
 private:
     enum Event : int8_t {
@@ -50,7 +51,7 @@ private:
         MODE_MESH,
     };
 
-    class EOSGPacket {
+    class EOSPacket {
     private:
         PackedByteArray packet;
         int sender_peer_id = 0;
@@ -121,10 +122,10 @@ private:
         }
     };
 
-    class EOSGSocket {
+    class EOSSocket {
     private:
         EOS_P2P_SocketId socket;
-        List<EOSGPacket *> incoming_packets;
+        List<EOSPacket *> incoming_packets;
 
     public:
         const EOS_P2P_SocketId *get_id() const {
@@ -135,12 +136,12 @@ private:
             return socket.SocketName;
         }
 
-        void push_packet(EOSGPacket *packet) {
+        void push_packet(EOSPacket *packet) {
             incoming_packets.push_back(packet);
         }
 
-        EOSGPacket *pop_packet() {
-            EOSGPacket *ret = incoming_packets.front()->get();
+        EOSPacket *pop_packet() {
+            EOSPacket *ret = incoming_packets.front()->get();
             incoming_packets.pop_front();
             return ret;
         }
@@ -158,17 +159,17 @@ private:
         }
 
         EOS_EPacketReliability get_packet_reliability() const {
-            EOSGPacket *packet = incoming_packets.front()->get();
+            EOSPacket *packet = incoming_packets.front()->get();
             return packet->get_reliability();
         }
 
         int32_t get_packet_channel() const {
-            EOSGPacket *packet = incoming_packets.front()->get();
+            EOSPacket *packet = incoming_packets.front()->get();
             return packet->get_channel();
         }
 
         int32_t get_packet_peer() const {
-            EOSGPacket *packet = incoming_packets.front()->get();
+            EOSPacket *packet = incoming_packets.front()->get();
             return packet->get_sender();
         }
 
@@ -176,20 +177,20 @@ private:
         void clear_packets_from_peer(int p_peer);
         bool _socket_id_is_valid(const String &socket_id);
 
-        EOSGSocket() {}
+        EOSSocket() {}
 
-        EOSGSocket(const EOS_P2P_SocketId &socket) {
+        EOSSocket(const EOS_P2P_SocketId &socket) {
             this->socket = socket;
         }
 
-        EOSGSocket(const String &socket_name) {
+        EOSSocket(const String &socket_name) {
             memset(socket.SocketName, 0, sizeof(socket.SocketName));
             ERR_FAIL_COND_MSG(!_socket_id_is_valid(socket_name), "Failed to create socket. Socket id is not valid.\nNOTE: Socket id cannot be empty, must only have alpha-numeric characters, and must not be longer than 32 characters");
             socket.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
             STRNCPY_S(socket.SocketName, EOS_P2P_SOCKETID_SOCKETNAME_SIZE, socket_name.utf8(), socket_name.length());
         }
 
-        ~EOSGSocket() {
+        ~EOSSocket() {
             while (!incoming_packets.is_empty()) {
                 memdelete(incoming_packets.front()->get());
                 incoming_packets.pop_front();
@@ -199,8 +200,8 @@ private:
 
     _FORCE_INLINE_ bool _is_active() const { return active_mode != MODE_NONE; }
 
-    Error _broadcast(const EOSGPacket &packet, int exclude = 0);
-    Error _send_to(const EOS_ProductUserId &remote_peer, const EOSGPacket &packet);
+    Error _broadcast(const EOSPacket &packet, int exclude = 0);
+    Error _send_to(const EOS_ProductUserId &remote_peer, const EOSPacket &packet);
     bool _find_connection_request(const String &remote_user, EOS_ProductUserId &out_request);
     EOS_EPacketReliability _convert_transfer_mode_to_eos_reliability(TransferMode mode) const;
     TransferMode _convert_eos_reliability_to_transfer_mode(EOS_EPacketReliability reliability) const;
@@ -209,7 +210,7 @@ private:
 
     static EOS_ProductUserId s_local_user_id;
 
-    EOSGPacket *current_packet;
+    EOSPacket *current_packet;
     uint32_t unique_id;
     int target_peer = 0;
     ConnectionStatus connection_status = CONNECTION_DISCONNECTED;
@@ -223,7 +224,7 @@ private:
 
     HashMap<uint32_t, EOS_ProductUserId> peers;
 
-    EOSGSocket socket;
+    EOSSocket socket;
     List<EOS_ProductUserId> pending_connection_requests;
 
     static void _bind_methods();
@@ -291,7 +292,7 @@ public:
     virtual bool _is_server_relay_supported() const override;
     virtual MultiplayerPeer::ConnectionStatus _get_connection_status() const override;
 
-    EOSGMultiplayerPeer(){};
-    ~EOSGMultiplayerPeer();
+    EOSMultiplayerPeer(){};
+    ~EOSMultiplayerPeer();
 };
 } //namespace godot
