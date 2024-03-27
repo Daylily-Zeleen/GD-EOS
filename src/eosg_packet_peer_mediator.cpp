@@ -40,8 +40,8 @@ void EOSGPacketPeerMediator::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::INT, "queue_size_limit"), "set_queue_size_limit", "get_queue_size_limit");
 
     ADD_SIGNAL(MethodInfo("packet_queue_full"));
-    ADD_SIGNAL(MethodInfo("connection_request_received", PropertyInfo(Variant::DICTIONARY, "callback_data")));
-    ADD_SIGNAL(MethodInfo("connection_request_removed", PropertyInfo(Variant::DICTIONARY, "callback_data")));
+    ADD_SIGNAL(MethodInfo("connection_request_received", PropertyInfo(Variant::DICTIONARY, "connection_info")));
+    ADD_SIGNAL(MethodInfo("connection_request_removed", PropertyInfo(Variant::DICTIONARY, "connection_info")));
 }
 
 /****************************************
@@ -116,7 +116,7 @@ void EOSGPacketPeerMediator::_on_process_frame() {
                 socket_packet_queues[socket_id_str].push_back(packet);
             }
             if (get_total_packet_count() >= max_queue_size) {
-                emit_signal("packet_queue_full");
+                emit_signal(SNAME("packet_queue_full"));
                 break;
             }
         }
@@ -226,7 +226,7 @@ void EOSGPacketPeerMediator::_init() {
         return;
 
     MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
-    ERR_FAIL_COND_MSG(!main_loop->has_signal("process_frame"), "Failed to initialize EOSGPacketPeerMediator. Main loop does not have the process_frame() signal.");
+    ERR_FAIL_COND_MSG(!main_loop->has_signal("process_frame"), "Failed to initialize EOSGPacketPeerMediator. Main loop does not have the \"process_frame\" signal.");
     main_loop->connect("process_frame", process_frame_callback);
 
     //Register callbacks
@@ -342,11 +342,7 @@ void EOS_CALL EOSGPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P
         String closed_remote_user_id = eosg_product_user_id_to_string(data->RemoteUserId);
         String request_socket_name = e->get().socket_name;
         if (request_remote_user_id == closed_remote_user_id && socket_name == request_socket_name) {
-            Dictionary ret;
-            ret["local_user_id"] = e->get().local_user_id;
-            ret["remote_user_id"] = e->get().remote_user_id;
-            ret["socket_id"] = e->get().socket_name;
-            singleton->emit_signal("connection_request_removed", ret);
+            singleton->emit_signal(SNAME("connection_request_removed"), e->get().to_dict());
             e->erase();
             break;
         }
@@ -373,11 +369,7 @@ void EOS_CALL EOSGPacketPeerMediator::_on_incoming_connection_request(const EOS_
     if (!singleton->active_peers.has(request_data.socket_name)) {
         //Hold onto the connection request just in case a socket does get opened with this socket id
         singleton->pending_connection_requests.push_back(request_data);
-        Dictionary ret;
-        ret["local_user_id"] = request_data.local_user_id;
-        ret["remote_user_id"] = request_data.remote_user_id;
-        ret["socket_id"] = request_data.socket_name;
-        singleton->emit_signal("connection_request_received", ret);
+        singleton->emit_signal(SNAME("connection_request_received"), request_data.to_dict());
         return;
     }
     singleton->active_peers[request_data.socket_name]->connection_request_callback(request_data);
@@ -492,11 +484,7 @@ void EOSGPacketPeerMediator::_forward_pending_connection_requests(EOSGMultiplaye
         del.push_back(e);
     }
     for (List<ConnectionRequestData>::Element *e : del) {
-        Dictionary ret;
-        ret["local_user_id"] = e->get().local_user_id;
-        ret["remote_user_id"] = e->get().remote_user_id;
-        ret["socket_id"] = e->get().socket_name;
-        emit_signal("connection_request_removed", ret);
+        emit_signal(SNAME("connection_request_removed"), e->get().to_dict());
         e->erase();
     }
 }
@@ -527,8 +515,8 @@ EOSGPacketPeerMediator::EOSGPacketPeerMediator() {
 EOSGPacketPeerMediator::~EOSGPacketPeerMediator() {
     if (singleton != this)
         return;
-    singleton = nullptr;
 
+    _terminate();
     for (auto &kv : socket_packet_queues) {
         auto packets = kv.value;
         while (!packets.is_empty()) {
@@ -536,6 +524,7 @@ EOSGPacketPeerMediator::~EOSGPacketPeerMediator() {
             packets.pop_front();
         }
     }
+    singleton = nullptr;
 }
 
 } //namespace godot

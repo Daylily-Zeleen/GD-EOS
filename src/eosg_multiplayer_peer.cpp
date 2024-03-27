@@ -58,10 +58,13 @@ void EOSGMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("is_polling"), &EOSGMultiplayerPeer::is_polling);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "polling"), "set_is_polling", "is_polling");
 
-    ADD_SIGNAL(MethodInfo("peer_connection_established", PropertyInfo(Variant::DICTIONARY, "callback_data")));
-    ADD_SIGNAL(MethodInfo("peer_connection_interrupted", PropertyInfo(Variant::DICTIONARY, "callback_data")));
-    ADD_SIGNAL(MethodInfo("peer_connection_closed", PropertyInfo(Variant::DICTIONARY, "callback_data")));
-    ADD_SIGNAL(MethodInfo("incoming_connection_request", PropertyInfo(Variant::DICTIONARY, "callback_data")));
+    ADD_SIGNAL(MethodInfo("peer_connection_established", PropertyInfo(Variant::DICTIONARY, "connection_info"),
+            PropertyInfo(Variant::INT, "connection_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionEstablishedType ")),
+            PropertyInfo(Variant::INT, "network_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "NetworkConnectionType "))));
+    ADD_SIGNAL(MethodInfo("peer_connection_interrupted", PropertyInfo(Variant::DICTIONARY, "connection_info")));
+    ADD_SIGNAL(MethodInfo("peer_connection_closed", PropertyInfo(Variant::DICTIONARY, "connection_info"),
+            PropertyInfo(Variant::INT, "reason", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionClosedReason"))));
+    ADD_SIGNAL(MethodInfo("incoming_connection_request", PropertyInfo(Variant::DICTIONARY, "connection_info")));
 }
 
 /****************************************
@@ -740,7 +743,7 @@ void EOSGMultiplayerPeer::_poll() {
                     //Peer may have reconnected with a new multiplayer instance. Remove their old peer id.
                     int old_id = get_peer_id(packet_data->get_sender());
                     peers.erase(old_id);
-                    emit_signal("peer_disconnected", old_id);
+                    emit_signal(SNAME("peer_disconnected"), old_id);
                 }
 
                 peers.insert(peer_id, remote_user);
@@ -748,7 +751,7 @@ void EOSGMultiplayerPeer::_poll() {
                     connection_status = CONNECTION_CONNECTED;
                 }
 
-                emit_signal("peer_connected", peer_id);
+                emit_signal(SNAME("peer_connected"), peer_id);
                 break;
             }
             case Event::EVENT_MESH_CONNECTION_REQUEST:
@@ -800,7 +803,7 @@ void EOSGMultiplayerPeer::_disconnect_peer(int32_t p_peer, bool p_force) {
 
     if (p_force && peers.has(p_peer)) {
         peers.erase(p_peer);
-        emit_signal("peer_disconnected", p_peer);
+        emit_signal(SNAME("peer_disconnected"), p_peer);
     }
 }
 
@@ -1048,13 +1051,11 @@ void EOSGMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnP
     int connection_type = static_cast<int>(data->ConnectionType);
     int network_type = static_cast<int>(data->NetworkType);
 
-    Dictionary ret;
-    ret["local_user_id"] = local_user_id_str;
-    ret["remote_user_id"] = remote_user_id_str;
-    ret["socket"] = data->SocketId->SocketName;
-    ret["connection_type"] = connection_type;
-    ret["network_type"] = network_type;
-    emit_signal("peer_connection_established", ret);
+    Dictionary connection_info;
+    connection_info["local_user_id"] = local_user_id_str;
+    connection_info["remote_user_id"] = remote_user_id_str;
+    connection_info["socket"] = data->SocketId->SocketName;
+    emit_signal(SNAME("peer_connection_established"), connection_info, data->ConnectionType, data->NetworkType);
 }
 
 /****************************************
@@ -1074,7 +1075,7 @@ void EOSGMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnP
 void EOSGMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
     String local_user_id_str = eosg_product_user_id_to_string(data->LocalUserId);
     String remote_user_id_str = eosg_product_user_id_to_string(data->RemoteUserId);
-    int reason = static_cast<int>(data->Reason);
+    int reason = data->Reason;
 
     //attempt to remove connection request if there was one.
     EOS_ProductUserId remote_user_id;
@@ -1087,7 +1088,7 @@ void EOSGMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemo
     if (peer_id != 0) {
         _clear_peer_packet_queue(peer_id);
         peers.erase(peer_id);
-        emit_signal("peer_disconnected", peer_id);
+        emit_signal(SNAME("peer_disconnected"), peer_id);
     }
 
     //If this callback is called when we're a client and the reason isn't due to the local user closing the connection,
@@ -1102,12 +1103,11 @@ void EOSGMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemo
         EOSGPacketPeerMediator::get_singleton()->unregister_peer(this);
     }
 
-    Dictionary ret;
-    ret["local_user_id"] = local_user_id_str;
-    ret["remote_user_id"] = remote_user_id_str;
-    ret["socket"] = data->SocketId->SocketName;
-    ret["reason"] = reason;
-    emit_signal("peer_connection_closed", ret);
+    Dictionary connection_info;
+    connection_info["local_user_id"] = local_user_id_str;
+    connection_info["remote_user_id"] = remote_user_id_str;
+    connection_info["socket_id"] = data->SocketId->SocketName;
+    emit_signal(SNAME("peer_connection_closed"), connection_info, data->Reason);
 }
 
 /****************************************
@@ -1120,11 +1120,11 @@ void EOSGMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemo
 void EOSGMultiplayerPeer::peer_connection_interrupted_callback(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
     String local_user_id_str = eosg_product_user_id_to_string(data->LocalUserId);
     String remote_user_id_str = eosg_product_user_id_to_string(data->RemoteUserId);
-    Dictionary ret;
-    ret["local_user_id"] = local_user_id_str;
-    ret["remote_user_id"] = remote_user_id_str;
-    ret["socket"] = data->SocketId->SocketName;
-    emit_signal("peer_connection_interrupted", ret);
+    Dictionary connection_info;
+    connection_info["local_user_id"] = local_user_id_str;
+    connection_info["remote_user_id"] = remote_user_id_str;
+    connection_info["socket"] = data->SocketId->SocketName;
+    emit_signal(SNAME("peer_connection_interrupted"), connection_info);
 }
 
 /****************************************
@@ -1144,11 +1144,11 @@ void EOSGMultiplayerPeer::connection_request_callback(const ConnectionRequestDat
 
     pending_connection_requests.push_back(remote_user_id);
 
-    Dictionary ret;
-    ret["local_user_id"] = data.local_user_id;
-    ret["remote_user_id"] = data.remote_user_id;
-    ret["socket"] = String(data.socket_name);
-    emit_signal("incoming_connection_request", ret);
+    Dictionary connection_info;
+    connection_info["local_user_id"] = data.local_user_id;
+    connection_info["remote_user_id"] = data.remote_user_id;
+    connection_info["socket_id"] = String(data.socket_name);
+    emit_signal(SNAME("incoming_connection_request"), connection_info);
 
     if (!is_auto_accepting_connection_requests())
         return;
@@ -1164,7 +1164,7 @@ EOSGMultiplayerPeer::~EOSGMultiplayerPeer() {
     if (active_mode != MODE_NONE) {
         _close();
     }
-    if (current_packet){
+    if (current_packet) {
         memdelete(current_packet);
     }
 }

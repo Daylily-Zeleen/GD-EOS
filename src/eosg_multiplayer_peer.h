@@ -10,6 +10,14 @@ struct ConnectionRequestData {
     String socket_name;
     String remote_user_id;
     String local_user_id;
+
+    Dictionary to_dict() {
+        Dictionary ret;
+        ret["local_user_id"] = local_user_id;
+        ret["remote_user_id"] = remote_user_id;
+        ret["socket_id"] = socket_name;
+        return ret;
+    }
 };
 
 class EOSGMultiplayerPeer : public MultiplayerPeerExtension {
