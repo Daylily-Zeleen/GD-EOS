@@ -227,7 +227,7 @@ void EOSGPacketPeerMediator::_init() {
 
     MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
     ERR_FAIL_COND_MSG(!main_loop->has_signal("process_frame"), "Failed to initialize EOSGPacketPeerMediator. Main loop does not have the \"process_frame\" signal.");
-    main_loop->connect("process_frame", process_frame_callback);
+    main_loop->connect("process_frame", callable_mp(this, &EOSGPacketPeerMediator::_on_process_frame));
 
     //Register callbacks
     _add_connection_closed_callback();
@@ -248,7 +248,7 @@ void EOSGPacketPeerMediator::_terminate() {
         return;
 
     MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
-    main_loop->disconnect("process_frame", process_frame_callback);
+    main_loop->disconnect("process_frame", callable_mp(this, &EOSGPacketPeerMediator::_on_process_frame));
 
     //Unregister callbacks
     auto p2p_interface_handle = EOSP2P::get_singleton()->get_handle();
@@ -256,6 +256,11 @@ void EOSGPacketPeerMediator::_terminate() {
     EOS_P2P_RemoveNotifyPeerConnectionInterrupted(p2p_interface_handle, connection_interrupted_callback_id);
     EOS_P2P_RemoveNotifyPeerConnectionClosed(p2p_interface_handle, connection_closed_callback_id);
     EOS_P2P_RemoveNotifyPeerConnectionRequest(p2p_interface_handle, connection_request_callback_id);
+
+    // 相关回调是否会在登入状态改变后自动触发
+    // pending_connection_requests.clear();
+    // active_peers.clear();
+
     initialized = false;
 }
 
@@ -383,14 +388,20 @@ void EOS_CALL EOSGPacketPeerMediator::_on_incoming_connection_request(const EOS_
  * local user id received from the login and initialized EOSGPacketPeerMediator.
  ****************************************/
 void EOSGPacketPeerMediator::_on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info) {
+    ERR_FAIL_COND(initialized);
     ERR_FAIL_COND(p_login_callback_info->get_result_code() != EOS_EResult::EOS_Success);
     String local_user_id = p_login_callback_info->get_local_user_id();
     ERR_FAIL_COND_MSG(local_user_id.is_empty(), "Local user id was not set on connect interface login.");
     EOSGMultiplayerPeer::set_local_user_id(local_user_id);
-    EOSGPacketPeerMediator::get_singleton()->_init();
-    if (EOSConnect::get_singleton()->is_connected("on_login", connect_interface_login_callback)) {
-        EOSConnect::get_singleton()->disconnect("on_login", connect_interface_login_callback);
+    _init();
+}
+
+void EOSGPacketPeerMediator::_on_connect_interface_login_statues_changed(const Ref<EOSConnect_LoginStatusChangedCallbackInfo> &p_callback_info) {
+    if (p_callback_info->get_current_status() == EOS_ELoginStatus::EOS_LS_LoggedIn) {
+        return;
     }
+    EOSGMultiplayerPeer::set_local_user_id("");
+    _terminate();
 }
 
 /****************************************
@@ -491,9 +502,8 @@ void EOSGPacketPeerMediator::_forward_pending_connection_requests(EOSGMultiplaye
 
 void EOSGPacketPeerMediator::_notification(int p_what) {
     if (p_what == NOTIFICATION_POSTINITIALIZE) {
-        process_frame_callback = callable_mp(this, &EOSGPacketPeerMediator::_on_process_frame);
-        connect_interface_login_callback = callable_mp(this, &EOSGPacketPeerMediator::_on_connect_interface_login);
-        EOSConnect::get_singleton()->connect("on_login", connect_interface_login_callback);
+        EOSConnect::get_singleton()->connect("on_login", callable_mp(this, &EOSGPacketPeerMediator::_on_connect_interface_login));
+        EOSConnect::get_singleton()->connect("on_login_status_changed", callable_mp(this, &EOSGPacketPeerMediator::_on_connect_interface_login_statues_changed));
     }
 }
 
@@ -524,6 +534,8 @@ EOSGPacketPeerMediator::~EOSGPacketPeerMediator() {
             packets.pop_front();
         }
     }
+    socket_packet_queues.clear();
+
     singleton = nullptr;
 }
 

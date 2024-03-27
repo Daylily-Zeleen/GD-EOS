@@ -45,8 +45,7 @@ class EOSGPacketPeerMediator : public Object {
 
 private:
     static EOSGPacketPeerMediator *singleton;
-    Callable process_frame_callback;
-    Callable connect_interface_login_callback;
+
     static void _bind_methods();
 
     HashMap<String, EOSGMultiplayerPeer *> active_peers;
@@ -65,6 +64,8 @@ private:
     static void EOS_CALL _on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data);
 
     void _on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info);
+    void _on_connect_interface_login_statues_changed(const Ref<EOSConnect_LoginStatusChangedCallbackInfo> &p_callback_info);
+
     bool _add_connection_established_callback();
     bool _add_connection_closed_callback();
     bool _add_connection_interrupted_callback();
