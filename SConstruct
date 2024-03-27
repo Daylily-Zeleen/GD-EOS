@@ -3,6 +3,11 @@ import os
 import sys
 import shutil
 
+import eos_code_generator
+
+# Generate
+eos_code_generator.generator_eos_interfaces()
+
 env = SConscript("godot-cpp/SConstruct")
 lib_name = "libeosg"
 plugin_bin_folder = "sample/addons/epic-online-services-godot/bin"

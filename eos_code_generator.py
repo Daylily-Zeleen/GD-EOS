@@ -75,6 +75,10 @@ def main(argv):
         elif splited[0] == "max_field_count_to_expend_of_callback_info":
             max_field_count_to_expend_of_callback_info = int(splited[1])
 
+    generator_eos_interfaces()
+
+
+def generator_eos_interfaces() -> None:
     # make dir
     if not os.path.exists(gen_dir):
         os.makedirs(gen_dir)
@@ -99,7 +103,7 @@ def main(argv):
         print("Generated:", fbn)
     # 生成 eos_interfaces.h
     gen_all_in_one()
-    print("All Completed!")
+    print("Generate Completed!")
 
 
 def preprocess():
