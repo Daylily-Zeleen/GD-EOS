@@ -201,6 +201,13 @@ def gen_files(file_base_name: str, infos: dict):
     packed_result_cpp_lines: list[str] = [f'#include "{file_base_name + ".packed_results.h"}"']
     if len(sub_handles):
         packed_result_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
+
+    # 供绑定使用
+    if len(interface_handle):
+        packed_result_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+    else:
+        packed_result_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+
     packed_result_cpp_lines.append("")
     packed_result_cpp_lines.append("namespace godot{")
     has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, handle_class, methods, packed_result_h_lines, packed_result_cpp_lines)
@@ -225,11 +232,19 @@ def gen_files(file_base_name: str, infos: dict):
     if len(sub_handles):
         handles_cpp_lines: list[str] = [f'#include "{file_base_name + ".handles.h"}"']
         handles_cpp_lines.append(f"#include <{file_base_name}.h>")
+
+        # 供绑定使用
+        if len(interface_handle):
+            handles_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+        else:
+            handles_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+
         handles_cpp_lines.append(f"")
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f'#include "../packed_results/{file_base_name + ".packed_results.h"}"')
         handles_hpp_lines: list[str] = gen_handles(handle_class, additional_include_lines, sub_handles, handles_cpp_lines)
+
         if len(handles_hpp_lines):
             f = open(handles_h_file, "w")
             f.write("\n".join(handles_hpp_lines))
@@ -247,6 +262,13 @@ def gen_files(file_base_name: str, infos: dict):
             structs_cpp_lines.append(f"#include <core/file_transfer.inl>")
         if file_base_name == "eos_platform":
             structs_cpp_lines.append(f"#include <gen/handles/eos_integratedplatform.handles.h>")
+
+        # 供绑定使用
+        if len(interface_handle):
+            structs_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+        else:
+            structs_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+
         additional_include_lines: list[str] = []
         if file_base_name.startswith("eos_anticheat"):
             additional_include_lines.append("#include <core/eos_anticheatcommon_client.h>")
@@ -1346,6 +1368,9 @@ def _gen_packed_result_type(
 
 
 def __is_struct_type(type: str) -> bool:
+    # Hack
+    if type in ["EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatCommon_Quat"]:
+        return False
     return type in structs
 
 
@@ -1573,7 +1598,7 @@ def __expend_input_struct(
 ):
     decayed_type = _decay_eos_type(arg_type)
 
-    r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
+    r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{}};")
     r_call_args.append(f"&{arg_name}")
 
     fields: dict[str, str] = __get_struct_fields(decayed_type)
@@ -2190,13 +2215,7 @@ def _is_need_skip_method(method_name: str) -> bool:
 
 
 def _is_need_skip_enum_type(ori_enum_type: str) -> bool:
-    # if "AntiCheat" in ori_enum_type:
-    #     # TODO 目前未实现反作弊相关接口
-    #     return True
-    return ori_enum_type in [
-        "EOS_EAttributeType",
-        "EOS_EComparisonOp",
-    ]
+    return ori_enum_type in []
 
 
 def _is_need_skip_enum_value(ori_enum_type: str, enum_value: str) -> bool:
@@ -2402,6 +2421,9 @@ def __is_arg_out_struct(struct_type: str) -> bool:
 
 
 def __is_input_struct(struct_type: str) -> bool:
+    # Hack
+    if struct_type in ["EOS_IntegratedPlatform_Steam_Options"]:
+        return True
     for infos in handles.values():
         for method_name in infos["methods"]:
             if method_name.endswith("Release"):
@@ -2449,6 +2471,8 @@ def __is_output_struct(struct_type: str) -> bool:
 
 
 def __is_internal_struct(struct_type: str, r_owned_structs: list[str]) -> bool:
+    if struct_type in ["EOS_IntegratedPlatform_Steam_Options"]:
+        return False  # Hack
     r_owned_structs.clear()
     for struct_name in structs:
         for field in structs[struct_name]:
@@ -2473,7 +2497,7 @@ def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) ->
 def __is_method_input_only_struct(struct_type: str) -> bool:
     if not _decay_eos_type(struct_type) in structs:
         return False
-    if __is_internal_struct_of_arr(struct_type, []) or __is_internal_struct_of_arr(struct_type, []):
+    if __is_internal_struct(struct_type, []) or __is_internal_struct_of_arr(struct_type, []):
         return False
     if __is_arg_out_struct(struct_type) or __is_output_struct(struct_type):
         return False
@@ -2712,6 +2736,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
                 i += 1
 
+            if struct_name in ["EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatCommon_Quat"]:
+                #
+                r_file_lower2infos[interface_lower]["structs"].pop(struct_name)
+
             i += 1
             continue
 
@@ -2731,6 +2759,8 @@ def _is_client_data_field(type: str, field: str) -> bool:
 
 def _is_internal_struct_field(type: str, field: str) -> bool:
     decayed = _decay_eos_type(type)
+    if decayed in ["EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatCommon_Quat"]:
+        return False
     if decayed in structs:
         return True
     return False
@@ -2779,7 +2809,8 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
     if type == "const void*":
         if field_or_arg in ["PlatformSpecificData", "SystemMemoryMonitorReport", "InitOptions"]:
             return False
-
+    if _decay_eos_type(type) in ["EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatCommon_Quat"]:
+        return False
     if field_or_arg.startswith("Out") or field_or_arg.startswith("InOut") or field_or_arg.startswith("bOut"):
         if type.endswith("**") or type.endswith("*"):
             return False  # 目前未发现有数组类型的Out参数
@@ -2897,6 +2928,9 @@ def _gen_struct(
             type = remap_type(type, field)
         initialize_expression = ""
 
+        if __is_api_version_field(type, field):
+            continue  # 不需要ApiVersion作为成员
+
         if type.startswith("Ref") and not type.startswith("Ref<class ") and not _decay_eos_type(type) == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif type == "int32_t" and field == "ApiVersion":
@@ -2921,7 +2955,7 @@ def _gen_struct(
             continue
         if field in variant_union_type_fileds:
             continue
-        if field == "ApiVersion":  # 不需要提供setget给godot
+        if __is_api_version_field(type, field):
             continue
         if _is_memory_func_type(fields[field]):
             continue  # 内存分配方法不需要成员变量
@@ -2965,7 +2999,7 @@ def _gen_struct(
             continue
         if field in variant_union_type_fileds:
             continue
-        if field == "ApiVersion":  # 不需要提供setget给godot
+        if __is_api_version_field(type, field):
             continue
         if _is_memory_func_type(fields[field]):
             continue  # 内存分配方法不需要成员变量
@@ -3005,6 +3039,8 @@ def _gen_struct(
                 continue
             if _is_todo_field(fields[field], field):
                 continue
+            if __is_api_version_field(fields[field], field):
+                continue
             if _is_memory_func_type(fields[field]):
                 # 内存分配方法不需要成员变量
                 print("ERROR Unsupport")
@@ -3014,7 +3050,7 @@ def _gen_struct(
             if _is_platform_specific_options_field(field):
                 print("ERROR:", field)
                 exit(1)
-            if _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
+            elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({to_snake_case(field)}, p_origin.{field});")
@@ -3059,7 +3095,9 @@ def _gen_struct(
                 case "EOS_ReleaseMemoryFunc":
                     r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memdelete(Pointer); }};")
                 case _:
-                    if _is_platform_specific_options_field(field):
+                    if __is_api_version_field(field_type, field):
+                        r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
+                    elif _is_platform_specific_options_field(field):
                         r_structs_cpp.append(f"\tp_data.{field} = get_rtc_platform_specific_options();")
                     elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});")

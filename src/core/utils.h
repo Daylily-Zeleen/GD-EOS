@@ -386,24 +386,35 @@ String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
     return String(&p_from[0]);
 }
 
-template <typename From, typename To, typename FromArg = gd_arg_t<From>>
-inline void to_eos_type(FromArg p_from, To &r_to) {
+template <typename From, typename To, typename FromArg = gd_arg_t<From>, typename ToArg = std::conditional_t<std::is_pointer_v<To>, To, To &>>
+inline void to_eos_type(FromArg p_from, ToArg r_to) {
     r_to = to_eos_type<gd_arg_t<From>, To>(p_from);
 }
 
 template <>
-inline void to_eos_type<String>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+inline void to_eos_type<String, eos_p2p_socketid_socked_name_t>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.utf8().get_data(), MIN(p_from.utf8().length(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
 }
 
 template <>
-EOS_AntiCheatCommon_Vec3f to_eos_type(const Vector3 &p_from) {
+EOS_AntiCheatCommon_Vec3f to_eos_type<const Vector3 &>(const Vector3 &p_from) {
     return { p_from.x, p_from.y, p_from.z };
 }
+
 template <>
 EOS_AntiCheatCommon_Quat to_eos_type(const Quaternion &p_from) {
     return { p_from.w, p_from.x, p_from.y, p_from.z };
+}
+
+template <>
+inline void to_eos_type<Vector3, EOS_AntiCheatCommon_Vec3f *>(const Vector3 &p_from, EOS_AntiCheatCommon_Vec3f *r_to) {
+    *r_to = to_eos_type<const Vector3 &, EOS_AntiCheatCommon_Vec3f>(p_from);
+}
+
+template <>
+inline void to_eos_type<Quaternion, EOS_AntiCheatCommon_Quat *>(const Quaternion &p_from, EOS_AntiCheatCommon_Quat *r_to) {
+    *r_to = to_eos_type<const Quaternion &, EOS_AntiCheatCommon_Quat>(p_from);
 }
 
 // For code generator
@@ -436,51 +447,51 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
         switch (p_gd.get_type()) {
             case Variant::OBJECT: {
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle;
-                p_union->ClientHandle = Object::cast_to<Object>(p_gd); // (EOSAntiCheatCommon_Client *)
+                p_union.ClientHandle = Object::cast_to<Object>(p_gd); // (EOSAntiCheatCommon_Client *)
             } break;
             case Variant::INT: {
-                p_union->Int64 = p_gd;
+                p_union.Int64 = p_gd;
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Int64;
             } break;
             case Variant::STRING:
             case Variant::STRING_NAME:
             case Variant::NODE_PATH: {
-                p_union->String = VARIANT_TO_CHARSTRING(p_gd).get_data();
+                p_union.String = VARIANT_TO_CHARSTRING(p_gd).get_data();
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_String;
             } break;
             case Variant::VECTOR3:
             case Variant::VECTOR3I: {
-                p_union->Vec3f = to_eos_type((Vetor3(p_gd)));
+                to_eos_type<Vector3>(Vector3(p_gd), p_union.Vec3f);
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Vector3f;
             } break;
             case Variant::QUATERNION: {
-                p_union->Quat = to_eos_type((Quaternion(p_gd)));
+                to_eos_type<Quaternion>(Quaternion(p_gd), p_union.Quat);
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat;
             } break;
             default: {
-                assert(false, "Unsupport");
+                ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
             } break;
         }
     } else if constexpr (std::is_same_v<UnionType, EOS_EAttributeType>) {
         switch (p_gd.get_type()) {
             case Variant::INT: {
-                p_union->AsInt64 = p_gd;
+                p_union.AsInt64 = p_gd;
                 r_union_type = EOS_EAttributeType::EOS_AT_INT64;
             } break;
             case Variant::FLOAT: {
-                p_union->AsDouble = p_gd;
+                p_union.AsDouble = p_gd;
                 r_union_type = EOS_EAttributeType::EOS_AT_DOUBLE;
 
             } break;
             case Variant::BOOL: {
-                p_union->AsBool = p_gd;
+                p_union.AsBool = p_gd;
                 r_union_type = EOS_EAttributeType::EOS_AT_BOOLEAN;
 
             } break;
             case Variant::STRING:
             case Variant::STRING_NAME:
             case Variant::NODE_PATH: {
-                p_union->AsUtf8 = VARIANT_TO_CHARSTRING(p_gd).get_data();
+                p_union.AsUtf8 = VARIANT_TO_CHARSTRING(p_gd).get_data();
                 r_union_type = EOS_EAttributeType::EOS_AT_STRING;
             } break;
             default: {
@@ -694,10 +705,10 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 
 // 回调
-#define _EOS_LOGGING_CALLBACK() [](const EOS_LogMessage* Message) {\
-    if (EOS::log_message_callback.is_valid() && Message) {\
-        EOS::log_message_callback.call(Message->Category, Message->Message, Message->Level);\
-    }\
+#define _EOS_LOGGING_CALLBACK() [](const EOS_LogMessage *Message) {                          \
+    if (EOS::log_message_callback.is_valid() && Message) {                                   \
+        EOS::log_message_callback.call(Message->Category, Message->Message, Message->Level); \
+    }                                                                                        \
 }
 
 #define _EOS_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)              \
@@ -758,9 +769,9 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EOS_OPTIONS_IDENTIFY(m_options_ty) m_options_ty##_option
 
 #define _EOS_METHOD_OPTIONS_INTEGRATE(m_options_ty, m_api_version, ...) \
-    m_options_ty _EOS_OPTIONS_IDENTIFY(m_options_ty);                 \
-    _EOS_OPTIONS_IDENTIFY(m_options_ty)->ApiVersion = m_api_version;  \
-    (##__VA_ARGS__);                                                  \
+    m_options_ty _EOS_OPTIONS_IDENTIFY(m_options_ty);                   \
+    _EOS_OPTIONS_IDENTIFY(m_options_ty)->ApiVersion = m_api_version;    \
+    (##__VA_ARGS__);                                                    \
     m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &_EOS_OPTIONS_IDENTIFY(m_options_ty);
 
 // For string out parameters.
