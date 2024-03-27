@@ -21,11 +21,11 @@ class EOSDataClassOptions : public RefCounted {
     PackedStringArray print_exclude;
 
 public:
-    _DEFINE_SETGET_BOOL(sort_keys)
-    _DEFINE_SETGET_BOOL(include_null_in_dict)
-    _DEFINE_SETGET_BOOL(include_null_in_print)
-    _DEFINE_SETGET_BOOL(print_newline)
-    _DEFINE_SETGET(print_exclude)
+    _DECLARE_SETGET_BOOL(sort_keys)
+    _DECLARE_SETGET_BOOL(include_null_in_dict)
+    _DECLARE_SETGET_BOOL(include_null_in_print)
+    _DECLARE_SETGET_BOOL(print_newline)
+    _DECLARE_SETGET(print_exclude)
 
 protected:
     static void _bind_methods() {

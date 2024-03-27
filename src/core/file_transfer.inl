@@ -127,16 +127,6 @@ void file_transfer_completion_callback(const EOSCallbackInfoTy *p_data) {
     memdelete(file_transfer_data);
 }
 
-// TODO: EOS_IntegratedPlatform_OnUserPreLogoutCallback
-
 #define MAKE_FILE_TRANSFER_DATA(...) memnew(_FileTransferData(this, __VA_ARGS__))
-
-template <const char *str>
-void aa() {}
-constexpr char sd[] = "sd";
-
-void ggg() {
-    aa<sd>();
-}
 
 } //namespace godot

@@ -1293,37 +1293,44 @@ def _gen_packed_result_type(
         if _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
             menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {_convert_handle_class_name(decayed_type)})")
         elif __is_struct_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
         elif _is_anticheat_client_handle_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
         elif _is_enum_type(decayed_type):
             enum_owner: str = _get_enum_owned_interface(decayed_type)
             menbers_lines.append(f"\t{decayed_type} {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif arg_type == "void*" and (i + 1) <= len(out_args) and out_args[i + 1]["type"].endswith("int32_t*"):
             if out_args[i + 1]["name"] != "OutBytesWritten":
                 print("WARN:", method_name)
             menbers_lines.append(f"\tPackedByteArray {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif decayed_type == "EOS_Bool":
             menbers_lines.append(f"\tbool {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET_BOOL({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET_BOOL({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET_BOOL({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
             i += 1
         elif _is_arr_field(arg_type, arg_name):
@@ -1334,7 +1341,8 @@ def _gen_packed_result_type(
             exit(1)
         else:
             menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
-            setget_lines.append(f"\t_DEFINE_SETGET({snake_name})")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
 
         i += 1
@@ -1351,7 +1359,8 @@ def _gen_packed_result_type(
     r_h_lines.append("")
     r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
-        r_h_lines.append(f"\t_DEFINE_SETGET(result_code);")
+        r_h_lines.append(f"\t_DECLARE_SETGET(result_code);")
+        r_cpp_lines.append(f'_DEFINE_SETGET({typename}, result_code)')
     r_h_lines += setget_lines
     r_h_lines.append("")
     r_h_lines.append(f"protected:")
@@ -2980,9 +2989,11 @@ def _gen_struct(
             continue
 
         if type == "bool":
-            lines.append(f"\t_DEFINE_SETGET_BOOL({to_snake_case(field)})")
+            lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
+            r_structs_cpp.append(f'_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})')
         else:
-            lines.append(f"\t_DEFINE_SETGET({to_snake_case(field)})")
+            lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
+            r_structs_cpp.append(f'_DEFINE_SETGET({typename}, {to_snake_case(field)})')
     lines.append("")
 
     if addtional_methods_requirements["set_from"]:

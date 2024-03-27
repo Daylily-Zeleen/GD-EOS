@@ -54,13 +54,21 @@ static StringName _get_class_name(const Variant &p_val) {
     return "";
 }
 
-#define _DEFINE_SETGET(field)                  \
-    auto get_##field() const { return field; } \
-    void set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
+#define _DECLARE_SETGET(field)           \
+    decltype(field) get_##field() const; \
+    void set_##field(_ARG_TYPE(field) p_val);
 
-#define _DEFINE_SETGET_BOOL(field)            \
-    bool is_##field() const { return field; } \
-    void set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
+#define _DEFINE_SETGET(klass, field)                  \
+    decltype(klass::field) klass::get_##field() const { return field; } \
+    void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
+
+#define _DECLARE_SETGET_BOOL(field)     \
+    decltype(field) is_##field() const; \
+    void set_##field(_ARG_TYPE(field) p_val);
+
+#define _DEFINE_SETGET_BOOL(klass, field)            \
+    bool klass::is_##field() const { return field; } \
+    void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
 #define _BIND_BEGIN(klass) auto tmp_obj = memnew(klass);
 #define _BIND_PROP(field)                                                                                                         \
@@ -204,7 +212,7 @@ cstr_t to_eos_type(const String &p_from) { return p_from.utf8().ptr(); }
 
 // cstr_t*
 template <typename Tint>
-PackedStringArray to_godot_type_arr(cstr_t *p_from, Tint p_count) {
+PackedStringArray to_godot_type_arr(const cstr_t *p_from, Tint p_count) {
     PackedStringArray ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
@@ -228,8 +236,8 @@ cstr_t *to_eos_type_arr(const PackedStringArray &p_from, Tint &r_count) {
 
 // const cstr_t*
 template <typename Tint>
-PackedStringArray to_godot_type_arr(const cstr_t *p_from, Tint p_count) {
-    return to_godot_type_arr(p_from, p_count);
+PackedStringArray to_godot_type_arr(cstr_t *p_from, Tint p_count) {
+    return to_godot_type_arr((const cstr_t *)p_from, p_count);
 }
 
 // cstr_t*
@@ -251,7 +259,7 @@ PackedStringArray to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_coun
 
 // int16_t*
 template <typename Tint>
-PackedInt32Array to_godot_type_arr(int16_t *p_from, Tint p_count) {
+PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
     PackedInt32Array ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
@@ -275,13 +283,13 @@ int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
 
 // const int16_t*
 template <typename Tint>
-PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
-    return to_godot_type_arr(p_from, p_count);
+PackedInt32Array to_godot_type_arr(int16_t *p_from, Tint p_count) {
+    return to_godot_type_arr((const int16_t *)p_from, p_count);
 }
 
 // uint8_t*
 template <typename Tint>
-PackedInt32Array to_godot_type_arr(uint8_t *p_from, Tint p_count) {
+PackedInt32Array to_godot_type_arr(const uint8_t *p_from, Tint p_count) {
     PackedInt32Array ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
