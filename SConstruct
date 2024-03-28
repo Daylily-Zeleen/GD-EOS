@@ -68,7 +68,13 @@ elif env["platform"] == "android":
     eos_android_arch = "arm64-v8a"
     if env["arch"] == "x86_64":
         eos_android_arch = "x86_64"
-    
+    elif env["arch"] == "x86_32":
+        eos_android_arch = "x86"
+    elif env["arch"] == "arm64":
+        eos_android_arch = "arm64-v8a"
+    elif env["arch"] == "arm32":
+        eos_android_arch = "armeabi-v7a"
+
     env.Append(LIBPATH=[eos_sdk_folder + "Bin/Android/static-stdc++/libs/" + eos_android_arch + "/"]) 
     env.Append(LIBS=["EOSSDK"])
 
@@ -83,6 +89,8 @@ else:
         source=sources,
     )
 
+arch = env["arch"]
+
 def copy_file(from_path, to_path):
     if not os.path.exists(os.path.dirname(to_path)):
         os.makedirs(os.path.dirname(to_path))
@@ -90,7 +98,7 @@ def copy_file(from_path, to_path):
 
 def on_complete(target, source, env):
     if platform == "windows":
-        if "64" in env['arch']:
+        if "64" in arch:
             shutil.rmtree(plugin_bin_folder + "/windows/x64", ignore_errors=True)
             shutil.copytree(eos_sdk_folder + "Bin/x64", plugin_bin_folder + "/windows/x64")
             copy_file(eos_sdk_folder + "Bin/EOSSDK-Win64-Shipping.dll", plugin_bin_folder + "/windows/EOSSDK-Win64-Shipping.dll")
