@@ -32,7 +32,7 @@ public:
     }
 
     void set_sender(EOS_ProductUserId sender) {
-        remote_user_id = eosg_product_user_id_to_string(sender);
+        remote_user_id = product_user_id_to_string(sender);
     }
 
     const PackedByteArray &get_data() {

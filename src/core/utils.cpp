@@ -14,7 +14,7 @@
 
 namespace godot {
 
-String eosg_epic_account_id_to_string(const EOS_EpicAccountId accountId) {
+String epic_account_id_to_string(const EOS_EpicAccountId accountId) {
     if (accountId == nullptr) {
         return String("");
     }
@@ -27,7 +27,7 @@ String eosg_epic_account_id_to_string(const EOS_EpicAccountId accountId) {
     return String(tempBuffer);
 }
 
-String eosg_product_user_id_to_string(const EOS_ProductUserId localUserId) {
+String product_user_id_to_string(const EOS_ProductUserId localUserId) {
     if (localUserId == nullptr) {
         return String("");
     }

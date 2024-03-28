@@ -144,7 +144,7 @@ Error EOSMultiplayerPeer::create_client(const String &socket_id, const String &r
     packet.prepare();
 
     //send peer id to the server
-    Error result = _send_to(eosg_string_to_product_user_id(remote_user_id.utf8()), packet);
+    Error result = _send_to(string_to_product_user_id(remote_user_id.utf8()), packet);
 
     if (result != OK) {
         _close();
@@ -207,7 +207,7 @@ Error EOSMultiplayerPeer::add_mesh_peer(const String &remote_user_id) {
     packet.set_sender(unique_id);
     packet.prepare();
 
-    _send_to(eosg_string_to_product_user_id(remote_user_id.utf8()), packet);
+    _send_to(string_to_product_user_id(remote_user_id.utf8()), packet);
 
     return OK;
 }
@@ -228,7 +228,7 @@ String EOSMultiplayerPeer::get_socket() const {
 Array EOSMultiplayerPeer::get_all_connection_requests() {
     Array ret = Array();
     for (const EOS_ProductUserId &remote_user : pending_connection_requests) {
-        ret.push_back(eosg_product_user_id_to_string(remote_user));
+        ret.push_back(product_user_id_to_string(remote_user));
     }
     return ret;
 }
@@ -246,7 +246,7 @@ String EOSMultiplayerPeer::get_peer_user_id(int peer_id) {
         return ret;
     }
     EOS_ProductUserId user_id = peers.get(peer_id);
-    ret = eosg_product_user_id_to_string(user_id);
+    ret = product_user_id_to_string(user_id);
     return ret;
 }
 
@@ -260,7 +260,7 @@ String EOSMultiplayerPeer::get_peer_user_id(int peer_id) {
 int EOSMultiplayerPeer::get_peer_id(const String &remote_user_id) {
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
         EOS_ProductUserId user_id = E.value;
-        String user_id_str = eosg_product_user_id_to_string(user_id);
+        String user_id_str = product_user_id_to_string(user_id);
         if (remote_user_id == user_id_str) {
             return E.key;
         }
@@ -288,7 +288,7 @@ bool EOSMultiplayerPeer::has_peer(int peer_id) {
  ****************************************/
 bool EOSMultiplayerPeer::has_user_id(const String &remote_user_id) {
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
-        String peer_user_id = eosg_product_user_id_to_string(E.value);
+        String peer_user_id = product_user_id_to_string(E.value);
         if (remote_user_id != peer_user_id)
             continue;
         return true;
@@ -306,7 +306,7 @@ void EOSMultiplayerPeer::_clear_peer_packet_queue(int p_id) {
     ERR_FAIL_COND_MSG(!peers.has(p_id), "Failed to clear packet queue for peer. Peer was not found.");
 
     socket.clear_packets_from_peer(p_id);
-    String remote_user_id = eosg_product_user_id_to_string(peers[p_id]);
+    String remote_user_id = product_user_id_to_string(peers[p_id]);
     EOSPacketPeerMediator::get_singleton()->clear_packets_from_remote_user(socket.get_name(), remote_user_id);
 }
 
@@ -319,7 +319,7 @@ Dictionary EOSMultiplayerPeer::get_all_peers() {
     Dictionary ret;
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
         EOS_ProductUserId user_id = E.value;
-        ret[E.key] = eosg_product_user_id_to_string(user_id);
+        ret[E.key] = product_user_id_to_string(user_id);
     }
     return ret;
 }
@@ -433,7 +433,7 @@ void EOSMultiplayerPeer::accept_all_connection_requests() {
     ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
     for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = eosg_product_user_id_to_string(remote_user_id);
+        String remote_user_id_str = product_user_id_to_string(remote_user_id);
         accept_connection_request(remote_user_id_str);
     }
 }
@@ -448,7 +448,7 @@ void EOSMultiplayerPeer::deny_all_connection_requests() {
         return;
 
     for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = eosg_product_user_id_to_string(remote_user_id);
+        String remote_user_id_str = product_user_id_to_string(remote_user_id);
         deny_connection_request(remote_user_id_str);
     }
 
@@ -734,7 +734,7 @@ void EOSMultiplayerPeer::_poll() {
                     ERR_FAIL_MSG("Failed to connect. Instance is not a server.");
                 }
 
-                EOS_ProductUserId remote_user = eosg_string_to_product_user_id(packet_data->get_sender().utf8());
+                EOS_ProductUserId remote_user = string_to_product_user_id(packet_data->get_sender().utf8());
                 if (peer_id < 1 || peers.has(peer_id) || unique_id == peer_id) {
                     _disconnect_remote_user(remote_user); //Invalid peer id. reject the peer.
                     break;
@@ -862,7 +862,7 @@ MultiplayerPeer::ConnectionStatus EOSMultiplayerPeer::_get_connection_status() c
  ****************************************/
 void EOSMultiplayerPeer::set_local_user_id(const String &p_local_user_id) {
     CharString local_user_id = p_local_user_id.utf8();
-    s_local_user_id = eosg_string_to_product_user_id(local_user_id);
+    s_local_user_id = string_to_product_user_id(local_user_id);
 }
 
 /****************************************
@@ -872,7 +872,7 @@ void EOSMultiplayerPeer::set_local_user_id(const String &p_local_user_id) {
 String EOSMultiplayerPeer::get_local_user_id() {
     if (s_local_user_id == nullptr)
         return "";
-    String local_user_id = eosg_product_user_id_to_string(s_local_user_id);
+    String local_user_id = product_user_id_to_string(s_local_user_id);
     return local_user_id;
 }
 
@@ -955,7 +955,7 @@ Error EOSMultiplayerPeer::_send_to(const EOS_ProductUserId &remote_peer, const E
  ****************************************/
 bool EOSMultiplayerPeer::_find_connection_request(const String &remote_user, EOS_ProductUserId &out_request) {
     for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = eosg_product_user_id_to_string(remote_user_id);
+        String remote_user_id_str = product_user_id_to_string(remote_user_id);
         if (remote_user == remote_user_id_str) {
             out_request = remote_user_id;
             return true;
@@ -1047,8 +1047,8 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
         Error result = _send_to(data->RemoteUserId, packet);
     }
 
-    String local_user_id_str = eosg_product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = eosg_product_user_id_to_string(data->RemoteUserId);
+    String local_user_id_str = product_user_id_to_string(data->LocalUserId);
+    String remote_user_id_str = product_user_id_to_string(data->RemoteUserId);
     int connection_type = static_cast<int>(data->ConnectionType);
     int network_type = static_cast<int>(data->NetworkType);
 
@@ -1074,8 +1074,8 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
  * has disconnected locally or connection with the server has failed.
  ****************************************/
 void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
-    String local_user_id_str = eosg_product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = eosg_product_user_id_to_string(data->RemoteUserId);
+    String local_user_id_str = product_user_id_to_string(data->LocalUserId);
+    String remote_user_id_str = product_user_id_to_string(data->RemoteUserId);
     int reason = data->Reason;
 
     //attempt to remove connection request if there was one.
@@ -1119,8 +1119,8 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
  * interrupted notification. Callback only emits a signal containing the data when it is called.
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_interrupted_callback(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
-    String local_user_id_str = eosg_product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = eosg_product_user_id_to_string(data->RemoteUserId);
+    String local_user_id_str = product_user_id_to_string(data->LocalUserId);
+    String remote_user_id_str = product_user_id_to_string(data->RemoteUserId);
     Dictionary connection_info;
     connection_info["local_user_id"] = local_user_id_str;
     connection_info["remote_user_id"] = remote_user_id_str;
@@ -1141,7 +1141,7 @@ void EOSMultiplayerPeer::connection_request_callback(const ConnectionRequestData
     if (active_mode == MODE_CLIENT || is_refusing_new_connections())
         return;
 
-    EOS_ProductUserId remote_user_id = eosg_string_to_product_user_id(data.remote_user_id.utf8());
+    EOS_ProductUserId remote_user_id = string_to_product_user_id(data.remote_user_id.utf8());
 
     pending_connection_requests.push_back(remote_user_id);
 

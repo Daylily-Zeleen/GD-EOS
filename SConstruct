@@ -9,7 +9,7 @@ import eos_code_generator
 eos_code_generator.generator_eos_interfaces()
 
 env = SConscript("godot-cpp/SConstruct")
-lib_name = "libeosg"
+lib_name = "libgdeos"
 plugin_bin_folder = "sample/addons/epic-online-services-godot/bin"
 
 eos_sdk_folder = "thirdparty/eos-sdk/SDK/"

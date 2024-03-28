@@ -19,16 +19,16 @@ namespace godot {
 #define STRNCPY_S(dest, destsz, src, count) strncpy(dest, src, count)
 #endif
 
-String eosg_epic_account_id_to_string(const EOS_EpicAccountId accountId);
+String epic_account_id_to_string(const EOS_EpicAccountId accountId);
 
-static EOS_EpicAccountId eosg_string_to_epic_account_id(const char *p_account_id) {
+static EOS_EpicAccountId string_to_epic_account_id(const char *p_account_id) {
     EOS_EpicAccountId accountId = EOS_EpicAccountId_FromString(p_account_id);
     return accountId;
 }
 
-String eosg_product_user_id_to_string(const EOS_ProductUserId localUserId);
+String product_user_id_to_string(const EOS_ProductUserId localUserId);
 
-static EOS_ProductUserId eosg_string_to_product_user_id(const char *p_account_id) {
+static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     EOS_ProductUserId accountId = EOS_ProductUserId_FromString(p_account_id);
     return accountId;
 }
@@ -164,19 +164,19 @@ EOS_Bool to_eos_type(bool p_from) { return p_from; }
 
 // EOS_ProductUserId
 template <>
-String to_godot_type(const EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
+String to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from); }
 template <>
-EOS_ProductUserId to_eos_type(const String &p_from) { return eosg_string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+EOS_ProductUserId to_eos_type(const String &p_from) { return string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 template <>
-const EOS_ProductUserId to_eos_type(const String &p_from) { return eosg_string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+const EOS_ProductUserId to_eos_type(const String &p_from) { return string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 
 // EOS_EpicAccountId
 template <>
-String to_godot_type(const EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
+String to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from); }
 template <>
-EOS_EpicAccountId to_eos_type(const String &p_from) { return eosg_string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+EOS_EpicAccountId to_eos_type(const String &p_from) { return string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 template <>
-const EOS_EpicAccountId to_eos_type(const String &p_from) { return eosg_string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
+const EOS_EpicAccountId to_eos_type(const String &p_from) { return string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 
 // const char *
 using cstr_t = const char *;
@@ -532,7 +532,7 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
 template <typename EOSUnion>
 inline void string_to_eos_union_account_id(const String &p_gd, EOSUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
     if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_Epic) {
-        p_union.Epic = eosg_string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_gd).get_data());
+        p_union.Epic = string_to_epic_account_id(VARIANT_TO_CHARSTRING(p_gd).get_data());
     } else if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_External) {
         p_union.External = VARIANT_TO_CHARSTRING(p_gd).get_data();
     }
@@ -540,7 +540,7 @@ inline void string_to_eos_union_account_id(const String &p_gd, EOSUnion &p_union
 template <typename EOSUnion>
 inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
     if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_Epic) {
-        return eosg_epic_account_id_to_string(p_union.Epic);
+        return epic_account_id_to_string(p_union.Epic);
     } else if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_External) {
         return String::utf8(p_union.External);
     }
