@@ -1,6 +1,6 @@
 #pragma once
 
-#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
 #include <interfaces/eos_connect_interface.h>
 
@@ -139,4 +139,4 @@ public:
 };
 } //namespace godot::eos
 
-#endif // !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)

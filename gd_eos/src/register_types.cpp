@@ -2,9 +2,9 @@
 
 #include <interfaces/eos_interfaces.h>
 
-#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 #include "eos_packet_peer_mediator.h"
-#endif // !defined (EOS_P2P_DISABLED) and ! defined (EOS_CONNECT_DISABLED)
+#endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
 using namespace godot;
 
@@ -19,13 +19,13 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
     REGISTER_EOS_CLASSES()
     REGISTER_EOS_SINGLETONS()
 
-#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPacketPeerMediator);
     memnew(godot::eos::EOSPacketPeerMediator);
     Engine::get_singleton()->register_singleton(godot::eos::EOSPacketPeerMediator::get_class_static(), godot::eos::EOSPacketPeerMediator::get_singleton());
 
     GDREGISTER_CLASS(godot::eos::EOSMultiplayerPeer);
-#endif // !defined (EOS_P2P_DISABLED) and ! defined (EOS_CONNECT_DISABLED)
+#endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 }
 
 void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
@@ -33,7 +33,7 @@ void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
         return;
     }
 
-#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
     Engine::get_singleton()->unregister_singleton(godot::eos::EOSPacketPeerMediator::get_class_static());
     memdelete(godot::eos::EOSPacketPeerMediator::get_singleton());
 #endif // !defined (EOS_P2P_DISABLED) and ! defined (EOS_CONNECT_DISABLED)

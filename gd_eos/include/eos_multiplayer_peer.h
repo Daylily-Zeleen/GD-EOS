@@ -1,5 +1,5 @@
 #pragma once
-#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
 #include <godot_cpp/classes/multiplayer_peer_extension.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
@@ -298,4 +298,4 @@ public:
 };
 } //namespace godot::eos
 
-#endif // !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+#endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
