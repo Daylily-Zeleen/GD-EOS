@@ -49,6 +49,7 @@ if env.get("is_msvc", False):
     env.Append(CXXFLAGS=["/bigobj"])
 env.Append(LIBPATH=[eos_sdk_folder + "Lib/"])
 env.Append(LIBPATH=[eos_sdk_folder + "Bin/"])
+
 if env["platform"] == "windows":
     # TODO: dont ignore this warning
     # this disables LINK : error LNK1218: warning treated as error;
@@ -89,9 +90,14 @@ def copy_file(from_path, to_path):
 
 def on_complete(target, source, env):
     if platform == "windows":
-        shutil.rmtree(plugin_bin_folder + "/windows/x64", ignore_errors=True)
-        shutil.copytree(eos_sdk_folder + "Bin/x64", plugin_bin_folder + "/windows/x64")
-        copy_file(eos_sdk_folder + "Bin/EOSSDK-Win64-Shipping.dll", plugin_bin_folder + "/windows/EOSSDK-Win64-Shipping.dll")
+        if "64" in env['arch']:
+            shutil.rmtree(plugin_bin_folder + "/windows/x64", ignore_errors=True)
+            shutil.copytree(eos_sdk_folder + "Bin/x64", plugin_bin_folder + "/windows/x64")
+            copy_file(eos_sdk_folder + "Bin/EOSSDK-Win64-Shipping.dll", plugin_bin_folder + "/windows/EOSSDK-Win64-Shipping.dll")
+        else:
+            shutil.rmtree(plugin_bin_folder + "/windows/x86", ignore_errors=True)
+            shutil.copytree(eos_sdk_folder + "Bin/x86", plugin_bin_folder + "/windows/x86")
+            copy_file(eos_sdk_folder + "Bin/EOSSDK-Win32-Shipping.dll", plugin_bin_folder + "/windows/EOSSDK-Win32-Shipping.dll")
     
     elif platform == "linux":
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Linux-Shipping.so", plugin_bin_folder + "/linux/libEOSSDK-Linux-Shipping.so")
