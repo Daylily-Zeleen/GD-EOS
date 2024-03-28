@@ -46,8 +46,8 @@ generate_infos: dict = {}
 
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
-max_field_count_to_expend_of_input_options :int = 3
-max_field_count_to_expend_of_callback_info :int = 1
+max_field_count_to_expend_of_input_options: int = 3
+max_field_count_to_expend_of_callback_info: int = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
@@ -59,16 +59,21 @@ def main(argv):
     for arg in argv:
         if arg in ["-h", "--help"]:
             print("In order to reduce count of generated classes, here have 2 options:")
-            print("\tmax_field_count_to_expend_of_input_options: The max field count to expend input Options structs (except \"ApiVersion\" field).")
+            print('\tmax_field_count_to_expend_of_input_options: The max field count to expend input Options structs (except "ApiVersion" field).')
             print("\t\tdefault:3")
             print("\tmax_field_count_to_expend_of_callback_info: The max field count to expend CallbackInfo structs.")
             print("\t\tdefault:1")
             print("\tYou can override these option like this: max_field_count_to_expend_of_input_options=5")
             exit()
-        splited:list[str] = arg.split("=", 1)
-        if len(splited) != 2 or not splited[1].isdecimal() or int(splited[1]) < 0 or not splited[0] in ["max_field_count_to_expend_of_input_options", "max_field_count_to_expend_of_callback_info"]:
+        splited: list[str] = arg.split("=", 1)
+        if (
+            len(splited) != 2
+            or not splited[1].isdecimal()
+            or int(splited[1]) < 0
+            or not splited[0] in ["max_field_count_to_expend_of_input_options", "max_field_count_to_expend_of_callback_info"]
+        ):
             print("Unsupported option:", arg)
-            print("Use \"-h\" or \"--help\" to get help.")
+            print('Use "-h" or "--help" to get help.')
             exit()
         if splited[0] == "max_field_count_to_expend_of_input_options":
             max_field_count_to_expend_of_input_options = int(splited[1])
@@ -398,10 +403,10 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f'#include "eos_anticheatcommon_interface.h"')
     else:
         interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
-    
+
     if file_base_name.startswith("eos_platform"):
-        interface_handle_h_lines.append(f'#include <godot_cpp/classes/engine.hpp>')
-        interface_handle_h_lines.append(f'#include <godot_cpp/classes/main_loop.hpp>')
+        interface_handle_h_lines.append(f"#include <godot_cpp/classes/engine.hpp>")
+        interface_handle_h_lines.append(f"#include <godot_cpp/classes/main_loop.hpp>")
     interface_handle_h_lines.append(f"")
 
     if len(enums):
@@ -801,7 +806,7 @@ def _gen_handle(
     if handle_name == "EOS_HPlatform":
         # Platform自动Tick代码
         ret.append("\tEOS_PLATFORM_SETUP_TICK()")
-        
+
     ret.append(f"}};")
     ret.append("} // namespace godot")
 
@@ -1327,29 +1332,29 @@ def _gen_packed_result_type(
             # Handle 类型需要前向声明
             menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {_convert_handle_class_name(decayed_type)})")
         elif __is_struct_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
         elif _is_anticheat_client_handle_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
         elif _is_enum_type(decayed_type):
             enum_owner: str = _get_enum_owned_interface(decayed_type)
             menbers_lines.append(f"\t{decayed_type} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif arg_type == "void*" and (i + 1) <= len(out_args) and out_args[i + 1]["type"].endswith("int32_t*"):
@@ -1357,13 +1362,13 @@ def _gen_packed_result_type(
                 print("WARN:", method_name)
             menbers_lines.append(f"\tPackedByteArray {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif decayed_type == "EOS_Bool":
             menbers_lines.append(f"\tbool {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_BOOL({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET_BOOL({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET_BOOL({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
             i += 1
         elif _is_arr_field(arg_type, arg_name):
@@ -1375,7 +1380,7 @@ def _gen_packed_result_type(
         else:
             menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f'_DEFINE_SETGET({typename}, {snake_name})')
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
 
         i += 1
@@ -1393,7 +1398,7 @@ def _gen_packed_result_type(
     r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
         r_h_lines.append(f"\t_DECLARE_SETGET(result_code);")
-        r_cpp_lines.append(f'_DEFINE_SETGET({typename}, result_code)')
+        r_cpp_lines.append(f"_DEFINE_SETGET({typename}, result_code)")
     r_h_lines += setget_lines
     r_h_lines.append("")
     r_h_lines.append(f"protected:")
@@ -1643,6 +1648,7 @@ def __expend_input_struct(
     r_bind_args: list[str],
     r_prepare_lines: list[str],
     r_after_call_lines: list[str],
+    r_bind_defvals: list[str],
 ):
     decayed_type = _decay_eos_type(arg_type)
 
@@ -1690,8 +1696,9 @@ def __expend_input_struct(
             r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({option_field}, p_{snake_field});")
         elif _is_requested_channel_ptr_field(field_type, field):
-            r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
+            r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field} = -1")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL({option_field}, p_{snake_field});")
+            r_bind_defvals.append("DEFVAL(-1)")
         elif field_type.startswith("Union"):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_UNION({option_field}, p_{snake_field});")
@@ -1938,7 +1945,8 @@ def _gen_method(
 
     static: bool = True
     i: int = 0
-    need_callable_defval = False
+
+    bind_defvals: list[str] = []
 
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
@@ -1981,7 +1989,7 @@ def _gen_method(
                 else:
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
 
-                need_callable_defval = True
+                bind_defvals.append("DEFVAL(Callable())")
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
@@ -2037,16 +2045,7 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expend_input_struct(
-                type,
-                name,
-                invalid_arg_return_val,
-                declare_args,
-                call_args,
-                bind_args,
-                prepare_lines,
-                after_call_lines,
-            )
+            __expend_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals)
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -2103,7 +2102,7 @@ def _gen_method(
     # ======= 定义 ===============
     for i in range(len(declare_args)):
         # 移除默认值
-        declare_args[i] = declare_args[i].removesuffix(" = {}")
+        declare_args[i] = declare_args[i].rsplit(" =", 1)[0]
     r_define_lines.append(f'{return_type} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{')
     r_define_lines += prepare_lines
     # 调用
@@ -2160,8 +2159,8 @@ def _gen_method(
     if len(bind_args_text):
         bind_args_text = ", " + bind_args_text
     default_val_arg = ""
-    if need_callable_defval:
-        default_val_arg = ", DEFVAL(Callable())"
+    if len(bind_defvals):
+        default_val_arg = ", " + ", ".join(bind_defvals)
 
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
@@ -2432,7 +2431,7 @@ def _is_expended_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
-        "EOS_Connect_LoginCallbackInfo", # PackedPeerMediator 中使用
+        "EOS_Connect_LoginCallbackInfo",  # PackedPeerMediator 中使用
     ]:
         return False
     if struct_type in ["EOS_LogMessage"]:
@@ -3025,10 +3024,10 @@ def _gen_struct(
 
         if type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
-            r_structs_cpp.append(f'_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})')
+            r_structs_cpp.append(f"_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})")
         else:
             lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
-            r_structs_cpp.append(f'_DEFINE_SETGET({typename}, {to_snake_case(field)})')
+            r_structs_cpp.append(f"_DEFINE_SETGET({typename}, {to_snake_case(field)})")
     lines.append("")
 
     if addtional_methods_requirements["set_from"]:
@@ -3226,6 +3225,7 @@ def _get_callback_infos(callback_type: str) -> dict:
                 return infos["callbacks"][cb]
     print("ERROR unknown callback type:", callback_type)
     exit(1)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
