@@ -17,6 +17,7 @@
  * until either a multiplayer instance opens with a matching socket or until
  * the connection request times out.
  ****************************************/
+#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
 
 #include "gen/eos_p2p_interface.h"
 #include <eos_p2p.h>
@@ -541,3 +542,5 @@ EOSPacketPeerMediator::~EOSPacketPeerMediator() {
 }
 
 } //namespace godot::eos
+
+#endif // !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)

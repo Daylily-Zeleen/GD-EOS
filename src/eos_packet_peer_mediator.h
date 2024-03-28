@@ -1,3 +1,7 @@
+#pragma once
+
+#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+
 #include <gen/eos_connect_interface.h>
 
 #include "eos_multiplayer_peer.h"
@@ -134,3 +138,5 @@ public:
     ~EOSPacketPeerMediator();
 };
 } //namespace godot::eos
+
+#endif // !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)

@@ -18,6 +18,8 @@
  * packets to peers they are directly connected to.
  ****************************************/
 
+#if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
+
 #include <eos_p2p.h>
 
 #include "eos_packet_peer_mediator.h"
@@ -1275,3 +1277,5 @@ bool EOSMultiplayerPeer::EOSSocket::_socket_id_is_valid(const String &socket_id)
 }
 
 } //namespace godot::eos
+
+#endif // !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
