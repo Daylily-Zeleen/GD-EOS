@@ -8,7 +8,7 @@ using namespace godot;
 
 void initialize_gdeos_module(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
-        setup_eos_project_settings();
+        eos::setup_eos_project_settings();
     }
 
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
@@ -17,11 +17,11 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
     REGISTER_EOS_CLASSES()
     REGISTER_EOS_SINGLETONS()
 
-    GDREGISTER_ABSTRACT_CLASS(EOSPacketPeerMediator);
-    memnew(EOSPacketPeerMediator);
-    Engine::get_singleton()->register_singleton(EOSPacketPeerMediator::get_class_static(), EOSPacketPeerMediator::get_singleton());
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPacketPeerMediator);
+    memnew(godot::eos::EOSPacketPeerMediator);
+    Engine::get_singleton()->register_singleton(godot::eos::EOSPacketPeerMediator::get_class_static(), godot::eos::EOSPacketPeerMediator::get_singleton());
 
-    GDREGISTER_CLASS(EOSMultiplayerPeer);
+    GDREGISTER_CLASS(godot::eos::EOSMultiplayerPeer);
 }
 
 void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
@@ -29,8 +29,8 @@ void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
         return;
     }
 
-    Engine::get_singleton()->unregister_singleton(EOSPacketPeerMediator::get_class_static());
-    memdelete(EOSPacketPeerMediator::get_singleton());
+    Engine::get_singleton()->unregister_singleton(godot::eos::EOSPacketPeerMediator::get_class_static());
+    memdelete(godot::eos::EOSPacketPeerMediator::get_singleton());
 
     UNREGISTER_EOS_SINGLETONS()
 }

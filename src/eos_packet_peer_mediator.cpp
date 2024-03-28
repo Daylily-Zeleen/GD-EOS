@@ -25,7 +25,7 @@
 
 #include "eos_packet_peer_mediator.h"
 
-namespace godot {
+namespace godot::eos {
 EOSPacketPeerMediator *EOSPacketPeerMediator::singleton = nullptr;
 
 void EOSPacketPeerMediator::_bind_methods() {
@@ -63,7 +63,7 @@ void EOSPacketPeerMediator::_on_process_frame() {
         return;
 
     String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_GetNextReceivedPacketSizeOptions packet_size_options;
     packet_size_options.ApiVersion = EOS_P2P_GETNEXTRECEIVEDPACKETSIZE_API_LATEST;
     packet_size_options.LocalUserId = local_user_id;
@@ -345,7 +345,7 @@ void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_
     List<ConnectionRequestData>::Element *e = singleton->pending_connection_requests.front();
     for (; e != nullptr; e = e->next()) {
         String request_remote_user_id = e->get().remote_user_id;
-        String closed_remote_user_id = product_user_id_to_string(data->RemoteUserId);
+        String closed_remote_user_id = internal::product_user_id_to_string(data->RemoteUserId);
         String request_socket_name = e->get().socket_name;
         if (request_remote_user_id == closed_remote_user_id && socket_name == request_socket_name) {
             singleton->emit_signal(SNAME("connection_request_removed"), e->get().to_dict());
@@ -369,8 +369,8 @@ void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_
  ****************************************/
 void EOS_CALL EOSPacketPeerMediator::_on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data) {
     ConnectionRequestData request_data;
-    request_data.local_user_id = product_user_id_to_string(data->LocalUserId);
-    request_data.remote_user_id = product_user_id_to_string(data->RemoteUserId);
+    request_data.local_user_id = internal::product_user_id_to_string(data->LocalUserId);
+    request_data.remote_user_id = internal::product_user_id_to_string(data->RemoteUserId);
     request_data.socket_name = data->SocketId->SocketName;
     if (!singleton->active_peers.has(request_data.socket_name)) {
         //Hold onto the connection request just in case a socket does get opened with this socket id
@@ -413,7 +413,7 @@ void EOSPacketPeerMediator::_on_connect_interface_login_statues_changed(const Re
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_established_callback() {
     String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionEstablishedOptions connection_established_options;
     connection_established_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONESTABLISHED_API_LATEST;
     connection_established_options.LocalUserId = local_user_id;
@@ -431,7 +431,7 @@ bool EOSPacketPeerMediator::_add_connection_established_callback() {
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_interrupted_callback() {
     String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionInterruptedOptions connection_interrupted_options;
     connection_interrupted_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONINTERRUPTED_API_LATEST;
     connection_interrupted_options.LocalUserId = local_user_id;
@@ -449,7 +449,7 @@ bool EOSPacketPeerMediator::_add_connection_interrupted_callback() {
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_closed_callback() {
     String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionClosedOptions connection_closed_options;
     connection_closed_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST;
     connection_closed_options.LocalUserId = local_user_id;
@@ -467,7 +467,7 @@ bool EOSPacketPeerMediator::_add_connection_closed_callback() {
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_request_callback() {
     String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
     EOS_P2P_AddNotifyPeerConnectionRequestOptions connection_request_options;
     connection_request_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST;
     connection_request_options.LocalUserId = local_user_id;
@@ -540,4 +540,4 @@ EOSPacketPeerMediator::~EOSPacketPeerMediator() {
     singleton = nullptr;
 }
 
-} //namespace godot
+} //namespace godot::eos

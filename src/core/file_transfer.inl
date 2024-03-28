@@ -4,7 +4,7 @@
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-namespace godot {
+namespace godot::eos::internal {
 
 struct _FileTransferData {
     Variant client_data;

@@ -12,7 +12,7 @@
 #include <godot_cpp/classes/os.hpp>
 #endif
 
-namespace godot {
+namespace godot::eos::internal {
 
 String epic_account_id_to_string(const EOS_EpicAccountId accountId) {
     if (accountId == nullptr) {
@@ -39,6 +39,10 @@ String product_user_id_to_string(const EOS_ProductUserId localUserId) {
     ERR_FAIL_COND_V_MSG(conver_result != EOS_EResult::EOS_Success, {}, vformat("Fail result code: %d - %s", conver_result, EOS_EResult_ToString(conver_result)));
     return String(tempBuffer);
 }
+
+} //namespace godot::eos::internal
+
+namespace godot::eos {
 
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_internal_directory"
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_external_directory"
@@ -127,5 +131,4 @@ void *get_platform_specific_options() {
     return nullptr;
 #endif
 }
-
-} //namespace godot
+} //namespace godot::eos

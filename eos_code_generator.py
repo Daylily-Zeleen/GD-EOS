@@ -133,7 +133,7 @@ def gen_all_in_one():
     lines.append("")
 
     register_classes_lines: list[str] = [""]
-    register_classes_lines.append("namespace godot {")
+    register_classes_lines.append("namespace godot::eos {")
     register_classes_lines.append("#define REGISTER_EOS_CLASSES()\\")
 
     register_singleton_lines: list[str] = ["#define REGISTER_EOS_SINGLETONS()\\"]
@@ -159,9 +159,9 @@ def gen_all_in_one():
         if fbn == "eos_sdk":
             fbn = "eos_platform"
         lines.append(f'#include "{fbn}_interface.h"')
-        register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::{handle_class}::get_class_static(), {handle_class}::get_singleton());\\")
-        unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::{handle_class}::get_class_static());\\")
-        unregister_singleton_lines.append(f"\tmemdelete(godot::{handle_class}::get_singleton());\\")
+        register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::eos::{handle_class}::get_class_static(), godot::eos::{handle_class}::get_singleton());\\")
+        unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::eos::{handle_class}::get_class_static());\\")
+        unregister_singleton_lines.append(f"\tmemdelete(godot::eos::{handle_class}::get_singleton());\\")
     register_singleton_lines.append("")
     unregister_singleton_lines.append("")
 
@@ -243,9 +243,10 @@ def gen_files(file_base_name: str, infos: dict):
         packed_result_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
 
     packed_result_cpp_lines.append("")
-    packed_result_cpp_lines.append("namespace godot{")
+    packed_result_cpp_lines.append(f'using namespace godot::eos::internal;')
+    packed_result_cpp_lines.append("namespace godot::eos{")
     has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, macro_suffix, methods, packed_result_h_lines, packed_result_cpp_lines)
-    packed_result_cpp_lines.append("} // namespace godot")
+    packed_result_cpp_lines.append("} // namespace godot::eos")
     packed_result_cpp_lines.append("")
     if has_packed_result:
         f = open(packed_result_h_file, "w")
@@ -419,7 +420,8 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f'#include <gen/handles/{file_base_name+".handles.h"}>')
 
     interface_handle_h_lines.append(f"")
-    interface_handle_cpp_lines.append(f"namespace godot {{")
+    interface_handle_cpp_lines.append(f'using namespace godot::eos::internal;')
+    interface_handle_cpp_lines.append(f"namespace godot::eos {{")
 
     interface_handle_h_lines += _gen_handle(
         interface_handle,
@@ -429,11 +431,11 @@ def gen_files(file_base_name: str, infos: dict):
         [],
         True,
     )
-    interface_handle_cpp_lines.append(f"}} // namespace godot")
+    interface_handle_cpp_lines.append(f"}} // namespace godot::eos")
     interface_handle_cpp_lines.append(f"")
 
     interface_handle_h_lines.append(f"#define EOS_REGISTER_{macro_suffix}\\")
-    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({macro_suffix});\\")
+    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{_convert_handle_class_name(interface_handle)});\\")
     if len(structs_to_gen):
         interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{macro_suffix}();\\")
     if has_packed_result:
@@ -495,7 +497,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
-        lines.append(f"\tVARIANT_ENUM_CAST(godot::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)});\\")
+        lines.append(f"\tVARIANT_ENUM_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)});\\")
     lines.append("")
 
     return "\n".join(lines)
@@ -510,7 +512,8 @@ def gen_structs(
     r_cpp_lines: list[str],
 ) -> list[str]:
     r_cpp_lines.append("")
-    r_cpp_lines.append("namespace godot {")
+    r_cpp_lines.append(f'using namespace godot::eos::internal;')
+    r_cpp_lines.append("namespace godot::eos {")
 
     lines: list[str] = []
     lines.append("#pragma once")
@@ -526,7 +529,7 @@ def gen_structs(
         lines += additional_include_lines
         lines.append("")
 
-    lines.append("namespace godot {")
+    lines.append("namespace godot::eos {")
     for struct_type in struct_infos:
         if _is_expended_struct(struct_type):
             continue
@@ -534,10 +537,10 @@ def gen_structs(
             continue
         lines += _gen_struct(struct_type, struct_infos[struct_type], r_cpp_lines)
     lines.append(f"")
-    r_cpp_lines.append("} // namespace godot")
+    r_cpp_lines.append("} // namespace godot::eos")
     r_cpp_lines.append("")
 
-    lines.append("} // namespace godot")
+    lines.append("} // namespace godot::eos")
     lines.append("")
 
     ######### 生成绑定宏 #########
@@ -548,7 +551,7 @@ def gen_structs(
             continue
         if _is_need_skip_struct(st):
             continue
-        lines.append(f"\tGDREGISTER_CLASS(godot::{__convert_to_struct_class(st)});\\")
+        lines.append(f"\tGDREGISTER_CLASS(godot::eos::{__convert_to_struct_class(st)});\\")
     lines.append("")
     return lines
 
@@ -562,7 +565,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
     r_h_lines.append(f"#include <{types_include_file}>")
     r_h_lines.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
     r_h_lines.append("")
-    r_h_lines.append("namespace godot{")
+    r_h_lines.append("namespace godot::eos{")
 
     register_lines: list[str] = [f"#define REGISTER_PACKED_RESULTS_{register_macro_suffix}()\\"]
     for method in methods:
@@ -577,7 +580,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
     r_h_lines += register_lines
 
     r_h_lines.append("")
-    r_h_lines.append("} // namespace godot")
+    r_h_lines.append("} // namespace godot::eos")
     r_h_lines.append("")
     return ret
 
@@ -593,11 +596,12 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
         h_lines += additional_include_lines
         h_lines.append(f"")
 
-    r_cpp_lines.append(f"namespace godot {{")
+    r_cpp_lines.append(f'using namespace godot::eos::internal;')
+    r_cpp_lines.append(f"namespace godot::eos {{")
     for h in p_handles:
         h_lines += _gen_handle(h, p_handles[h], _convert_handle_class_name(h), r_cpp_lines, register_lines)
 
-    r_cpp_lines.append(f"}} // namespace godot")
+    r_cpp_lines.append(f"}} // namespace godot::eos")
     r_cpp_lines.append(f"")
 
     register_lines.append("")
@@ -761,7 +765,7 @@ def _gen_handle(
 
     ret: list[str] = []
 
-    ret.append("namespace godot {")
+    ret.append("namespace godot::eos {")
     ret.append(f"class {klass} : public {base_class} {{")
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
@@ -805,10 +809,10 @@ def _gen_handle(
     ret.append(f"")
     if handle_name == "EOS_HPlatform":
         # Platform自动Tick代码
-        ret.append("\tEOS_PLATFORM_SETUP_TICK()")
+        ret.append("\t_EOS_PLATFORM_SETUP_TICK()")
 
     ret.append(f"}};")
-    ret.append("} // namespace godot")
+    ret.append("} // namespace godot::eos")
 
     # CAST 枚举
     if len(infos["enums"]):
@@ -831,7 +835,7 @@ def _gen_handle(
     r_cpp_lines.append(f"}}")
 
     # 注册宏
-    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({handle_name});\\")
+    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{handle_name});\\")
 
     return ret
 
@@ -1385,7 +1389,7 @@ def _gen_packed_result_type(
 
         i += 1
 
-    # r_h_lines.append("namespace godot {")
+    # r_h_lines.append("namespace godot::eos {")
     r_h_lines.append(f"class {typename}: public EOSPackedResult {{")
     r_h_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
     r_h_lines.append(f"public:")
@@ -1404,7 +1408,7 @@ def _gen_packed_result_type(
     r_h_lines.append(f"protected:")
     r_h_lines.append(f"\tstatic void _bind_methods();")
     r_h_lines.append(f"}};")
-    # r_h_lines.append("} // namespace godot")
+    # r_h_lines.append("} // namespace godot::eos")
     r_h_lines.append(f"")
 
     #
@@ -1417,7 +1421,7 @@ def _gen_packed_result_type(
     r_cpp_lines.append(f"}}")
     r_cpp_lines.append(f"")
 
-    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS({typename});\\")
+    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{typename});\\")
     return typename
 
 
@@ -1984,7 +1988,7 @@ def _gen_method(
                     prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                     if signal_name != interface_signal_name:
                         prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
-                    prepare_lines.append(f"\tauto callback = &godot::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
+                    prepare_lines.append(f"\tauto callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
                     call_args.append(f"callback")
                 else:
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
@@ -3189,15 +3193,15 @@ def _gen_struct(
 
                         match field_type:
                             case "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                             case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                             case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                             case "EOS_TitleStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                             case "EOS_TitleStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                             case _:
                                 print("ERROR: ", field_type)
                                 exit(1)

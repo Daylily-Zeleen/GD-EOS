@@ -5,7 +5,7 @@
 
 #include "core/utils.h"
 
-namespace godot {
+namespace godot::eos {
 
 struct ConnectionRequestData {
     String socket_name;

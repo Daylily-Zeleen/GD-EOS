@@ -2,7 +2,7 @@
 
 #include "eos_multiplayer_peer.h"
 
-namespace godot {
+namespace godot::eos {
 struct PacketData {
 private:
     PackedByteArray data;
@@ -32,7 +32,7 @@ public:
     }
 
     void set_sender(EOS_ProductUserId sender) {
-        remote_user_id = product_user_id_to_string(sender);
+        remote_user_id = internal::product_user_id_to_string(sender);
     }
 
     const PackedByteArray &get_data() {
@@ -133,4 +133,4 @@ public:
     EOSPacketPeerMediator();
     ~EOSPacketPeerMediator();
 };
-} //namespace godot
+} //namespace godot::eos

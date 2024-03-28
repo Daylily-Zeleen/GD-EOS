@@ -5,7 +5,15 @@
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-namespace godot {
+namespace godot::eos {
+
+template <typename T>
+using gd_arg_t = std::conditional_t<!std::is_trivial_v<T> || (sizeof(T) > 8), const T &, T>;
+
+#define _ARG_TYPE(arg) eos::gd_arg_t<decltype(arg)>
+} //namespace godot::eos
+
+namespace godot::eos::internal {
 
 #define _BIND_ENUM_CONSTANT(enume_type_name, e, e_bind) \
     ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enume_type_name>(enume_type_name::e, e_bind), e_bind, enume_type_name::e)
@@ -32,11 +40,6 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     EOS_ProductUserId accountId = EOS_ProductUserId_FromString(p_account_id);
     return accountId;
 }
-
-template <typename T>
-using gd_arg_t = std::conditional_t<!std::is_trivial_v<T> || (sizeof(T) > 8), const T &, T>;
-
-#define _ARG_TYPE(arg) gd_arg_t<decltype(arg)>
 
 static StringName _get_class_name(const Variant &p_val) {
     if (auto ref = Object::cast_to<RefCounted>(p_val)) {
@@ -66,7 +69,7 @@ static StringName _get_class_name(const Variant &p_val) {
     ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);                        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field);                 \
     ADD_PROPERTY(PropertyInfo(Variant(tmp_obj->get_##field()).get_type(), #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
-                         _get_class_name(tmp_obj->get_##field())),                                                                \
+                         eos::internal::_get_class_name(tmp_obj->get_##field())),                                                 \
             "set_" #field, "get_" #field);
 
 #define _BIND_PROP_OBJ(field, obj_ty)                                                                             \
@@ -95,15 +98,6 @@ static StringName _get_class_name(const Variant &p_val) {
     ADD_SIGNAL(MethodInfo(#m_name, MAKE_DATA_CLASS_PROP_INFO_BY_SIGNAL_NAME(m_interface_prefix##m_name)))
 #define _CONNECT_INTERFACE_SIGNAL(m_interface_prefix, m_signal_name, m_klass) \
     IEOS::get_singleton()->connect(#m_interface_prefix #m_signal_name, callable_mp(this, &m_klass::m_signal_name))
-
-#define REGISTER_AND_ADD_SINGLETON(m_klass) \
-    GDREGISTER_ABSTRACT_CLASS(m_klass);     \
-    memnew(m_klass);                        \
-    godot::Engine::get_singleton()->register_singleton(m_klass::get_class_static(), m_klass::get_singleton())
-
-#define UNREGISTER_AND_DELETE_SINGLETON(m_klass)                                       \
-    godot::Engine::get_singleton()->unregister_singleton(m_klass::get_class_static()); \
-    memdelete(m_klass::get_singleton())
 
 // =====================
 // ClientData
@@ -744,7 +738,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     }
 
 //
-#define EOS_PLATFORM_SETUP_TICK()                                                                                                                                                     \
+#define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                    \
 protected:                                                                                                                                                                            \
     void tick_internal() {                                                                                                                                                            \
         if (m_handle) {                                                                                                                                                               \
@@ -762,8 +756,10 @@ protected:                                                                      
         }                                                                                                                                                                             \
     }
 
+} //namespace godot::eos::internal
+
+namespace godot::eos {
 // Platform Specific Options
 void setup_eos_project_settings();
 void *get_platform_specific_options();
-
-} // namespace godot
+} //namespace godot::eos
