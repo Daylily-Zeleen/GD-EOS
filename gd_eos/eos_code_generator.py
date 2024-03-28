@@ -3185,7 +3185,7 @@ def _gen_struct(
                         f"\tp_data.ReallocateMemoryFunction = [](void *Pointer, size_t SizeInBytes, size_t Alignment) {{ return memrealloc(Pointer, SizeInBytes); }};"
                     )
                 case "EOS_ReleaseMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memdelete(Pointer); }};")
+                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memfree(Pointer); }};")
                 case _:
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
