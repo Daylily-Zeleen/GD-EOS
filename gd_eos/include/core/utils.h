@@ -58,6 +58,14 @@ static StringName _get_class_name(const Variant &p_val) {
     decltype(klass::field) klass::get_##field() const { return field; } \
     void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
+#define _DECLARE_SETGET_TYPED(field, type) \
+    type get_##field() const;              \
+    void set_##field(eos::gd_arg_t<type> p_val);
+
+#define _DEFINE_SETGET_TYPED(klass, field, type)      \
+    type klass::get_##field() const { return field; } \
+    void klass::set_##field(eos::gd_arg_t<type> p_val) { field = p_val; }
+
 #define _DECLARE_SETGET_BOOL(field)     \
     decltype(field) is_##field() const; \
     void set_##field(_ARG_TYPE(field) p_val);
@@ -579,11 +587,11 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                  \
         gd_field[i] = gd_data_type::from_eos(eos_field[i]);                            \
     }
-#define _FROM_EOS_FIELD_HANDLER(gd_field, eos_field) \
-    if (gd_field.is_null()) {                        \
-        gd_field.instantiate();                      \
-    }                                                \
-    gd_field->set_handle(eos_field)
+#define _FROM_EOS_FIELD_HANDLER(gd_field, gd_type_to_cast, eos_field) \
+    if (gd_field.is_null()) {                                         \
+        gd_field.reference_ptr(memnew(gd_type_to_cast));              \
+    }                                                                 \
+    Object::cast_to<gd_type_to_cast>(gd_field.ptr())->set_handle(eos_field)
 #define _FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(gd_field, eos_field) \
     gd_field = (decltype(gd_field))eos_field
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
@@ -619,8 +627,8 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     } else {                                                                                        \
         eos_field = nullptr;                                                                        \
     }
-#define _TO_EOS_FIELD_HANDLER(eos_field, gd_field) \
-    eos_field = gd_field.is_valid() ? gd_field->get_handle() : nullptr
+#define _TO_EOS_FIELD_HANDLER(eos_field, gd_field, gd_type_to_cast) \
+    eos_field = gd_field.is_valid() ? Object::cast_to<gd_type_to_cast>(gd_field.ptr())->get_handle() : nullptr
 #define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
     eos_field = (void *)gd_field
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \

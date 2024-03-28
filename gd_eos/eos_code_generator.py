@@ -1362,10 +1362,11 @@ def _gen_packed_result_type(
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
-            menbers_lines.append(f"\tRef<class {_convert_handle_class_name(decayed_type)}> {snake_name};")
-            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
-            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
-            bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {_convert_handle_class_name(decayed_type)})")
+            handle_class = _convert_handle_class_name(decayed_type)
+            menbers_lines.append(f"\tRef<RefCounted> {snake_name};")
+            setget_lines.append(f"\t_DECLARE_SETGET_TYPED({snake_name}, Ref<class {handle_class}>)")
+            r_cpp_lines.append(f"_DEFINE_SETGET_TYPED({typename}, {snake_name}, Ref<{handle_class}>)")
+            bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {handle_class})")
         elif __is_struct_type(decayed_type):
             menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
@@ -1734,13 +1735,14 @@ def __expend_input_struct(
         elif field_type.startswith("Union"):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_UNION({option_field}, p_{snake_field});")
-        elif _is_handle_type(field_type, field):
-            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+        elif _is_handle_type(decay_field_type, field):
+            r_declare_args.append(f"const class {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             if len(invalid_arg_return_value):
                 r_prepare_lines.append(f"\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});")
             else:
                 r_prepare_lines.append(f"\tERR_FAIL_NULL(p_{snake_field});")
-            r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({option_field}, p_{snake_field});")
+            gd_type = _convert_handle_class_name(decay_field_type)
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({option_field}, p_{snake_field}, {gd_type});")
         elif _is_client_data_field(field_type, field):
             r_declare_args.append(f"const Variant &p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_CLIENT_DATA({option_field}, p_{snake_field});")
@@ -1798,7 +1800,7 @@ def __make_packed_result(
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
-                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_handle({arg_name});")
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->get_{snake_name}()->set_handle({arg_name});")
             else:
                 r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
                 r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});")
@@ -1945,6 +1947,8 @@ def _gen_method(
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
+    elif _is_handle_type(_decay_eos_type(info["return"])):
+        return_type = f'Ref<class {_convert_handle_class_name(_decay_eos_type(info["return"]))}>'
     elif return_type == "" and info["return"] != "void":
         return_type = remap_type(info["return"], "")
     elif return_type == "":
@@ -2135,7 +2139,9 @@ def _gen_method(
     for i in range(len(declare_args)):
         # 移除默认值
         declare_args[i] = declare_args[i].rsplit(" =", 1)[0]
-    r_define_lines.append(f'{return_type} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{')
+        # 移除前向声明
+        declare_args[i] = declare_args[i].replace(" class ", " ")
+    r_define_lines.append(f'{return_type.replace("class ", "")} {handle_klass}::{snake_method_name}({", ".join(declare_args)}) {{')
     r_define_lines += prepare_lines
     # 调用
     if method_name == "EOS_Platform_Create":
@@ -2994,6 +3000,7 @@ def _gen_struct(
     # 成员
     for field in fields.keys():
         type: str = fields[field]
+        decayed_type: str = _decay_eos_type(type)
 
         if is_deprecated_field(field):
             continue
@@ -3006,12 +3013,12 @@ def _gen_struct(
         if _is_platform_specific_options_field(field):
             continue
 
-        if not _is_need_skip_struct(_decay_eos_type(type)) and __is_struct_type(_decay_eos_type(type)) and not _is_internal_struct_arr_field(type, field):
+        if not _is_need_skip_struct(decayed_type) and __is_struct_type(decayed_type) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
-            type = remap_type(_decay_eos_type(type), field)
-        if _is_handle_type(_decay_eos_type(type)):
-            # 句柄类型需要前向声明
-            type = "Ref<class " + remap_type(_decay_eos_type(type), field).removeprefix("Ref<")
+            type = remap_type(decayed_type, field)
+        elif _is_handle_type(decayed_type):
+            # 句柄类型使用Ref<RefCounted>作为成员变量，非msvc编译器不支持Ref<T>作为成员时T的前向声明
+            type = "Ref<RefCounted>"
         else:
             type = remap_type(type, field)
         initialize_expression = ""
@@ -3019,7 +3026,9 @@ def _gen_struct(
         if __is_api_version_field(type, field):
             continue  # 不需要ApiVersion作为成员
 
-        if type.startswith("Ref") and not type.startswith("Ref<class ") and not _decay_eos_type(type) == "EOS_IntegratedPlatform_Steam_Options":
+        if _is_handle_type(decayed_type):
+            pass  #
+        elif type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif _is_requested_channel_ptr_field(type, field):
             initialize_expression = "{ -1 }"
@@ -3037,7 +3046,9 @@ def _gen_struct(
     # setget
     lines.append("public:")
     for field in fields.keys():
-        type: str = remap_type(fields[field], field)
+        type: str = fields[field]
+        decayed_type: str = _decay_eos_type(type)
+        remaped_type: str = remap_type(type, field)
 
         if is_deprecated_field(field):
             continue
@@ -3047,16 +3058,19 @@ def _gen_struct(
             continue
         if __is_api_version_field(type, field):
             continue
-        if _is_memory_func_type(fields[field]):
+        if _is_memory_func_type(type):
             continue  # 内存分配方法不需要成员变量
-        if _is_todo_field(fields[field], field):
+        if _is_todo_field(type, field):
             continue
         if _is_platform_specific_options_field(field):
             continue
 
-        if type == "bool":
+        if remaped_type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})")
+        elif _is_handle_type(decayed_type):
+            lines.append(f"\t_DECLARE_SETGET_TYPED({to_snake_case(field)}, Ref<class {_convert_handle_class_name(decayed_type)}>)")
+            r_structs_cpp.append(f"_DEFINE_SETGET_TYPED({typename}, {to_snake_case(field)}, {remap_type(decayed_type, field)})")
         else:
             lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET({typename}, {to_snake_case(field)})")
@@ -3103,8 +3117,7 @@ def _gen_struct(
         if type == "bool":
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({to_snake_case(field)})")
         elif __is_struct_type(_decay_eos_type(fields[field])) or _is_handle_type(_decay_eos_type(fields[field])):
-            type = remap_type(_decay_eos_type(fields[field]), field)
-            r_structs_cpp.append(f'\t_BIND_PROP_OBJ({to_snake_case(field)}, {type.removeprefix("Ref<").removesuffix(">").removesuffix("*")})')
+            r_structs_cpp.append(f"\t_BIND_PROP_OBJ({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(fields[field]))})")
         else:
             r_structs_cpp.append(f"\t_BIND_PROP({to_snake_case(field)})")
     r_structs_cpp.append(f"\t_BIND_END()")
@@ -3149,7 +3162,7 @@ def _gen_struct(
             elif field_type.startswith("Union"):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_UNION({to_snake_case(field)}, p_origin.{field});")
             elif _is_handle_type(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, p_origin.{field});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field});")
             elif _is_client_data_field(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_CLIENT_DATA({to_snake_case(field)}, p_origin.{field});")
             elif _is_internal_struct_arr_field(field_type, field):
@@ -3198,7 +3211,8 @@ def _gen_struct(
                     elif field_type.startswith("Union"):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_UNION(p_data.{field}, {to_snake_case(field)});")
                     elif _is_handle_type(field_type, field):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {to_snake_case(field)});")
+                        gd_type = remap_type(_decay_eos_type(field_type), field).removeprefix("Ref<").removesuffix(">")
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {to_snake_case(field)}, {gd_type});")
                     elif _is_client_data_field(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_CLIENT_DATA(p_data.{field}, {to_snake_case(field)});")
                     elif _is_internal_struct_arr_field(field_type, field):
