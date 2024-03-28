@@ -23,7 +23,7 @@ compile_commands.json
 backup/
 .vscode/
 sample/
-thirdparty/eos-sdk/
+# thirdparty/eos-sdk/
 _media/
 
 gd_eos/gen/

@@ -4,7 +4,7 @@ import os, sys
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
-sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
+sdk_inclide_dir = "thirdparty/eos-sdk/SDK/Include"
 
 _gen_dir= "gd_eos/gen/"
 gen_include_dir = os.path.join(_gen_dir, "include")
@@ -2177,7 +2177,7 @@ def _gen_method(
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
-    f = open("thirdparty\eos-sdk\SDK\Include\eos_result.h", "r")
+    f = open(os.path.join(sdk_inclide_dir, "eos_result.h"), "r")
 
     r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = []
 
@@ -2190,7 +2190,7 @@ def _get_EOS_EResult(r_file_lower2infos: list[str]):
 
 
 def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
-    f = open("thirdparty\eos-sdk\SDK\Include\eos_ui_keys.h", "r")
+    f = open(os.path.join(sdk_inclide_dir, "eos_ui_keys.h"), "r")
 
     r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = []
     for line in f.readlines():
@@ -2204,7 +2204,7 @@ def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
 
 
 def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
-    f = open("thirdparty\eos-sdk\SDK\Include\eos_ui_buttons.h", "r")
+    f = open(os.path.join(sdk_inclide_dir, "eos_ui_buttons.h"), "r")
 
     r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = []
     for line in f.readlines():

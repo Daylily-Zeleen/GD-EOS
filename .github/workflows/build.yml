@@ -80,13 +80,13 @@ jobs:
                   path: godot-cpp
                   submodules: recursive
 
-            - name: Checkout private EOS SDK mirror repo
+            - name: Checkout private EOS SDK repo
               uses: actions/checkout@v3
               with:
-                  token: "${{secrets.EOS_SDK_MIRROR_PAT}}"
-                  repository: 3ddelano/eos-sdk-mirror
+                  token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
+                  repository: Daylily-Zeleen/eos-sdk
                   path: thirdparty/eos-sdk
-                  ref: "877da7fd24b7b9580d7a54df49863c2eb58d28b0"
+                  ref: main
 
             - name: (Windows) Install mingw64
               if: ${{ matrix.platform == 'windows' }}
