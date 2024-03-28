@@ -1,6 +1,6 @@
 #include <register_types.h>
 
-#include <interfaces/eos_interfaces.h>
+#include <eos_interfaces.h>
 
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 #include "eos_packet_peer_mediator.h"
