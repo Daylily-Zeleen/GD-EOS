@@ -7,6 +7,10 @@
 using namespace godot;
 
 void initialize_eosg_module(ModuleInitializationLevel p_level) {
+    if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+        setup_eos_project_settings();
+    }
+
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }

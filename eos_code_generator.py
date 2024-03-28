@@ -800,7 +800,7 @@ def _gen_handle(
     ret.append(f"")
     if handle_name == "EOS_HPlatform":
         # Platform自动Tick代码
-        ret.append("\tEOS_PLATFORM_TICK_SETUP()")
+        ret.append("\tEOS_PLATFORM_SETUP_TICK()")
         
     ret.append(f"}};")
     ret.append("} // namespace godot")
@@ -2990,6 +2990,8 @@ def _gen_struct(
 
         if type.startswith("Ref") and not type.startswith("Ref<class ") and not _decay_eos_type(type) == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
+        elif _is_requested_channel_ptr_field(type, field):
+            initialize_expression = "{ -1 }"
         elif type == "int32_t" and field == "ApiVersion":
             api_verision_macro = __get_api_latest_macro(struct_type)
             initialize_expression = f"{{ {api_verision_macro} }}"
@@ -3157,7 +3159,7 @@ def _gen_struct(
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
                     elif _is_platform_specific_options_field(field):
-                        r_structs_cpp.append(f"\tp_data.{field} = get_rtc_platform_specific_options();")
+                        r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
                     elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {to_snake_case(field)});")
                     elif _is_requested_channel_ptr_field(field_type, field):

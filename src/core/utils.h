@@ -1,9 +1,6 @@
 #pragma once
 
-#include <Windows/eos_Windows.h>
 #include <eos_sdk.h>
-#include <godot_cpp/classes/os.hpp>
-#include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
@@ -159,18 +156,6 @@ static To to_eos_type(From p_from) {
     return p_from;
 }
 
-// template <typename From, typename To, typename Tint>
-// PackedStringArray to_godot_type_arr(From p_from, Tint p_count) {
-//     static_assert(false);
-//     return {};
-// }
-
-// template <typename From, typename To, typename Tint>
-// const To to_eos_type_arr(From p_from, Tint r_count) {
-//     static_assert(false);
-//     return {};
-// }
-
 // EOS_Bool
 template <>
 bool to_godot_type(EOS_Bool p_from) { return p_from; }
@@ -178,8 +163,6 @@ template <>
 EOS_Bool to_eos_type(bool p_from) { return p_from; }
 
 // EOS_ProductUserId
-// template <>
-// String to_godot_type(EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
 template <>
 String to_godot_type(const EOS_ProductUserId p_from) { return eosg_product_user_id_to_string(p_from); }
 template <>
@@ -188,8 +171,6 @@ template <>
 const EOS_ProductUserId to_eos_type(const String &p_from) { return eosg_string_to_product_user_id(VARIANT_TO_CHARSTRING(p_from).get_data()); }
 
 // EOS_EpicAccountId
-// template <>
-// String to_godot_type(EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
 template <>
 String to_godot_type(const EOS_EpicAccountId p_from) { return eosg_epic_account_id_to_string(p_from); }
 template <>
@@ -347,7 +328,7 @@ static const uint8_t *to_eos_requested_channel(uint16_t p_channel) {
     if (p_channel < 0) {
         return nullptr;
     }
-    ERR_FAIL_COND_V(p_channel > UINT8_MAX, nullptr);
+    ERR_FAIL_COND_V_MSG(p_channel > UINT8_MAX, nullptr, "Requested channel should be a uint8_t or -1.");
 
     static LocalVector<uint8_t> channels;
     auto idx = channels.find(p_channel);
@@ -762,42 +743,8 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         return return_action;                                                                                                            \
     }
 
-#define _EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) m_options_ty##_options_ptr
-// 参数
-#define _EOS_METHOD_OPTIONS(m_gd_option, m_options_ty) \
-    m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &(m_gd_option->to_eos_data());
-
-#define _EOS_OPTIONS_IDENTIFY(m_options_ty) m_options_ty##_option
-
-#define _EOS_METHOD_OPTIONS_INTEGRATE(m_options_ty, m_api_version, ...) \
-    m_options_ty _EOS_OPTIONS_IDENTIFY(m_options_ty);                   \
-    _EOS_OPTIONS_IDENTIFY(m_options_ty)->ApiVersion = m_api_version;    \
-    (##__VA_ARGS__);                                                    \
-    m_options_ty *_EOS_OPTIONS_PTR_IDENTIFY(m_options_ty) = &_EOS_OPTIONS_IDENTIFY(m_options_ty);
-
-static void *get_rtc_platform_specific_options() {
-#if defined(_WIN32) || defined(_WIN64)
-    static EOS_Windows_RTCOptions windowsRTCOptions;
-    memset(&windowsRTCOptions, 0, sizeof(windowsRTCOptions));
-    windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
-    if (OS::get_singleton()->has_feature("editor")) {
-#if defined(_WIN32)
-        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path("res://addons/epic-online-services-godot/bin/windows/x86/xaudio2_9redist.dll").utf8();
-#else
-        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path("res://addons/epic-online-services-godot/bin/windows/x64/xaudio2_9redist.dll").utf8();
-#endif
-        windowsRTCOptions.XAudio29DllPath = xAudio29DllPath.get_data();
-    } else {
-        CharString xAudio29DllPath = OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll").utf8();
-        windowsRTCOptions.XAudio29DllPath = xAudio29DllPath.get_data();
-    }
-    return &windowsRTCOptions;
-#else
-    return nullptr;
-#endif
-}
-
-#define EOS_PLATFORM_TICK_SETUP()                                                                                                                                                     \
+//
+#define EOS_PLATFORM_SETUP_TICK()                                                                                                                                                     \
 protected:                                                                                                                                                                            \
     void tick_internal() {                                                                                                                                                            \
         if (m_handle) {                                                                                                                                                               \
@@ -814,5 +761,9 @@ protected:                                                                      
             callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                                                                                              \
         }                                                                                                                                                                             \
     }
+
+// Platform Specific Options
+void setup_eos_project_settings();
+void *get_platform_specific_options();
 
 } // namespace godot
