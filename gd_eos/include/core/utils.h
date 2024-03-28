@@ -7,6 +7,8 @@
 
 namespace godot::eos {
 
+#define ENABLE_IF(condition) std::enable_if_t<condition> *_dummy = nullptr
+
 template <typename T>
 using gd_arg_t = std::conditional_t<!std::is_trivial_v<T> || (sizeof(T) > 8), const T &, T>;
 
@@ -407,9 +409,9 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     }
 }
 
-template <typename EOSUnion, typename UnionType>
+template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
 inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionType &r_union_type) {
-    if constexpr (std::is_same_v<UnionType, EOS_EAntiCheatCommonEventParamType>) {
+    if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
         switch (p_gd.get_type()) {
             case Variant::OBJECT: {
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle;
@@ -438,7 +440,7 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
                 ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
             } break;
         }
-    } else if constexpr (std::is_same_v<UnionType, EOS_EAttributeType>) {
+    } else if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>) {
         switch (p_gd.get_type()) {
             case Variant::INT: {
                 p_union.AsInt64 = p_gd;
@@ -464,14 +466,12 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
                 ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
             } break;
         }
-    } else {
-        static_assert(false, "Unsupport union type");
     }
 }
 
-template <typename EOSUnion, typename UnionType>
+template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
 inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_type) {
-    if constexpr (std::is_same_v<UnionType, EOS_EAntiCheatCommonEventParamType>) {
+    if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
         switch (p_union_type) {
             case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle: {
                 return Object::cast_to<Object>(p_union->ClientHandle); // (EOSAntiCheatCommon_Client *)
@@ -498,7 +498,7 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
                 return Quaternion{ p_union.Quat.x, p_union.Quat.y, p_union.Quat.z, p_union.Quat.w };
             } break;
         }
-    } else if constexpr (std::is_same_v<UnionType, EOS_EAttributeType>) {
+    } else if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>) {
         switch (p_union_type) {
             case EOS_EAttributeType::EOS_AT_INT64: {
                 return p_union.AsInt64;
@@ -516,10 +516,6 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
                 ERR_FAIL_V_MSG({}, vformat("Unsuppoert AttributeType: ", (int)p_union_type));
             } break;
         }
-
-    } else {
-        static_assert(false, "Unsupport union type");
-        return {};
     }
 }
 
@@ -540,8 +536,8 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
     }
 }
 
-template <typename FromGD, typename ToUnion, typename UnionTy>
-void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy p_union_type) {
+template <typename FromGD, typename ToUnion, typename UnionTy, std::enable_if_t<!std::is_same_v<std::decay_t<UnionTy>, EOS_EMetricsAccountIdType>> *_dummy = nullptr>
+void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy &p_union_type) {
     variant_to_eos_union(p_from, p_union, p_union_type);
 }
 
@@ -550,7 +546,7 @@ void to_eos_data_union(const String &p_from, ToUnion &p_union, EOS_EMetricsAccou
     string_to_eos_union_account_id(p_from, p_union, p_union_type);
 }
 
-template <typename FromUnion, typename UnionTy>
+template <typename FromUnion, typename UnionTy, std::enable_if_t<!std::is_same_v<std::decay_t<UnionTy>, EOS_EMetricsAccountIdType>> *_dummy = nullptr>
 Variant to_godot_data_union(const FromUnion &p_from, UnionTy p_union_type) {
     return eos_union_to_variant(p_from, p_union_type);
 }
@@ -592,12 +588,12 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     gd_field = (decltype(gd_field))eos_field
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
     static_assert(false, "不该发生")
-#define _FROM_EOS_FIELD_UNION(gd_field, eos_field)                                        \
-    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, decltype(eos_field##Type)>) { \
-        gd_field = to_godot_data_union(eos_field, eos_field##Type);                       \
-        gd_field##_type = eos_field##Type;                                                \
-    } else {                                                                              \
-        gd_field = to_godot_data_union(eos_field, eos_field##Type);                       \
+#define _FROM_EOS_FIELD_UNION(gd_field, eos_field)                                                      \
+    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<decltype(eos_field##Type)>>) { \
+        gd_field = to_godot_data_union(eos_field, eos_field##Type);                                     \
+        gd_field##_type = eos_field##Type;                                                              \
+    } else {                                                                                            \
+        gd_field = to_godot_data_union(eos_field, eos_field##Type);                                     \
     }
 
 #define _TO_EOS_FIELD(eos_field, gd_field) \
@@ -629,12 +625,12 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     eos_field = (void *)gd_field
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
     eos_field = to_eos_requested_channel(gd_field)
-#define _TO_EOS_FIELD_UNION(eos_field, gd_field)                                          \
-    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, decltype(eos_field##Type)>) { \
-        to_eos_data_union(gd_field, eos_field, gd_field##_type);                          \
-        eos_field##Type = gd_field##_type;                                                \
-    } else {                                                                              \
-        to_eos_data_union(gd_field, eos_field, eos_field##Type);                          \
+#define _TO_EOS_FIELD_UNION(eos_field, gd_field)                                                        \
+    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<decltype(eos_field##Type)>>) { \
+        to_eos_data_union(gd_field, eos_field, gd_field##_type);                                        \
+        eos_field##Type = gd_field##_type;                                                              \
+    } else {                                                                                            \
+        to_eos_data_union(gd_field, eos_field, eos_field##Type);                                        \
     }
 
 // 绑定
@@ -662,7 +658,7 @@ godot::Ref<GDHandle> _to_godot_handle(EOSHandle p_eos_handle) {
 
 template <typename EOSUnion, typename EOSUnionTypeEnum>
 auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
-    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, EOSUnionTypeEnum>) {
+    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<EOSUnionTypeEnum>>) {
         return eos_union_account_id_to_string(p_eos_union, p_type);
     } else {
         return eos_union_to_variant(p_eos_union, p_type);

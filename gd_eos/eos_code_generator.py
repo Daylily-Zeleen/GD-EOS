@@ -263,7 +263,7 @@ def gen_files(file_base_name: str, infos: dict):
 
     packed_result_cpp_lines.append("")
     packed_result_cpp_lines.append(f"using namespace godot::eos::internal;")
-    packed_result_cpp_lines.append("namespace godot::eos{")
+    packed_result_cpp_lines.append("namespace godot::eos {")
     has_packed_result: bool = gen_packed_results(file_base_name, eos_types_header, macro_suffix, methods, packed_result_h_lines, packed_result_cpp_lines)
     packed_result_cpp_lines.append("} // namespace godot::eos")
     packed_result_cpp_lines.append("")
@@ -587,12 +587,11 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
     ret: bool = False
     r_h_lines.append("#pragma once")
     r_h_lines.append("")
-    r_h_lines.append("#include <godot_cpp/classes/ref_counted.hpp>")
     r_h_lines.append(f"#include <core/eos_packed_result.h>")
     r_h_lines.append(f"#include <{types_include_file}>")
     r_h_lines.append(f'#include <structs/{file_base_name+".structs.h"}>')
     r_h_lines.append("")
-    r_h_lines.append("namespace godot::eos{")
+    r_h_lines.append("namespace godot::eos {")
 
     register_lines: list[str] = [f"#define REGISTER_PACKED_RESULTS_{register_macro_suffix}()\\"]
     for method in methods:
