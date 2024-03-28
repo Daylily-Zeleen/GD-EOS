@@ -121,7 +121,7 @@ jobs:
             - name: Copy extra files to addon folder
               shell: sh
               run: |
-                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/LICENSE.md' '${{ github.workspace }}/sample/addons/epic-online-services-godot/'
+                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/sample/addons/gd-eos/'
 
             - name: Create artifact folder
               shell: sh
@@ -136,7 +136,7 @@ jobs:
             - name: (Windows) Delete compilation files
               if: ${{ matrix.platform == 'windows' }}
               run: |
-                  Remove-Item ${{ github.workspace }}/artifact/${{ github.event.repository.name }}/addons/epic-online-services-godot/bin/windows/* -Include *.exp,*.lib,*.ilk -Force
+                  Remove-Item ${{ github.workspace }}/artifact/${{ github.event.repository.name }}/addons/gd-eos/bin/windows/* -Include *.exp,*.lib,*.ilk -Force
 
             - name: Upload artifact
               uses: actions/upload-artifact@v3
