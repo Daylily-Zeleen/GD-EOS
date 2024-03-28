@@ -5,7 +5,10 @@ import os, sys
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
 sdk_inclide_dir = "thirdparty\eos-sdk\SDK\Include"
-gen_dir = "src/gen/"
+
+_gen_dir= "gd_eos/gen/"
+gen_include_dir = os.path.join(_gen_dir, "include")
+gen_src_dir = os.path.join(_gen_dir, "src")
 
 # 解析结果
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
@@ -85,16 +88,19 @@ def main(argv):
 
 def generator_eos_interfaces() -> None:
     # make dir
-    if not os.path.exists(gen_dir):
-        os.makedirs(gen_dir)
-    if not os.path.exists(os.path.join(gen_dir, "enums")):
-        os.makedirs(os.path.join(gen_dir, "enums"))
-    if not os.path.exists(os.path.join(gen_dir, "structs")):
-        os.makedirs(os.path.join(gen_dir, "structs"))
-    if not os.path.exists(os.path.join(gen_dir, "packed_results")):
-        os.makedirs(os.path.join(gen_dir, "packed_results"))
-    if not os.path.exists(os.path.join(gen_dir, "handles")):
-        os.makedirs(os.path.join(gen_dir, "handles"))
+    for base_dir in [gen_include_dir , gen_src_dir]:
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        if not os.path.exists(os.path.join(base_dir, "enums")):
+            os.makedirs(os.path.join(base_dir, "enums"))
+        if not os.path.exists(os.path.join(base_dir, "structs")):
+            os.makedirs(os.path.join(base_dir, "structs"))
+        if not os.path.exists(os.path.join(base_dir, "packed_results")):
+            os.makedirs(os.path.join(base_dir, "packed_results"))
+        if not os.path.exists(os.path.join(base_dir, "handles")):
+            os.makedirs(os.path.join(base_dir, "handles"))
+        if not os.path.exists(os.path.join(base_dir, "interfaces")):
+            os.makedirs(os.path.join(base_dir, "interfaces"))
     # 解析文件
     print("Parsing...")
     parse_all_file()
@@ -158,7 +164,7 @@ def gen_all_in_one():
             continue
         if fbn == "eos_sdk":
             fbn = "eos_platform"
-        lines.append(f'#include "{fbn}_interface.h"')
+        lines.append(f'#include <interfaces/{fbn}_interface.h>')
         register_singleton_lines.append(f"\tgodot::Engine::get_singleton()->register_singleton(godot::eos::{handle_class}::get_class_static(), godot::eos::{handle_class}::get_singleton());\\")
         unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::eos::{handle_class}::get_class_static());\\")
         unregister_singleton_lines.append(f"\tmemdelete(godot::eos::{handle_class}::get_singleton());\\")
@@ -169,7 +175,7 @@ def gen_all_in_one():
     register_classes_lines.append("} // namesapce godot")
     register_classes_lines.append("")
 
-    f = open(os.path.join(gen_dir, "eos_interfaces.h"), "w")
+    f = open(os.path.join(gen_include_dir, "eos_interfaces.h"), "w")
     f.write("\n".join(lines + register_classes_lines + register_singleton_lines + unregister_singleton_lines))
     f.close()
 
@@ -193,19 +199,19 @@ def gen_files(file_base_name: str, infos: dict):
 
     handle_class: str = _convert_interface_class_name(file_base_name)
 
-    enums_inline_file: str = os.path.join(gen_dir, "enums", file_base_name + ".enums.inl")
+    enums_inline_file: str = os.path.join(gen_include_dir, "enums", file_base_name + ".enums.inl")
 
-    structs_h_file: str = os.path.join(gen_dir, "structs", file_base_name + ".structs.h")
-    structs_cpp_file: str = os.path.join(gen_dir, "structs", file_base_name + ".structs.cpp")
+    structs_h_file: str = os.path.join(gen_include_dir, "structs", file_base_name + ".structs.h")
+    structs_cpp_file: str = os.path.join(gen_src_dir, "structs", file_base_name + ".structs.cpp")
 
-    packed_result_h_file: str = os.path.join(gen_dir, "packed_results", file_base_name + ".packed_results.h")
-    packed_result_cpp_file: str = os.path.join(gen_dir, "packed_results", file_base_name + ".packed_results.cpp")
+    packed_result_h_file: str = os.path.join(gen_include_dir, "packed_results", file_base_name + ".packed_results.h")
+    packed_result_cpp_file: str = os.path.join(gen_src_dir, "packed_results", file_base_name + ".packed_results.cpp")
 
-    handles_h_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.h")
-    handles_cpp_file: str = os.path.join(gen_dir, "handles", file_base_name + ".handles.cpp")
+    handles_h_file: str = os.path.join(gen_include_dir, "handles", file_base_name + ".handles.h")
+    handles_cpp_file: str = os.path.join(gen_src_dir, "handles", file_base_name + ".handles.cpp")
 
-    interface_handle_h_file: str = os.path.join(gen_dir, file_base_name + "_interface.h")
-    interface_handle_cpp_file: str = os.path.join(gen_dir, file_base_name + "_interface.cpp")
+    interface_handle_h_file: str = os.path.join(gen_include_dir, "interfaces", file_base_name + "_interface.h")
+    interface_handle_cpp_file: str = os.path.join(gen_src_dir, "interfaces", file_base_name + "_interface.cpp")
     #
 
     methods: dict = {}
@@ -232,15 +238,15 @@ def gen_files(file_base_name: str, infos: dict):
 
     # PackedResults h file
     packed_result_h_lines: list[str] = []
-    packed_result_cpp_lines: list[str] = [f'#include "{file_base_name + ".packed_results.h"}"']
+    packed_result_cpp_lines: list[str] = [f'#include <packed_results/{file_base_name + ".packed_results.h"}>']
     if len(sub_handles):
-        packed_result_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
+        packed_result_cpp_lines.append(f'#include <handles/{file_base_name + ".handles.h"}>')
 
     # 供绑定使用
     if len(interface_handle):
-        packed_result_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+        packed_result_cpp_lines.append(f'#include <interfaces/{file_base_name + "_interface.h"}>')
     else:
-        packed_result_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+        packed_result_cpp_lines.append(f'#include <{"eos_common_interface.h"}"')
 
     packed_result_cpp_lines.append("")
     packed_result_cpp_lines.append(f'using namespace godot::eos::internal;')
@@ -258,19 +264,19 @@ def gen_files(file_base_name: str, infos: dict):
 
     # Handles Gen
     if len(sub_handles):
-        handles_cpp_lines: list[str] = [f'#include "{file_base_name + ".handles.h"}"']
+        handles_cpp_lines: list[str] = [f'#include <handles/{file_base_name + ".handles.h"}>']
         handles_cpp_lines.append(f"#include <{file_base_name}.h>")
 
         # 供绑定使用
         if len(interface_handle):
-            handles_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+            handles_cpp_lines.append(f'#include <interfaces/{file_base_name + "_interface.h"}>')
         else:
-            handles_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+            handles_cpp_lines.append(f'#include <interfaces/{"eos_common_interface.h"}>')
 
         handles_cpp_lines.append(f"")
         additional_include_lines: list[str] = []
         if has_packed_result:
-            additional_include_lines.append(f'#include "../packed_results/{file_base_name + ".packed_results.h"}"')
+            additional_include_lines.append(f'#include <packed_results/{file_base_name + ".packed_results.h"}>')
         handles_hpp_lines: list[str] = gen_handles(interface_handle, additional_include_lines, sub_handles, handles_cpp_lines)
 
         if len(handles_hpp_lines):
@@ -291,19 +297,19 @@ def gen_files(file_base_name: str, infos: dict):
         structs_to_gen[st] = infos["structs"][st]
 
     if len(structs_to_gen):
-        structs_cpp_lines: list[str] = [f'#include "{file_base_name + ".structs.h"}"']
+        structs_cpp_lines: list[str] = [f'#include <structs/{file_base_name + ".structs.h"}>']
         if len(sub_handles) and len(handles_hpp_lines):
-            structs_cpp_lines.append(f'#include "../handles/{file_base_name + ".handles.h"}"')
+            structs_cpp_lines.append(f'#include <handles/{file_base_name + ".handles.h"}>')
         if file_base_name.startswith("eos_titlestorage") or file_base_name.startswith("eos_playerdatastorage"):
             structs_cpp_lines.append(f"#include <core/file_transfer.inl>")
         if file_base_name == "eos_platform":
-            structs_cpp_lines.append(f"#include <gen/handles/eos_integratedplatform.handles.h>")
+            structs_cpp_lines.append(f"#include <handles/eos_integratedplatform.handles.h>")
 
         # 供绑定使用
         if len(interface_handle):
-            structs_cpp_lines.append(f'#include "../{file_base_name + "_interface.h"}"')
+            structs_cpp_lines.append(f'#include <interfaces/{file_base_name + "_interface.h"}>')
         else:
-            structs_cpp_lines.append(f'#include "../{"eos_common_interface.h"}"')
+            structs_cpp_lines.append(f'#include <interfaces/{"eos_common_interface.h"}>')
 
         additional_include_lines: list[str] = []
         if file_base_name.startswith("eos_anticheat"):
@@ -364,7 +370,7 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_cpp_lines.append(f"#ifndef {disabled_macro}")
 
     interface_handle_cpp_lines.append(f"#include <{eos_header}>")
-    interface_handle_cpp_lines.append(f'#include "{file_base_name+"_interface.h"}"')
+    interface_handle_cpp_lines.append(f'#include <interfaces/{file_base_name+"_interface.h"}>')
     interface_handle_cpp_lines.append("")
     if file_base_name.startswith("eos_playerdatastorage") or file_base_name.startswith("eos_titlestorage"):
         interface_handle_cpp_lines.append(f"#include <core/file_transfer.inl>")
@@ -387,7 +393,7 @@ def gen_files(file_base_name: str, infos: dict):
                 interface_low = "rtc_admin"
 
             interface_handle_cpp_lines.append(f"#ifndef {_disabled_macro}")
-            interface_handle_cpp_lines.append(f'#include "eos_{interface_low}_interface.h"')
+            interface_handle_cpp_lines.append(f'#include <interfaces/eos_{interface_low}_interface.h>')
             interface_handle_cpp_lines.append(f"#endif // {_disabled_macro}")
     interface_handle_cpp_lines.append("")
 
@@ -397,7 +403,7 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f"#include <godot_cpp/classes/object.hpp>")
         interface_handle_h_lines.append(f"#include <godot_cpp/core/binder_common.hpp>")
         interface_handle_h_lines.append(f"#include <core/utils.h>")
-        # interface_handle_h_lines.append(f"#include <gen/structs/eos_init.structs.h>")
+        # interface_handle_h_lines.append(f"#include <structs/eos_init.structs.h>")
     elif file_base_name == "eos_anticheatcommon":
         interface_handle_h_lines.append(f'#include "eos_common_interface.h"')
     elif file_base_name.startswith("eos_anticheat"):
@@ -411,13 +417,13 @@ def gen_files(file_base_name: str, infos: dict):
     interface_handle_h_lines.append(f"")
 
     if len(enums):
-        interface_handle_h_lines.append(f'#include <gen/enums/{file_base_name+".enums.inl"}>')
+        interface_handle_h_lines.append(f'#include <enums/{file_base_name+".enums.inl"}>')
     if len(structs_to_gen):
-        interface_handle_h_lines.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
+        interface_handle_h_lines.append(f'#include <structs/{file_base_name+".structs.h"}>')
     if has_packed_result:
-        interface_handle_h_lines.append(f'#include <gen/packed_results/{file_base_name+".packed_results.h"}>')
+        interface_handle_h_lines.append(f'#include <packed_results/{file_base_name+".packed_results.h"}>')
     if len(sub_handles):
-        interface_handle_h_lines.append(f'#include <gen/handles/{file_base_name+".handles.h"}>')
+        interface_handle_h_lines.append(f'#include <handles/{file_base_name+".handles.h"}>')
 
     interface_handle_h_lines.append(f"")
     interface_handle_cpp_lines.append(f'using namespace godot::eos::internal;')
@@ -563,7 +569,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
     r_h_lines.append("#include <godot_cpp/classes/ref_counted.hpp>")
     r_h_lines.append(f"#include <core/eos_packed_result.h>")
     r_h_lines.append(f"#include <{types_include_file}>")
-    r_h_lines.append(f'#include <gen/structs/{file_base_name+".structs.h"}>')
+    r_h_lines.append(f'#include <structs/{file_base_name+".structs.h"}>')
     r_h_lines.append("")
     r_h_lines.append("namespace godot::eos{")
 

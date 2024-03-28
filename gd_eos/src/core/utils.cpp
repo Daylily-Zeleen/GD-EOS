@@ -1,4 +1,4 @@
-#include "utils.h"
+#include <core/utils.h>
 
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
@@ -62,7 +62,7 @@ void *get_platform_specific_options() {
     memset(&windowsRTCOptions, 0, sizeof(windowsRTCOptions));
     windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
     if (OS::get_singleton()->has_feature("editor")) {
-        String bin_path = "res://addons/gd-eos/bin/";
+        String bin_path = "res://addons/gd_eos/bin/";
 #if defined(_WIN32)
         CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x86").path_join("xaudio2_9redist.dll")).utf8();
 #else // defined(_WIN64)

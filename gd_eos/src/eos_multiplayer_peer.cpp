@@ -22,8 +22,8 @@
 
 #include <eos_p2p.h>
 
-#include "eos_packet_peer_mediator.h"
-#include "gen/eos_p2p_interface.h"
+#include <eos_packet_peer_mediator.h>
+#include <interfaces/eos_p2p_interface.h>
 
 namespace godot::eos {
 

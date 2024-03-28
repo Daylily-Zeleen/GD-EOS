@@ -1,4 +1,4 @@
-#include "eos_data_class.h"
+#include <core/eos_data_class.h>
 
 namespace godot {
 

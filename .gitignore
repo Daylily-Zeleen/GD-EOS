@@ -26,5 +26,5 @@ sample/
 thirdparty/eos-sdk/
 _media/
 
-src/gen/
+gd_eos/gen/
 

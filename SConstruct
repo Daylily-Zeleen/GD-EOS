@@ -3,7 +3,7 @@ import os
 import sys
 import shutil
 
-import eos_code_generator
+import gd_eos.eos_code_generator as eos_code_generator
 
 # Generate
 eos_code_generator.generator_eos_interfaces()
@@ -14,6 +14,8 @@ plugin_bin_folder = "sample/addons/epic-online-services-godot/bin"
 
 eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 
+base_dir = "gd_eos/"
+
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++
 # - CFLAGS are for C-specific compilation flags
@@ -23,8 +25,22 @@ eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 # - LINKFLAGS are for linking flags
 
 # Add source files
-env.Append(CPPPATH=["src/", "src/core/", eos_sdk_folder + "Include/"])
-sources = Glob("src/*.cpp") + Glob("src/core/*.cpp") + Glob("src/gen/*.cpp") + Glob("src/gen/enums/*.cpp") + Glob("src/gen/handles/*.cpp") + Glob("src/gen/packed_results/*.cpp") + Glob("src/gen/structs/*.cpp")
+env.Append(CPPPATH=[eos_sdk_folder + "Include/", os.path.join(base_dir, "include"), os.path.join(base_dir, "gen","include")])
+sources = Glob(os.path.join(base_dir, "src", "*.cpp"))
+
+def gather_sources_recursively(base_dir:str) -> None:
+    global sources
+    for f in os.listdir(base_dir):
+        dir :str = os.path.join(base_dir, f)
+        if os.path.isdir(dir):
+            sources += Glob(os.path.join(dir, "*.cpp"))
+            gather_sources_recursively(dir)
+
+gather_sources_recursively(os.path.join(base_dir, "src"))
+gather_sources_recursively(os.path.join(base_dir, "gen", "src"))
+
+
+
 platform = env["platform"]
 
 env.Append(CPPDEFINES=["NOT_NEED_ENUM_CALSS"])

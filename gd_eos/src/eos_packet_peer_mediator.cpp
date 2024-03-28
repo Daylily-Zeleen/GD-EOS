@@ -19,7 +19,7 @@
  ****************************************/
 #if !defined(EOS_P2P_DISABLED) and !defined(EOS_CONNECT_DISABLED)
 
-#include "gen/eos_p2p_interface.h"
+#include <interfaces/eos_p2p_interface.h>
 #include <eos_p2p.h>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/main_loop.hpp>
