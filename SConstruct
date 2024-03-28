@@ -45,7 +45,8 @@ platform = env["platform"]
 
 env.Append(CPPDEFINES=["NOT_NEED_ENUM_CALSS"])
 
-env.Append(CXXFLAGS=["/bigobj"])
+if env.get("is_msvc", False):
+    env.Append(CXXFLAGS=["/bigobj"])
 env.Append(LIBPATH=[eos_sdk_folder + "Lib/"])
 env.Append(LIBPATH=[eos_sdk_folder + "Bin/"])
 if env["platform"] == "windows":
