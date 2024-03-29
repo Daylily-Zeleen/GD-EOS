@@ -1262,12 +1262,12 @@ bool EOSMultiplayerPeer::EOSSocket::_socket_id_is_valid(const String &socket_id)
     int alpha_lowercase_range_max = 122;
 
     CharString str = socket_id.ascii();
-    for (int i = 0; i < str.length(); i++) {
-        if (str[i] >= numeric_range_min && str[i] <= numeric_range_max) {
+    for (int64_t i = 0; i < str.length(); i++) {
+        if (str.get(i) >= numeric_range_min && str.get(i) <= numeric_range_max) {
             continue;
-        } else if (str[i] >= alpha_capitalized_range_min && str[i] <= alpha_capitalized_range_max) {
+        } else if (str.get(i) >= alpha_capitalized_range_min && str.get(i) <= alpha_capitalized_range_max) {
             continue;
-        } else if (str[i] >= alpha_lowercase_range_min && str[i] <= alpha_lowercase_range_max) {
+        } else if (str.get(i) >= alpha_lowercase_range_min && str.get(i) <= alpha_lowercase_range_max) {
             continue;
         } else {
             return false; //Invalid character found
