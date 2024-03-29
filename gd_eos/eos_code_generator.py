@@ -2020,7 +2020,7 @@ def _gen_method(
                     prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                     if signal_name != interface_signal_name:
                         prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
-                    prepare_lines.append(f"\tauto callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
+                    prepare_lines.append(f"\t{decayed_type} callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
                     call_args.append(f"callback")
                 else:
                     call_args.append(f"{_gen_callback(decayed_type, [])}")

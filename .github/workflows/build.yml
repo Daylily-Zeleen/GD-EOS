@@ -26,20 +26,6 @@ jobs:
                       dev_build: no
                       platform: linux
                       arch: x86_64
-                    - identifier: linux-x32-debug
-                      name: 🐧 Linux x32 Debug
-                      runner: ubuntu-20.04
-                      target: template_debug
-                      dev_build: yes
-                      platform: linux
-                      arch: x86_32
-                    - identifier: linux-x32-release
-                      name: 🐧Linux x32 Release
-                      runner: ubuntu-20.04
-                      target: template_release
-                      dev_build: no
-                      platform: linux
-                      arch: x86_32
                     - identifier: macos-universal-debug
                       name: 🍎 macOS (universal) Debug
                       runner: macos-latest

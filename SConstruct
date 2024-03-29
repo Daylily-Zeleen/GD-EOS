@@ -108,6 +108,7 @@ def on_complete(target, source, env):
             copy_file(eos_sdk_folder + "Bin/EOSSDK-Win32-Shipping.dll", plugin_bin_folder + "/windows/EOSSDK-Win32-Shipping.dll")
     
     elif platform == "linux":
+        # Epic只提供了64位的so
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Linux-Shipping.so", plugin_bin_folder + "/linux/libEOSSDK-Linux-Shipping.so")
     
     elif platform == "macos":
