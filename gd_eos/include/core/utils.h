@@ -763,7 +763,11 @@ protected:                                                                      
 } //namespace godot::eos::internal
 
 namespace godot::eos {
+
 // Platform Specific Options
+#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 void setup_eos_project_settings();
+#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+
 void *get_platform_specific_options();
 } //namespace godot::eos

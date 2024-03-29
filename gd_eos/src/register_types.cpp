@@ -6,12 +6,22 @@
 #include "eos_packet_peer_mediator.h"
 #endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
+#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+#include <editor/eos_editor_plugin.h>
+#include <godot_cpp/classes/editor_plugin_registration.hpp>
+#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+
 using namespace godot;
 
 void initialize_gdeos_module(ModuleInitializationLevel p_level) {
+#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         eos::setup_eos_project_settings();
+        GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSExportPlugin);
+        GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSEditorPlugin);
+        EditorPlugins::add_by_type<godot::eos::editor::EOSEditorPlugin>();
     }
+#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
@@ -29,6 +39,12 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 }
 
 void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
+#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+    if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+        EditorPlugins::remove_by_type<godot::eos::editor::EOSEditorPlugin>();
+    }
+#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
