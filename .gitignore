@@ -1,7 +1,7 @@
 # Godot logs
 logs/
 
-sample/android
+test_project/android
 
 .env
 vc140.pdb
@@ -22,9 +22,10 @@ compile_commands.json
 .cache/
 backup/
 .vscode/
-sample/
-# thirdparty/eos-sdk/
 _media/
+bin/
+# test_project/
+# thirdparty/eos-sdk/
 
 gd_eos/gen/
 

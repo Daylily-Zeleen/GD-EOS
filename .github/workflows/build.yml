@@ -203,7 +203,7 @@ jobs:
             - name: Copy extra files to addon folder
               shell: sh
               run: |
-                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/sample/addons/gd-eos/'
+                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/test_project/addons/gd-eos/'
 
             - name: Create artifact folder
               shell: sh
@@ -213,7 +213,7 @@ jobs:
             - name: Copy addons folder to artifact folder
               shell: sh
               run: |
-                  cp -n -r '${{ github.workspace }}/sample/addons' '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
+                  cp -n -r '${{ github.workspace }}/test_project/addons' '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
 
             - name: (Windows) Delete compilation files
               if: ${{ matrix.platform == 'windows' }}
