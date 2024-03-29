@@ -3054,7 +3054,7 @@ def _gen_struct(
         elif _is_anticheat_client_handle_type(decayed_type):
             initialize_expression = "{ nullptr }"
         elif type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
-            initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
+            initialize_expression = "" # f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif _is_requested_channel_ptr_field(type, field):
             initialize_expression = "{ -1 }"
         elif type == "int32_t" and field == "ApiVersion":

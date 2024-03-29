@@ -67,36 +67,6 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     bool klass::is_##field() const { return field; } \
     void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
-// #define _IS_REF_TYPE(T) std::is_invocable_v<typename T::ptr> &&                         \
-//         std::is_invocable_r_v<bool, typename T::is_valid> &&                            \
-//                 std::is_invocable_r_v<bool, typename T::is_null> &&                     \
-//                         std::is_invocable_r_v<void, typename T::unref> &&               \
-//                                 std::is_invocable_r_v<void, typename T::instantiate> && \
-//                                         std::is_base_of_v<godot::RefCounted, decltype(*(T().ptr()))>
-
-// template <typename T>
-// struct _is_ref_type {
-//     constexpr static bool value = _IS_REF_TYPE(T);
-// };
-
-// template <typename T>
-// struct _is_object_ptr_type {
-//     constexpr static bool value = (std::is_pointer_v<T> && std::is_base_of_v<godot::Object, std::decay_t<T>>) || _is_ref_type<T>::value;
-// };
-
-// template <typename T>
-// struct _get_class_name {
-//     static StringName get() {
-//         if constexpr (_is_ref_type<T>::value) {
-//             return decltype(*(T().ptr()))::get_class_static();
-//         } else if constexpr (_is_object_ptr_type<T>::value) {
-//             return std::decay_t<T>::get_class_static();
-//         } else {
-//             return "";
-//         }
-//     }
-// };
-
 #define _BIND_BEGIN(klass) using _BINDING_CLASS = klass;
 
 #define _BIND_PROP(field)                                                               \
@@ -428,6 +398,8 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     } else {
         if (p_in.is_valid()) {
             p_in->set_to_eos(r_out);
+        } else {
+            memset(&r_out, 0, sizeof(r_out));
         }
     }
 }
