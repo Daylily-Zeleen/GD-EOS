@@ -2020,7 +2020,15 @@ def _gen_method(
                     prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                     if signal_name != interface_signal_name:
                         prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
-                    prepare_lines.append(f"\t{decayed_type} callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;")
+                    prepare_lines.append("#ifdef _WIN32")
+                    prepare_lines.append(
+                        f"\tauto callback = []({_get_callback_infos(decayed_type)["args"][0]["type"]} p_data) {{ godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>(p_data); }};"
+                    )
+                    prepare_lines.append("#else")
+                    prepare_lines.append(
+                        f"\t{decayed_type} callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
+                    )
+                    prepare_lines.append("#endif")
                     call_args.append(f"callback")
                 else:
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
@@ -3235,17 +3243,25 @@ def _gen_struct(
 
                         match field_type:
                             case "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(
+                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                                )
                             case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(
+                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                                )
                             case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(
+                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                                )
                             case "EOS_TitleStorage_OnReadFileDataCallback":
                                 r_structs_cpp.append(
-                                    f"\tp_data.{field} = &godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
                                 )
                             case "EOS_TitleStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
+                                r_structs_cpp.append(
+                                    f"\tp_data.{field} = (EOS_TitleStorage_OnFileTransferProgressCallback)&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                                )
                             case _:
                                 print("ERROR: ", field_type)
                                 exit(1)
