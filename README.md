@@ -56,4 +56,5 @@ Expacially andriod build, it may not work at all.
 
 ## Others
 
-Thanks to Delano Lourenco.The Godot multiplayer mechanism is base on [epic-online-servies-godot](https://github.com/3ddelano/epic-online-services-godot).
+1. Thanks to Delano Lourenco.The Godot multiplayer mechanism is base on [epic-online-servies-godot](https://github.com/3ddelano/epic-online-services-godot).
+2. Welcome to submit any pr for bug fix or improvement.

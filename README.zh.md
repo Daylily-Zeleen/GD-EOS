@@ -56,4 +56,5 @@
 
 ## 其他
 
-感谢Delano Lourenco。目前的Godot多人网络机制是基于该仓库[epic-online-servies-godot](https://github.com/3ddelano/epic-online-services-godot)实现。
+1. 感谢Delano Lourenco。目前的Godot多人网络机制是基于该仓库[epic-online-servies-godot](https://github.com/3ddelano/epic-online-services-godot)实现。
+2. 欢迎提交任何bug修复或功能优化的pr。
