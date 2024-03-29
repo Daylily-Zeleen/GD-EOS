@@ -55,8 +55,10 @@ if env["platform"] == "windows":
     # this disables LINK : error LNK1218: warning treated as error;
     # so that it can build in github action with scons cache
     env.Append(LINKFLAGS=["/ignore:4099"])
-    
-    env.Append(LIBS=["EOSSDK-Win64-Shipping"])
+    if "64" in env["arch"]:
+        env.Append(LIBS=["EOSSDK-Win64-Shipping"])
+    else:
+        env.Append(LIBS=["EOSSDK-Win32-Shipping"])
 
 elif env["platform"] == "linux":
     env.Append(LIBS=["EOSSDK-Linux-Shipping"])
