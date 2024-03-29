@@ -43,13 +43,6 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     return accountId;
 }
 
-static StringName _get_class_name(const Variant &p_val) {
-    if (auto ref = Object::cast_to<RefCounted>(p_val)) {
-        return ref->get_class();
-    }
-    return "";
-}
-
 #define _DECLARE_SETGET(field)           \
     decltype(field) get_##field() const; \
     void set_##field(_ARG_TYPE(field) p_val);
@@ -74,40 +67,62 @@ static StringName _get_class_name(const Variant &p_val) {
     bool klass::is_##field() const { return field; } \
     void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
-#define _BIND_BEGIN(klass) auto tmp_obj = memnew(klass);
-#define _BIND_PROP(field)                                                                                                         \
-    ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);                        \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field);                 \
-    ADD_PROPERTY(PropertyInfo(Variant(tmp_obj->get_##field()).get_type(), #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
-                         eos::internal::_get_class_name(tmp_obj->get_##field())),                                                 \
+// #define _IS_REF_TYPE(T) std::is_invocable_v<typename T::ptr> &&                         \
+//         std::is_invocable_r_v<bool, typename T::is_valid> &&                            \
+//                 std::is_invocable_r_v<bool, typename T::is_null> &&                     \
+//                         std::is_invocable_r_v<void, typename T::unref> &&               \
+//                                 std::is_invocable_r_v<void, typename T::instantiate> && \
+//                                         std::is_base_of_v<godot::RefCounted, decltype(*(T().ptr()))>
+
+// template <typename T>
+// struct _is_ref_type {
+//     constexpr static bool value = _IS_REF_TYPE(T);
+// };
+
+// template <typename T>
+// struct _is_object_ptr_type {
+//     constexpr static bool value = (std::is_pointer_v<T> && std::is_base_of_v<godot::Object, std::decay_t<T>>) || _is_ref_type<T>::value;
+// };
+
+// template <typename T>
+// struct _get_class_name {
+//     static StringName get() {
+//         if constexpr (_is_ref_type<T>::value) {
+//             return decltype(*(T().ptr()))::get_class_static();
+//         } else if constexpr (_is_object_ptr_type<T>::value) {
+//             return std::decay_t<T>::get_class_static();
+//         } else {
+//             return "";
+//         }
+//     }
+// };
+
+#define _BIND_BEGIN(klass) using _BINDING_CLASS = klass;
+
+#define _BIND_PROP(field)                                                               \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
+    ADD_PROPERTY(PropertyInfo(Variant(decltype(_BINDING_CLASS::field){}).get_type(), #field), "set_" #field, "get_" #field);
+
+#define _BIND_PROP_OBJ(field, obj_ty)                                                                  \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                       \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                \
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
+                         obj_ty::get_class_static()),                                                  \
             "set_" #field, "get_" #field);
 
-#define _BIND_PROP_OBJ(field, obj_ty)                                                                             \
-    ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);        \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
-    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT,            \
-                         obj_ty::get_class_static()),                                                             \
+#define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                               \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                    \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);             \
+    ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
+                         #enum_owner "." #enum_type),                                               \
             "set_" #field, "get_" #field);
 
-#define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                                             \
-    ClassDB::bind_method(D_METHOD("get_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::get_##field);        \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
-    ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT,               \
-                         #enum_owner "." #enum_type),                                                             \
-            "set_" #field, "get_" #field);
-
-#define _BIND_PROP_BOOL(field)                                                                                    \
-    ClassDB::bind_method(D_METHOD("is_" #field), &std::remove_pointer_t<decltype(tmp_obj)>::is_##field);          \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &std::remove_pointer_t<decltype(tmp_obj)>::set_##field); \
+#define _BIND_PROP_BOOL(field)                                                          \
+    ClassDB::bind_method(D_METHOD("is_" #field), &_BINDING_CLASS::is_##field);          \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, #field), "set_" #field, "is_" #field);
-#define _BIND_END() memdelete(tmp_obj);
-
-#define _INTERFACE_BIND_METHOD(m_klass, m_method_name, ...) \
-    ClassDB::bind_method(D_METHOD(String(#m_method_name) == String("create_platform") ? "create" : #m_method_name, ##__VA_ARGS__), &m_klass::m_method_name)
-#define _INTERFACE_BIND_SIGNAL(m_interface_prefix, m_name) \
-    ADD_SIGNAL(MethodInfo(#m_name, MAKE_DATA_CLASS_PROP_INFO_BY_SIGNAL_NAME(m_interface_prefix##m_name)))
-#define _CONNECT_INTERFACE_SIGNAL(m_interface_prefix, m_signal_name, m_klass) \
-    IEOS::get_singleton()->connect(#m_interface_prefix #m_signal_name, callable_mp(this, &m_klass::m_signal_name))
+#define _BIND_END()
 
 // =====================
 // ClientData
@@ -685,10 +700,10 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 
 // 回调
-#define _EOS_LOGGING_CALLBACK() [](const EOS_LogMessage *Message) {                          \
-    if (EOS::log_message_callback.is_valid() && Message) {                                   \
-        EOS::log_message_callback.call(Message->Category, Message->Message, Message->Level); \
-    }                                                                                        \
+#define _EOS_LOGGING_CALLBACK() [](const EOS_LogMessage *Message) {                                \
+    if (EOS::get_log_message_callback().is_valid() && Message) {                                   \
+        EOS::get_log_message_callback().call(Message->Category, Message->Message, Message->Level); \
+    }                                                                                              \
 }
 
 #define _EOS_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)              \

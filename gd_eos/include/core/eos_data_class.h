@@ -9,7 +9,7 @@
 #include "godot_cpp/templates/local_vector.hpp"
 #endif // DEBUG_ENABLED
 
-namespace godot {
+namespace godot::eos {
 
 class EOSDataClassOptions : public RefCounted {
     GDCLASS(EOSDataClassOptions, RefCounted)
@@ -269,18 +269,4 @@ public:
     void set_print_options(const Ref<EOSDataClassOptions> p_options) { print_options = p_options; }
 };
 
-}; //namespace godot
-
-template <typename T>
-struct _EOSStructToWrapper {};
-template <const char *signal_name>
-struct _MakeDataClassPropInfo {};
-
-#define _DECAY(T) std::remove_reference_t<std::remove_const_t<std::remove_pointer_t<std::decay_t<T>>>>
-
-#define INSTANTIATE_DATA_CLASS(eos_data, indentifier)                        \
-    _EOSStructToWrapper<_DECAY(decltype(eos_data))>::type ref_##indentifier; \
-    ref_##indentifier.instantiate();                                         \
-    auto indentifier = *(ref_##indentifier.ptr())
-
-#define MAKE_DATA_CLASS_PROP_INFO_BY_SIGNAL_NAME(signal_name) _MakeDataClassPropInfo<signal_name>::make()
+}; //namespace godot::eos

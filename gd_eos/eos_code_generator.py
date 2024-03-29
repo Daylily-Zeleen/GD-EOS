@@ -146,32 +146,46 @@ def gen_all_in_one():
     lines.append("")
 
     register_classes_lines: list[str] = [""]
+    
     register_classes_lines.append("namespace godot::eos {")
-    register_classes_lines.append("#define REGISTER_EOS_CLASSES()\\")
 
+    register_classes_lines.append("#define REGISTER_EOS_CLASSES()\\")
     register_singleton_lines: list[str] = ["#define REGISTER_EOS_SINGLETONS()\\"]
     unregister_singleton_lines: list[str] = ["#define UNREGISTER_EOS_SINGLETONS()\\"]
 
+    handle_types:list[str] = []
     for fbn in generate_infos:
         if len(generate_infos[fbn]["handles"]) <= 0:
             continue
+        
         handle_class: str = ""
         for h in generate_infos[fbn]["handles"]:
             # Hack
             if h in ["EOS", "EOS_HAntiCheatCommon"]:
-                handle_class = h
-                break
+                break # 跳过特殊类
             if h.removeprefix("EOS_H") in interfaces:
                 handle_class = h
                 break
-        handle_class = _convert_handle_class_name(handle_class)
-
-        register_classes_lines.append(f"\tEOS_REGISTER_{handle_class}\\")
+        if len(handle_class):
+            handle_types.append(handle_class)
+            
+        # 头文件
         if fbn in ["eos_common", "eos_anticheatcommon"]:
             continue
         if fbn == "eos_sdk":
             fbn = "eos_platform"
         lines.append(f"#include <interfaces/{fbn}_interface.h>")
+
+    # 插入特殊类，调整注册顺序
+    handle_types.insert(0, "EOS_HAntiCheatCommon")
+    handle_types.insert(0, "EOS")
+
+    for handle_type in handle_types:
+        handle_class:str = _convert_handle_class_name(handle_type)
+        register_classes_lines.append(f"\tEOS_REGISTER_{handle_class}\\")
+
+        if handle_type in ["EOS", "EOS_HAntiCheatCommon"]:
+            continue # 特殊基类没有单例
         register_singleton_lines.append(
             f"\tgodot::Engine::get_singleton()->register_singleton(godot::eos::{handle_class}::get_class_static(), godot::eos::{handle_class}::get_singleton());\\"
         )
@@ -455,11 +469,11 @@ def gen_files(file_base_name: str, infos: dict):
     interface_handle_cpp_lines.append(f"")
 
     interface_handle_h_lines.append(f"#define EOS_REGISTER_{macro_suffix}\\")
-    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{_convert_handle_class_name(interface_handle)});\\")
+    interface_handle_h_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{_convert_handle_class_name(interface_handle)})\\")
     if len(structs_to_gen):
-        interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{macro_suffix}();\\")
+        interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{macro_suffix}()\\")
     if has_packed_result:
-        interface_handle_h_lines.append(f"\tREGISTER_PACKED_RESULTS_{macro_suffix}();\\")
+        interface_handle_h_lines.append(f"\tREGISTER_PACKED_RESULTS_{macro_suffix}()\\")
 
     __remove_backslash_of_last_line(interface_handle_h_lines)
 
@@ -577,7 +591,7 @@ def gen_structs(
             continue
         if _is_need_skip_struct(st):
             continue
-        lines.append(f"\tGDREGISTER_CLASS(godot::eos::{__convert_to_struct_class(st)});\\")
+        lines.append(f"\tGDREGISTER_CLASS(godot::eos::{__convert_to_struct_class(st)})\\")
     __remove_backslash_of_last_line(lines)
     lines.append("")
     return lines
@@ -687,8 +701,6 @@ def _gen_handle(
 
     if need_singleton:
         r_cpp_lines.append(f"{klass} *{klass}::singleton{{ nullptr }};")
-    if klass == "EOS":
-        r_cpp_lines.append(f"Callable {klass}::log_message_callback{{}};")
 
     method_bind_lines: list[str] = []
 
@@ -808,7 +820,8 @@ def _gen_handle(
         # ret.append(f"\tfriend class EOSPlatform;")
         ret.append(f"")
     if klass == "EOS":
-        ret.append(f"\tstatic Callable log_message_callback;")
+        ret.append("public:")
+        ret.append("\tstatic Callable &get_log_message_callback() {{ static Callable ret; return ret; }}")
 
     ret.append(f"protected:")
     ret.append(f"\tstatic void _bind_methods();")
@@ -863,7 +876,7 @@ def _gen_handle(
     r_cpp_lines.append(f"}}")
 
     # 注册宏
-    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{handle_name});\\")
+    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{handle_name})\\")
 
     return ret
 
@@ -1373,7 +1386,7 @@ def _gen_packed_result_type(
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
         elif _is_anticheat_client_handle_type(decayed_type):
-            menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
+            menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name}{{ nullptr }};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
@@ -1450,7 +1463,7 @@ def _gen_packed_result_type(
     r_cpp_lines.append(f"}}")
     r_cpp_lines.append(f"")
 
-    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{typename});\\")
+    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{typename})\\")
     return typename
 
 
@@ -1726,7 +1739,7 @@ def __expend_input_struct(
 
         option_field = f"{arg_name}.{field}"
         if _is_anticheat_client_handle_type(decay_field_type):
-            r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field}")
+            r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({option_field}, p_{snake_field});")
         elif _is_requested_channel_ptr_field(field_type, field):
             r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field} = -1")
@@ -2002,7 +2015,7 @@ def _gen_method(
             if method_name == "EOS_Logging_SetCallback":
                 declare_args.append(f"const Callable& p_{snake_name}")
                 bind_args.append(f'"{snake_name}"')
-                prepare_lines.append(f"EOS::log_message_callback = p_{snake_name};")
+                prepare_lines.append(f"EOS::get_log_message_callback() = p_{snake_name};")
             else:
                 # 回调参数
                 declare_args.append(f"const Callable& p_{snake_name} = {{}}")
@@ -2141,6 +2154,8 @@ def _gen_method(
 
     if method_name == "EOS_Logging_SetCallback":
         snake_method_name = "set_logging_callback"
+    elif method_name == "EOS_Platform_Create":
+        snake_method_name = "platform_create"
     # ======= 声明 ===============
     r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
@@ -2488,7 +2503,7 @@ def _is_expended_struct(struct_type: str) -> bool:
 
 def to_snake_case(text: str) -> str:
     # SPECIAL: char SocketName[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
-    text = text.split("[", 1)[0]
+    text = text.split("[", 1)[0].removeprefix("b")
     snake_str = "".join(["_" + char.lower() if char.isupper() else char for char in text])
     return (
         snake_str.lstrip("_")
@@ -3020,7 +3035,7 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
-
+        
         if not _is_need_skip_struct(decayed_type) and __is_struct_type(decayed_type) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
             type = remap_type(decayed_type, field)
@@ -3036,6 +3051,8 @@ def _gen_struct(
 
         if _is_handle_type(decayed_type):
             pass  #
+        elif _is_anticheat_client_handle_type(decayed_type):
+            initialize_expression = "{ nullptr }"
         elif type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif _is_requested_channel_ptr_field(type, field):
@@ -3105,7 +3122,8 @@ def _gen_struct(
     r_structs_cpp.append(f"void {typename}::_bind_methods() {{")
     r_structs_cpp.append(f"\t_BIND_BEGIN({typename})")
     for field in fields.keys():
-        type: str = remap_type(fields[field], field)
+        type: str = fields[field]
+        decayed_type :str = _decay_eos_type(type)
 
         if is_deprecated_field(field):
             continue
@@ -3115,19 +3133,23 @@ def _gen_struct(
             continue
         if __is_api_version_field(type, field):
             continue
-        if _is_memory_func_type(fields[field]):
+        if _is_memory_func_type(type):
             continue  # 内存分配方法不需要成员变量
-        if _is_todo_field(fields[field], field):
+        if _is_todo_field(type, field):
             continue
         if _is_platform_specific_options_field(field):
             continue
-
-        if type == "bool":
-            r_structs_cpp.append(f"\t_BIND_PROP_BOOL({to_snake_case(field)})")
-        elif __is_struct_type(_decay_eos_type(fields[field])) or _is_handle_type(_decay_eos_type(fields[field])):
-            r_structs_cpp.append(f"\t_BIND_PROP_OBJ({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(fields[field]))})")
+        
+        snake_field_name :str = to_snake_case(field)
+    
+        if remap_type(type, field) == "bool":
+            r_structs_cpp.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
+        elif _is_anticheat_client_handle_type(decayed_type):
+            r_structs_cpp.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
+        elif __is_struct_type(decayed_type) or _is_handle_type(decayed_type):
+            r_structs_cpp.append(f"\t_BIND_PROP_OBJ({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
         else:
-            r_structs_cpp.append(f"\t_BIND_PROP({to_snake_case(field)})")
+            r_structs_cpp.append(f"\t_BIND_PROP({snake_field_name})")
     r_structs_cpp.append(f"\t_BIND_END()")
     r_structs_cpp.append("}")
     r_structs_cpp.append("")

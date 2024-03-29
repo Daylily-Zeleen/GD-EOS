@@ -16,7 +16,7 @@ using namespace godot;
 void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 #if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
-        eos::setup_eos_project_settings();
+        godot::eos::setup_eos_project_settings();
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSExportPlugin);
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSEditorPlugin);
         EditorPlugins::add_by_type<godot::eos::editor::EOSEditorPlugin>();
@@ -26,6 +26,15 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
+
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSDataClassOptions);
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSDataClass);
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPackedResult);
+
+#if !defined(EOS_ANTICHEATCLIENT_DISABLED) || !defined(EOS_ANTICHEATSERVER_DISABLED)
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSAntiCheatCommon_Client);
+#endif // !defined(EOS_ANTICHEATCLIENT_DISABLED) || !defined(EOS_ANTICHEATSERVER_DISABLED)
+
     REGISTER_EOS_CLASSES()
     REGISTER_EOS_SINGLETONS()
 
