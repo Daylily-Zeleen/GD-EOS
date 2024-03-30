@@ -17,7 +17,7 @@ using gd_arg_t = std::conditional_t<!std::is_trivial_v<T> || (sizeof(T) > 8), co
 
 namespace godot::eos::internal {
 
-#define _VERSION_GREATER_THAN_1_6_1 (EOS_MAJOR_VERSION > 1 || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION > 16) || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION == 16 && EOS_PATCH_VERSION > 1))
+#define _EOS_VERSION_GREATER_THAN_1_6_1 (EOS_MAJOR_VERSION > 1 || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION > 16) || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION == 16 && EOS_PATCH_VERSION > 1))
 
 #define _BIND_ENUM_CONSTANT(enume_type_name, e, e_bind) \
     ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enume_type_name>(enume_type_name::e, e_bind), e_bind, enume_type_name::e)
@@ -433,12 +433,12 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
                 to_eos_type_out<Quaternion, decltype(p_union.Quat)>(Quaternion(p_gd), p_union.Quat);
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat;
             } break;
-#if _VERSION_GREATER_THAN_1_6_1
+#if _EOS_VERSION_GREATER_THAN_1_6_1
             case Variant::FLOAT: {
                 p_union.Float = p_gd;
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Float;
             } break;
-#endif // _VERSION_GREATER_THAN_1_6_1
+#endif // _EOS_VERSION_GREATER_THAN_1_6_1
             default: {
                 ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
             } break;
@@ -500,11 +500,11 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
             case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat: {
                 return Quaternion{ p_union.Quat.x, p_union.Quat.y, p_union.Quat.z, p_union.Quat.w };
             } break;
-#if _VERSION_GREATER_THAN_1_6_1
+#if _EOS_VERSION_GREATER_THAN_1_6_1
             case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Float: {
                 return p_union.Float;
             } break;
-#endif // _VERSION_GREATER_THAN_1_6_1
+#endif // _EOS_VERSION_GREATER_THAN_1_6_1
         }
     } else if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>) {
         switch (p_union_type) {
