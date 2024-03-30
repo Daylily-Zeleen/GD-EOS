@@ -2,6 +2,8 @@
 
 [点击查中文说明](README.zh.md)
 
+![image](test_project/logo.png)
+
 **Epic Online Services** for Godot. Use as **C++ SDK** or compile as **GDScript SDK**.
 
 ## Feature

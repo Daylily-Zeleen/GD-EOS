@@ -2,6 +2,8 @@
 
 [Click here to refer English Readme](README.md).
 
+![image](test_project/logo.png)
+
 适用于Godot的**Epic Online Services**。可作为**C++ SDK**或者编译后作为**GDScript SDK**。
 
 ## 特性
