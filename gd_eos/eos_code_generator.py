@@ -3036,6 +3036,7 @@ def _gen_struct(
     for field in fields.keys():
         type: str = fields[field]
         decayed_type: str = _decay_eos_type(type)
+        remaped_type: str = ""
 
         if is_deprecated_field(field):
             continue
@@ -3050,14 +3051,14 @@ def _gen_struct(
 
         if not _is_need_skip_struct(decayed_type) and __is_struct_type(decayed_type) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
-            type = remap_type(decayed_type, field)
+            remaped_type = remap_type(decayed_type, field)
         elif _is_nullable_float_pointer_field(type, field):
-            type = _decay_eos_type(type)
+            remaped_type = _decay_eos_type(type)
         elif _is_handle_type(decayed_type):
             # 句柄类型使用Ref<RefCounted>作为成员变量，非msvc编译器不支持Ref<T>作为成员时T的前向声明
-            type = "Ref<RefCounted>"
+            remaped_type = "Ref<RefCounted>"
         else:
-            type = remap_type(type, field)
+            remaped_type = remap_type(type, field)
         initialize_expression = ""
 
         if __is_api_version_field(type, field):
@@ -3069,15 +3070,17 @@ def _gen_struct(
             initialize_expression = "{ -1.0 }"
         elif _is_anticheat_client_handle_type(decayed_type):
             initialize_expression = "{ nullptr }"
-        elif type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
+        elif remaped_type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
             initialize_expression = ""  # f'{{ memnew({_decay_eos_type(type).removeprefix("Ref<").removesuffix(">")}) }}'
         elif _is_requested_channel_ptr_field(type, field):
             initialize_expression = "{ -1 }"
         elif type == "int32_t" and field == "ApiVersion":
             api_verision_macro = __get_api_latest_macro(struct_type)
             initialize_expression = f"{{ {api_verision_macro} }}"
+        else:
+            initialize_expression = "{}"
 
-        lines.append(f"\t{type} {to_snake_case(field)}{initialize_expression};")
+        lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
     if addtional_methods_requirements["to"]:
         lines.append("")
