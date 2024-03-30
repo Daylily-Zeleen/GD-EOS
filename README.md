@@ -14,6 +14,11 @@
 
 This project is cost a lot of time and effort, if it can help you, please [by me a coffee](https://afdian.net/a/Daylily-Zeleen).
 
+## Valid EOS SDK Version
+
+- EOS-SDK-32273396-v1.16.2
+- EOS-SDK-27379709-v1.16.1
+
 ## How to start
 
 1. Get `GD-EOS` plugin:
