@@ -657,6 +657,8 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
     r_cpp_lines.append(f"using namespace godot::eos::internal;")
     r_cpp_lines.append(f"namespace godot::eos {{")
     for h in p_handles:
+        if not _is_handle_type(h):
+            continue  # Hack
         h_lines += _gen_handle(h, p_handles[h], _convert_handle_class_name(h), r_cpp_lines, register_lines)
     __remove_backslash_of_last_line(register_lines)
 
@@ -1424,6 +1426,16 @@ def _gen_packed_result_type(
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
+        # elif _is_str_type(arg_type):
+        #     menbers_lines.append(f"\tPackedByteArray {snake_name};")
+        #     setget_lines.append(f"\t_DECLARE_SETGET_STR({snake_name});")
+        #     r_cpp_lines.append(f"_DEFINE_SETGET_STR({typename}, {snake_name})")
+        #     bind_lines.append(f"\t_BIND_PROP_STR({snake_name})")
+        # elif _is_str_arr_type(arg_type):
+        #     menbers_lines.append(f"\tLocalVector<PackedByteArray> {snake_name};")
+        #     setget_lines.append(f"\t_DECLARE_SETGET_STR_ARR({snake_name});")
+        #     r_cpp_lines.append(f"_DEFINE_SETGET_STR_ARR({typename}, {snake_name})")
+        #     bind_lines.append(f"\t_BIND_PROP_STR_ARR({snake_name})")
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
@@ -1769,6 +1781,14 @@ def __expend_input_struct(
         if _is_anticheat_client_handle_type(decay_field_type):
             r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({options_field}, p_{snake_field});")
+        elif _is_str_type(field_type):
+            r_declare_args.append(f"const String &p_{snake_field}")
+            r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
+            r_prepare_lines.append(f"\t{options_field} = to_eos_type<const char *, decltype({options_field})>(utf8_{snake_field});")
+        elif _is_str_arr_type(field_type):
+            r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
+            option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())};"
+            r_prepare_lines.append(f"\t_TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR({options_field}, p_{snake_field}, {option_count_field});")
         elif _is_nullable_float_pointer_field(field_type, field):
             r_declare_args.append(f"{decay_field_type} p_{snake_field} = -1.0")
             r_prepare_lines.append(f"\t{options_field} = p_{snake_field} < 0.0? nullptr: &p_{snake_field};")
@@ -1805,6 +1825,10 @@ def __expend_input_struct(
             r_declare_args.append(f"const {remap_type(field_type, field)} &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ARR({options_field}, p_{snake_field}, {option_count_field});")
+        elif _is_struct_ptr(field_type):
+            r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
+            r_prepare_lines.append(f"\t{field_type} shadow_{snake_field} = to_eos_type<decltype(p_{snake_field}), {_decay_eos_type(field_type)}>(p_{snake_field});")
+            r_prepare_lines.append(f"\t{options_field} = &shadow_{snake_field};")
         else:
             r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD({options_field.split('[')[0]}, p_{snake_field});")
@@ -1939,6 +1963,9 @@ def __make_packed_result(
             exit(1)
         elif _is_internal_struct_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
+            exit(1)
+        elif _is_struct_ptr(arg_type):
+            print("ERROR UNSUPPORT struct ptr:", method_name, arg_type)
             exit(1)
         else:
             if not arg_type.endswith("*"):
@@ -2078,6 +2105,7 @@ def _gen_method(
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
 
                 bind_defvals.append("DEFVAL(Callable())")
+
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             declare_args.append("const Variant& p_client_data")
@@ -2161,6 +2189,16 @@ def _gen_method(
 
             # Out 参数在最后，直接跳出
             break
+        elif _is_str_type(type):
+            # 字符串参数
+            declare_args.append(f"const String &p_{snake_name}")
+            bind_args.append(f'"{snake_name}"')
+            prepare_lines.append(f"\tCharString utf8_{snake_name} = p_{snake_name}.utf8();")
+            call_args.append(f"to_eos_type<const char *, {type}>(utf8_{snake_name}.get_data())")
+        elif _is_str_arr_type(type):
+            # 字符串数组参数
+            print("ERROR")
+            exit(1)
         else:
             # 普通参数
             declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
@@ -2412,7 +2450,7 @@ def remap_type(type: str, field: str = "") -> str:
     if __is_callback_type(_decay_eos_type(type)):
         return "Callable"
 
-    if type.startswith("Union"):
+    if type.startswith("Union") and len(field):
         uion_field_map = {
             "ParamValue": "Variant",
             "Value": "Variant",
@@ -2972,7 +3010,6 @@ def _is_handle_type(type: str, filed: str = "") -> bool:
         # Hack
         return False
     return type in handles or (type.startswith("EOS") and "_H" in type) or type in ["EOS_ContinuanceToken"]
-    # return type.startswith("EOS_H") or type in
 
 
 def _find_count_field(field: str, fields: list[str]) -> str:
@@ -3027,6 +3064,18 @@ def _is_integreate_platform_init_option(type: str, field: str) -> bool:
 def _is_nullable_float_pointer_field(type: str, field: str) -> bool:
     map = {"double*": ["TaskNetworkTimeoutSeconds"]}
     return type in map and field in map[type]
+
+
+def _is_struct_ptr(type: str) -> bool:
+    return type in ["EOS_AntiCheatCommon_Vec3f*", "EOS_AntiCheatCommon_Quat*"]
+
+
+def _is_str_type(type: str) -> bool:
+    return not type.startswith("Union") and remap_type(type) == "String"
+
+
+def _is_str_arr_type(type: str) -> bool:
+    return remap_type(type) == "PackedStringArray"
 
 
 def _gen_struct(
@@ -3109,11 +3158,18 @@ def _gen_struct(
         else:
             initialize_expression = "{}"
 
-        lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
+        if _is_str_type(type):
+            lines.append(f"\tPackedByteArray {to_snake_case(field)};")
+        elif _is_str_arr_type(type):
+            lines.append(f"\tLocalVector<PackedByteArray> {to_snake_case(field)};")
+        elif _is_struct_ptr(type):
+            lines.append(f"\t{_decay_eos_type(type)} {to_snake_case(field)}{{}};")
+        else:
+            lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
     if addtional_methods_requirements["to"]:
         lines.append("")
-        lines.append(f"\t{struct_type} m_eos_data;")
+        lines.append(f"\t{struct_type} m_eos_data{{}};")
     lines.append("")
 
     # setget
@@ -3141,9 +3197,18 @@ def _gen_struct(
         if remaped_type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})")
+        elif _is_str_type(type):
+            lines.append(f"\t_DECLARE_SETGET_STR({to_snake_case(field)})")
+            r_structs_cpp.append(f"_DEFINE_SETGET_STR({typename}, {to_snake_case(field)})")
+        elif _is_str_arr_type(type):
+            lines.append(f"\t_DECLARE_SETGET_STR_ARR({to_snake_case(field)})")
+            r_structs_cpp.append(f"_DEFINE_SETGET_STR_ARR({typename}, {to_snake_case(field)})")
         elif _is_handle_type(decayed_type):
             lines.append(f"\t_DECLARE_SETGET_TYPED({to_snake_case(field)}, Ref<class {_convert_handle_class_name(decayed_type)}>)")
             r_structs_cpp.append(f"_DEFINE_SETGET_TYPED({typename}, {to_snake_case(field)}, {remap_type(decayed_type, field)})")
+        elif _is_struct_ptr(type):
+            lines.append(f"\t_DECLARE_SETGET_STRUCT_PTR({remaped_type}, {to_snake_case(field)})")
+            r_structs_cpp.append(f"_DEFINE_SETGET_STRUCT_PTR({typename}, {remaped_type},  {to_snake_case(field)})")
         else:
             lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET({typename}, {to_snake_case(field)})")
@@ -3192,6 +3257,12 @@ def _gen_struct(
 
         if remap_type(type, field) == "bool":
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
+        elif _is_struct_ptr(type):
+            r_structs_cpp.append(f"\t_BIND_PROP_STRUCT_PTR({snake_field_name}, {remap_type(type)})")
+        elif _is_str_type(type):
+            r_structs_cpp.append(f"\t_BIND_PROP_STR({to_snake_case(field)})")
+        elif _is_str_arr_type(type):
+            r_structs_cpp.append(f"\t_BIND_PROP_STR_ARR({to_snake_case(field)})")
         elif _is_anticheat_client_handle_type(decayed_type):
             r_structs_cpp.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
         elif __is_struct_type(decayed_type) or _is_handle_type(decayed_type):
@@ -3236,6 +3307,10 @@ def _gen_struct(
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
                 exit(1)
+            elif _is_str_type(field_type):
+                r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, PackedByteArray>(p_origin.{field});")
+            elif _is_str_arr_type(field_type):
+                r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
@@ -3260,6 +3335,13 @@ def _gen_struct(
     if addtional_methods_requirements["set_to"]:
         r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
         for field in fields.keys():
+            field_type = fields[field]
+            snake_field_name = to_snake_case(field)
+
+            # if field == "Reserved" and field_type == "void*":
+            #     # TODO：考虑使用memset直接将整个结构体清零避免对预留字段的特殊处理
+            #     r_structs_cpp.append(f"\tp_data.Reserved = nullptr;")
+
             if is_deprecated_field(field):
                 continue
             if field in count_fields:
@@ -3268,9 +3350,6 @@ def _gen_struct(
                 continue
             if _is_todo_field(fields[field], field):
                 continue
-
-            field_type = fields[field]
-            snake_field_name = to_snake_case(field)
 
             match field_type:
                 case "EOS_AllocateMemoryFunc":
@@ -3284,8 +3363,14 @@ def _gen_struct(
                 case _:
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
+                    elif _is_struct_ptr(fields[field]):
+                        r_structs_cpp.append(f"\tp_data.{field} = &{to_snake_case(field)};")
+                    elif _is_str_type(field_type):
+                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const char*, {field_type}>((char*){to_snake_case(field)}.ptr());")
+                    elif _is_str_arr_type(field_type):
+                        r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});")
                     elif _is_nullable_float_pointer_field(field_type, field):
-                        r_structs_cpp.append(f"\tp_data.{field} = {snake_field_name} <= 0.0? nullptr: &{snake_field_name};")
+                        r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
                     elif _is_platform_specific_options_field(field):
                         r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
                     elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
