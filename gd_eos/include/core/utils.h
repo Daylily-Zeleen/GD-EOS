@@ -152,41 +152,29 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
 // =====================
 // ClientData
 struct _CallbackClientData {
-    Variant client_data;
     Object *handle_wrapper;
     Callable callback;
 
-    _CallbackClientData(Object *p_handle_wrapper, const Variant &p_client_data, const Callable &p_callback = {}) :
-            handle_wrapper(p_handle_wrapper), client_data(p_client_data), callback(p_callback) {}
+    _CallbackClientData(Object *p_handle_wrapper, const Callable &p_callback = {}) :
+            handle_wrapper(p_handle_wrapper), callback(p_callback) {}
 
-    static auto cast_to_scoped(void *p_client_data) {
-        struct ScopedObject {
-        private:
-            _CallbackClientData *ccd;
+    struct ScopedObject {
+    private:
+        _CallbackClientData *ccd;
 
-        public:
-            Variant &get_client_data() const { return ccd->client_data; }
-            Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
-            Callable &get_callback() const { return ccd->callback; }
+    public:
+        ScopedObject(void *p) :
+                ccd((_CallbackClientData *)p) {}
+        Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
+        Callable &get_callback() const { return ccd->callback; }
 
-            ScopedObject(_CallbackClientData *p_ccd) :
-                    ccd(p_ccd) {}
-            ~ScopedObject() { memdelete(ccd); }
-        } ret((_CallbackClientData *)p_client_data);
-        return ret;
-    }
+        ScopedObject(_CallbackClientData *p_ccd) :
+                ccd(p_ccd) {}
+        ~ScopedObject() { memdelete(ccd); }
+    };
 };
 
-#define _MAKE_CALLBACK_CLIENT_DATA(client_data, ...) memnew(_CallbackClientData(this, client_data, ##__VA_ARGS__))
-#define _GET_CLIENT_DATA(callback_client_data, r_handle_wrapper) to_godot_client_data(callback_client_data, r_handle_wrapper)
-
-inline Variant to_godot_client_data(void *p_from, Object *&r_handle_wrapper) {
-    auto casted = (_CallbackClientData *)p_from;
-    auto ret = casted->client_data;
-    r_handle_wrapper = casted->handle_wrapper;
-    memdelete(casted);
-    return ret;
-}
+#define _MAKE_CALLBACK_CLIENT_DATA(...) memnew(_CallbackClientData(this, ##__VA_ARGS__))
 
 template <typename From, typename To>
 static To to_godot_type(From p_from) {
@@ -669,8 +657,6 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>; \
         gd_field.push_back(to_godot_type<eos_str_t, CharString>(eos_field[i]));                 \
     }
-#define _FROM_EOS_FIELD_CLIENT_DATA(gd_field, eos_field) \
-    gd_field = ((_CallbackClientData *)eos_field)->client_data
 #define _FROM_EOS_FIELD_STRUCT(gd_field, eos_field) \
     if (!eos_field) {                               \
         gd_field.unref();                           \
@@ -738,8 +724,6 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     } else {                                                                                    \
         r_eos_field_count = 0;                                                                  \
     }
-#define _TO_EOS_FIELD_CLIENT_DATA(eos_field, gd_field) \
-    static_assert(false, "不应该发生")
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
 #define _TO_EOS_FIELD_STRUCT_ARR(gd_data_type, eos_field, gd_field, r_eos_field_count)              \
@@ -806,8 +790,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 
 #define _EXPAND_TO_GODOT_VAL(m_gd_Ty, eos_field) to_godot_type<std::conditional_t<std::is_same_v<decltype(eos_field), eos_p2p_socketid_socked_name_t>, const eos_p2p_socketid_socked_name_t &, decltype(eos_field)>, m_gd_Ty>((eos_field))
 #define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr((eos_field), (eos_field_count))
-// #define _EXPAND_TO_GODOT_VAL_ARR(m_gd_Ty, eos_field, eos_field_count) to_godot_type_arr<decltype((eos_field)), m_gd_Ty>((eos_field), (eos_field_count))
-#define _EXPAND_TO_GODOT_VAL_CLIENT_DATA(m_gd_Ty, eos_field) ((_CallbackClientData *)eos_field)->client_data
+// #define _EXPAND_TO_GODOT_VAL_CLIENT_DATA(m_gd_Ty, eos_field) ((_CallbackClientData *)eos_field)->client_data
 #define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty, decltype(eos_field)>(eos_field)
 #define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
 #define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype((eos_field))>((eos_field))
@@ -829,7 +812,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         }                                                                                                           \
     }
 
-#define _EOS_NOTIFY_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...)              \
+#define _EOS_NOTIFY_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...)            \
     [](m_callback_info_ty m_callback_identifier) {                                                                  \
         if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
             obj->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                                              \
@@ -838,7 +821,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 
 #define _EOS_METHOD_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type) \
     [](m_callback_info_ty m_callback_identifier) {                                                     \
-        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);              \
+        auto cd = _CallbackClientData::ScopedObject(m_callback_identifier->ClientData);                \
         auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                   \
         if (cd.get_callback().is_valid()) {                                                            \
             cd.get_callback().call(cb_data);                                                           \
@@ -848,7 +831,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 
 #define _EOS_METHOD_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...) \
     [](m_callback_info_ty m_callback_identifier) {                                                       \
-        auto cd = _CallbackClientData::cast_to_scoped(m_callback_identifier->ClientData);                \
+        auto cd = _CallbackClientData::ScopedObject(m_callback_identifier->ClientData);                  \
         if (cd.get_callback().is_valid()) {                                                              \
             cd.get_callback().call(__VA_ARGS__);                                                         \
         }                                                                                                \

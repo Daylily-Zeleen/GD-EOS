@@ -685,7 +685,7 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     if "_EOS_METHOD_CALLBACK" in cb:
         cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
     elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
-        cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPAND")
+        cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPANDED")
     else:
         print("ERROR")
         exit(1)
@@ -1630,6 +1630,10 @@ def _gen_callback(
             if is_deprecated_field(field) or field in count_fields or field in variant_union_type_fileds:
                 continue
 
+            if _is_client_data_field(field_type, field):
+                # 接口与回调不再含有 ClientData
+                continue
+
             if not ret.endswith(",\n\t\t\t"):
                 ret += ",\n\t\t\t"
                 signal_bind_args += ", "
@@ -1650,9 +1654,6 @@ def _gen_callback(
             elif _is_handle_type(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({remap_type(_decay_eos_type(field_type))}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
-            elif _is_client_data_field(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_CLIENT_DATA({remap_type(field_type)}, data->{field})"
-                signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_internal_struct_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({remap_type(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
                 signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{__convert_to_struct_class(_decay_eos_type(field_type))}")'
@@ -1809,8 +1810,9 @@ def __expend_input_struct(
             gd_type = _convert_handle_class_name(decay_field_type)
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({options_field}, p_{snake_field}, {gd_type});")
         elif _is_client_data_field(field_type, field):
-            r_declare_args.append(f"const Variant &p_{snake_field}")
-            r_prepare_lines.append(f"\t_TO_EOS_FIELD_CLIENT_DATA({options_field}, p_{snake_field});")
+            # 输入结构体不含有 ClientData 字段
+            print("ERR:", arg_type)
+            exit(1)
         elif _is_internal_struct_arr_field(field_type, field):
             r_declare_args.append(f"const TypedArray<{__convert_to_struct_class(_decay_eos_type(field_type))}> &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
@@ -2138,9 +2140,9 @@ def _gen_method(
                         prepare_lines.append(f'\tclient_data.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
                         call_args.append("&client_data")
                     case _:
-                        call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_client_data, p_{to_snake_case(info["args"][i+1]["name"])})')
+                        call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
             else:
-                call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA(p_client_data)")
+                call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
 
         elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(decayed_type):
             if name.endswith("Options"):
@@ -2249,25 +2251,25 @@ def _gen_method(
             disable_macro = _gen_disabled_macro(interface)
             handle_identifier = interface.removeprefix("EOS_H").lower() + "_handle"
             r_define_lines.append(f"#ifndef {disable_macro}")
-            # 
+            #
             if handle_identifier.startswith("rtc"):
                 # 需要设置RTC选项才能使用RTC相关功能
-                r_define_lines.append(f'\tif ({options_prepare_identifier}.RTCOptions != nullptr) {{')
+                r_define_lines.append(f"\tif ({options_prepare_identifier}.RTCOptions != nullptr) {{")
                 r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
                 r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
                 r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
-                r_define_lines.append(f'\t}}')
+                r_define_lines.append(f"\t}}")
             elif handle_identifier.startswith("anticheatclient"):
                 # 反作弊客户端需要从 bootstrapper 启动，非必须功能，允许为空
                 r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
-                r_define_lines.append(f'\tif ({handle_identifier}) {{ {_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier}); }};')
+                r_define_lines.append(f"\tif ({handle_identifier}) {{ {_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier}); }};")
             elif handle_identifier.startswith("anticheatserver"):
                 # 如果不是以客户端进行启动则不对反作弊服务器进行初始化。
-                r_define_lines.append(f'\tif ({options_prepare_identifier}.bIsServer) {{')
+                r_define_lines.append(f"\tif ({options_prepare_identifier}.bIsServer) {{")
                 r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
                 r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
                 r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
-                r_define_lines.append(f'\t}}')
+                r_define_lines.append(f"\t}}")
             else:
                 r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
                 r_define_lines.append(f"\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
@@ -3147,6 +3149,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_client_data_field(type, field):
+            continue  # 暴露的结构体不再含有 ClientData 字段
 
         if not _is_need_skip_struct(decayed_type) and __is_struct_type(decayed_type) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
@@ -3214,6 +3218,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_client_data_field(type, field):
+            continue  # 暴露的结构体不再含有 ClientData 字段
 
         if remaped_type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
@@ -3273,6 +3279,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_client_data_field(type, field):
+            continue  # 暴露的结构体不再含有 ClientData 字段
 
         snake_field_name: str = to_snake_case(field)
 
@@ -3306,22 +3314,25 @@ def _gen_struct(
     if addtional_methods_requirements["set_from"]:
         r_structs_cpp.append(f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{")
         for field in fields.keys():
+            field_type = fields[field]
+
             if is_deprecated_field(field):
                 continue
             if field in count_fields:
                 continue
             if field in variant_union_type_fileds:
                 continue
-            if _is_todo_field(fields[field], field):
+            if _is_todo_field(field_type, field):
                 continue
-            if __is_api_version_field(fields[field], field):
+            if __is_api_version_field(field_type, field):
                 continue
-            if _is_memory_func_type(fields[field]):
+            if _is_client_data_field(field_type, field):
+                continue  # 暴露的结构体不再含有 ClientData 字段
+            if _is_memory_func_type(field_type):
                 # 内存分配方法不需要成员变量
                 print("ERROR Unsupport")
                 exit(1)
 
-            field_type = fields[field]
             if _is_platform_specific_options_field(field):
                 print("ERROR:", field)
                 exit(1)
@@ -3340,8 +3351,6 @@ def _gen_struct(
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_UNION({to_snake_case(field)}, p_origin.{field});")
             elif _is_handle_type(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field});")
-            elif _is_client_data_field(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_CLIENT_DATA({to_snake_case(field)}, p_origin.{field});")
             elif _is_internal_struct_arr_field(field_type, field):
                 r_structs_cpp.append(
                     f"\t_FROM_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, {to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
@@ -3374,14 +3383,11 @@ def _gen_struct(
 
             match field_type:
                 case "EOS_AllocateMemoryFunc":
-                    # r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = &internal::_memallocate;")
-                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = nullptr;")
+                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = &internal::_memallocate;")
                 case "EOS_ReallocateMemoryFunc":
-                    # r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = &internal::_memreallocate;")
-                    r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = nullptr;")
+                    r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = &internal::_memreallocate;")
                 case "EOS_ReleaseMemoryFunc":
-                    # r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
-                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = nullptr;")
+                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
                 case _:
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
@@ -3405,7 +3411,9 @@ def _gen_struct(
                         gd_type = remap_type(_decay_eos_type(field_type), field).removeprefix("Ref<").removesuffix(">")
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
                     elif _is_client_data_field(field_type, field):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_CLIENT_DATA(p_data.{field}, {snake_field_name});")
+                        # 没有需要设置ClientData的结构体
+                        print("ERR:", struct_type)
+                        exit(1)
                     elif _is_internal_struct_arr_field(field_type, field):
                         r_structs_cpp.append(
                             f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
