@@ -1427,12 +1427,12 @@ def _gen_packed_result_type(
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
         # elif _is_str_type(arg_type):
-        #     menbers_lines.append(f"\tPackedByteArray {snake_name};")
+        #     menbers_lines.append(f"\tCharString {snake_name};")
         #     setget_lines.append(f"\t_DECLARE_SETGET_STR({snake_name});")
         #     r_cpp_lines.append(f"_DEFINE_SETGET_STR({typename}, {snake_name})")
         #     bind_lines.append(f"\t_BIND_PROP_STR({snake_name})")
         # elif _is_str_arr_type(arg_type):
-        #     menbers_lines.append(f"\tLocalVector<PackedByteArray> {snake_name};")
+        #     menbers_lines.append(f"\tLocalVector<CharString> {snake_name};")
         #     setget_lines.append(f"\t_DECLARE_SETGET_STR_ARR({snake_name});")
         #     r_cpp_lines.append(f"_DEFINE_SETGET_STR_ARR({typename}, {snake_name})")
         #     bind_lines.append(f"\t_BIND_PROP_STR_ARR({snake_name})")
@@ -2194,7 +2194,7 @@ def _gen_method(
             declare_args.append(f"const String &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             prepare_lines.append(f"\tCharString utf8_{snake_name} = p_{snake_name}.utf8();")
-            call_args.append(f"to_eos_type<const char *, {type}>(utf8_{snake_name}.get_data())")
+            call_args.append(f"to_eos_type<const CharString &, {type}>(utf8_{snake_name})")
         elif _is_str_arr_type(type):
             # 字符串数组参数
             print("ERROR")
@@ -3159,9 +3159,9 @@ def _gen_struct(
             initialize_expression = "{}"
 
         if _is_str_type(type):
-            lines.append(f"\tPackedByteArray {to_snake_case(field)};")
+            lines.append(f"\tCharString {to_snake_case(field)};")
         elif _is_str_arr_type(type):
-            lines.append(f"\tLocalVector<PackedByteArray> {to_snake_case(field)};")
+            lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
         elif _is_struct_ptr(type):
             lines.append(f"\t{_decay_eos_type(type)} {to_snake_case(field)}{{}};")
         else:
@@ -3308,7 +3308,7 @@ def _gen_struct(
                 print("ERROR:", field)
                 exit(1)
             elif _is_str_type(field_type):
-                r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, PackedByteArray>(p_origin.{field});")
+                r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif _is_str_arr_type(field_type):
                 r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
@@ -3353,20 +3353,21 @@ def _gen_struct(
 
             match field_type:
                 case "EOS_AllocateMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = [](size_t SizeInBytes, size_t Alignment) {{ return memalloc(SizeInBytes); }};")
+                    # r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = &internal::_memallocate;")
+                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = nullptr;")
                 case "EOS_ReallocateMemoryFunc":
-                    r_structs_cpp.append(
-                        f"\tp_data.ReallocateMemoryFunction = [](void *Pointer, size_t SizeInBytes, size_t Alignment) {{ return memrealloc(Pointer, SizeInBytes); }};"
-                    )
+                    # r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = &internal::_memreallocate;")
+                    r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = nullptr;")
                 case "EOS_ReleaseMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = [](void *Pointer) {{ memfree(Pointer); }};")
+                    # r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
+                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = nullptr;")
                 case _:
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
                     elif _is_struct_ptr(fields[field]):
                         r_structs_cpp.append(f"\tp_data.{field} = &{to_snake_case(field)};")
                     elif _is_str_type(field_type):
-                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const char*, {field_type}>((char*){to_snake_case(field)}.ptr());")
+                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({to_snake_case(field)});")
                     elif _is_str_arr_type(field_type):
                         r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});")
                     elif _is_nullable_float_pointer_field(field_type, field):

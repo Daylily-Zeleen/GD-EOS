@@ -57,36 +57,36 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     String get_##field() const;    \
     void set_##field(const String &p_val);
 
-#define _DEFINE_SETGET_STR(klass, field)                                       \
-    String klass::get_##field() const { return field.get_string_from_utf8(); } \
-    void klass::set_##field(const String &p_val) { field = p_val.to_utf8_buffer(); }
-
-#define _DECLARE_SETGET_STRUCT_PTR(gd_type, field) \
-    gd_type get_##field() const;                   \
-    void set_##field(const gd_type &p_val);
-
-#define _DEFINE_SETGET_STRUCT_PTR(klass, gd_type, field)                                                    \
-    gd_type klass::get_##field() const { return to_godot_type<const decltype(field) &, gd_type>(field); } \
-    void klass::set_##field(const gd_type &p_val) { field = to_eos_type<const gd_type &, decltype(field)>(p_val); }
+#define _DEFINE_SETGET_STR(klass, field)                                                 \
+    String klass::get_##field() const { return String::utf8((char *)field.get_data()); } \
+    void klass::set_##field(const String &p_val) { field = p_val.utf8(); }
 
 #define _DECLARE_SETGET_STR_ARR(field)     \
     PackedStringArray get_##field() const; \
     void set_##field(const PackedStringArray &p_val);
 
-#define _DEFINE_SETGET_STR_ARR(klass, field)                  \
-    PackedStringArray klass::get_##field() const {            \
-        PackedStringArray ret;                                \
-        for (const PackedByteArray &str_buffer : field) {     \
-            ret.push_back(str_buffer.get_string_from_utf8()); \
-        }                                                     \
-        return ret;                                           \
-    }                                                         \
-    void klass::set_##field(const PackedStringArray &p_val) { \
-        field.clear();                                        \
-        for (const String &str : p_val) {                     \
-            field.push_back(str.to_utf8_buffer());            \
-        }                                                     \
+#define _DEFINE_SETGET_STR_ARR(klass, field)                            \
+    PackedStringArray klass::get_##field() const {                      \
+        PackedStringArray ret;                                          \
+        for (const CharString &str_buffer : field) {                    \
+            ret.push_back(String::utf8((char *)str_buffer.get_data())); \
+        }                                                               \
+        return ret;                                                     \
+    }                                                                   \
+    void klass::set_##field(const PackedStringArray &p_val) {           \
+        field.clear();                                                  \
+        for (const String &str : p_val) {                               \
+            field.push_back(str.utf8());                                \
+        }                                                               \
     }
+
+#define _DECLARE_SETGET_STRUCT_PTR(gd_type, field) \
+    gd_type get_##field() const;                   \
+    void set_##field(const gd_type &p_val);
+
+#define _DEFINE_SETGET_STRUCT_PTR(klass, gd_type, field)                                                  \
+    gd_type klass::get_##field() const { return to_godot_type<const decltype(field) &, gd_type>(field); } \
+    void klass::set_##field(const gd_type &p_val) { field = to_eos_type<const gd_type &, decltype(field)>(p_val); }
 
 #define _DECLARE_SETGET_TYPED(field, type) \
     type get_##field() const;              \
@@ -211,104 +211,81 @@ using cstr_t = const char *;
 template <>
 String to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from); }
 template <>
-PackedByteArray to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from).to_utf8_buffer(); }
+CharString to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from).utf8(); }
 template <>
-EOS_ProductUserId to_eos_type(const PackedByteArray &p_from) { return EOS_ProductUserId_FromString((char *)p_from.ptr()); }
+EOS_ProductUserId to_eos_type(const CharString &p_from) { return EOS_ProductUserId_FromString((char *)p_from.get_data()); }
 template <>
-const EOS_ProductUserId to_eos_type(const PackedByteArray &p_from) { return to_eos_type<const PackedByteArray &, EOS_ProductUserId>(p_from); }
+const EOS_ProductUserId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_ProductUserId>(p_from); }
 template <>
 EOS_ProductUserId to_eos_type(cstr_t p_from) { return EOS_ProductUserId_FromString(p_from); }
 template <>
 const EOS_ProductUserId to_eos_type(cstr_t p_from) { return to_eos_type<cstr_t, EOS_ProductUserId>(p_from); }
-template <>
-EOS_ProductUserId to_eos_type(const CharString &p_from) { return EOS_ProductUserId_FromString(p_from.ptr()); }
-template <>
-const EOS_ProductUserId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_ProductUserId>(p_from); }
 
 // EOS_EpicAccountId
 template <>
 String to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from); }
 template <>
-PackedByteArray to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from).to_utf8_buffer(); }
+CharString to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from).utf8(); }
 template <>
-EOS_EpicAccountId to_eos_type(const PackedByteArray &p_from) { return EOS_EpicAccountId_FromString((char *)p_from.ptr()); }
+EOS_EpicAccountId to_eos_type(const CharString &p_from) { return EOS_EpicAccountId_FromString((char *)p_from.get_data()); }
 template <>
-const EOS_EpicAccountId to_eos_type(const PackedByteArray &p_from) { return to_eos_type<const PackedByteArray &, EOS_EpicAccountId>(p_from); }
+const EOS_EpicAccountId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_EpicAccountId>(p_from); }
 template <>
 EOS_EpicAccountId to_eos_type(cstr_t p_from) { return EOS_EpicAccountId_FromString(p_from); }
 template <>
 const EOS_EpicAccountId to_eos_type(cstr_t p_from) { return to_eos_type<cstr_t, EOS_EpicAccountId>(p_from); }
-template <>
-EOS_EpicAccountId to_eos_type(const CharString &p_from) { return EOS_EpicAccountId_FromString(p_from.ptr()); }
-template <>
-const EOS_EpicAccountId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_EpicAccountId>(p_from); }
 
 // const char *
 template <>
 String to_godot_type(const cstr_t p_from) { return String::utf8(p_from); }
 template <>
-PackedByteArray to_godot_type(const cstr_t p_from) { return String::utf8(p_from).to_utf8_buffer(); }
-template <>
-cstr_t to_eos_type<const PackedByteArray &, cstr_t>(const PackedByteArray &p_from) {
-    return (char *)p_from.ptr();
-}
-template <>
-cstr_t to_eos_type<PackedByteArray, cstr_t>(PackedByteArray p_from) {
-    return to_eos_type<const PackedByteArray &, cstr_t>((const PackedByteArray &)p_from);
-}
+CharString to_godot_type(const cstr_t p_from) { return { p_from }; }
 template <>
 cstr_t to_eos_type<const CharString &, cstr_t>(const CharString &p_from) {
-    return p_from.get_data();
+    return p_from.size() == 1 ? nullptr : (char *)p_from.ptr();
 }
 template <>
-const cstr_t to_eos_type<const CharString &, const cstr_t>(const CharString &p_from) {
-    return to_eos_type<const CharString &, cstr_t>(p_from);
+cstr_t to_eos_type<CharString, cstr_t>(CharString p_from) {
+    return to_eos_type<const CharString &, cstr_t>((const CharString &)p_from);
 }
 
 // cstr_t*
 template <typename Tint>
-LocalVector<PackedByteArray> to_godot_type_arr(const cstr_t *p_from, Tint p_count) {
-    LocalVector<PackedByteArray> ret;
+LocalVector<CharString> to_godot_type_arr(const cstr_t *p_from, Tint p_count) {
+    LocalVector<CharString> ret;
     ret.reserve(p_count);
     for (int i = 0; i < p_count; ++i) {
-        ret.push_back(to_godot_type<cstr_t, PackedByteArray>(p_from[i]));
+        ret.push_back(to_godot_type<cstr_t, CharString>(p_from[i]));
     }
     return ret;
 }
 
 template <typename Tint>
-cstr_t *to_eos_type_arr(const LocalVector<PackedByteArray> &p_from, Tint &r_count) {
-    cstr_t *ret = nullptr;
-    if (p_from.size()) {
-        ret = (cstr_t *)memalloc(sizeof(cstr_t) * p_from.size());
-        for (int i = 0; i < p_from.size(); i++) {
-            ret[i] = (char *)p_from[i].ptr();
-        }
-    }
+cstr_t *to_eos_type_arr(const LocalVector<CharString> &p_from, Tint &r_count) {
+    cstr_t *ret = (p_from.size()) ? (cstr_t *)p_from.ptr() : nullptr;
     r_count = p_from.size();
     return ret;
 }
 
 // const cstr_t*
 template <typename Tint>
-LocalVector<PackedByteArray> to_godot_type_arr(cstr_t *p_from, Tint p_count) {
+LocalVector<CharString> to_godot_type_arr(cstr_t *p_from, Tint p_count) {
     return to_godot_type_arr((const cstr_t *)p_from, p_count);
 }
 
 // cstr_t*
 template <typename Tint>
-LocalVector<PackedByteArray> to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_count) {
-    LocalVector<PackedByteArray> ret;
+LocalVector<CharString> to_godot_type_arr(const EOS_ProductUserId *p_from, Tint p_count) {
+    LocalVector<CharString> ret;
     ret.resize(p_count);
     for (int i = 0; i < p_count; ++i) {
-        ret[i] = to_godot_type<EOS_ProductUserId, PackedByteArray>(p_from[i]);
+        ret[i] = to_godot_type<EOS_ProductUserId, CharString>(p_from[i]);
     }
     return ret;
 }
 
-// const cstr_t*
 template <typename Tint>
-LocalVector<PackedByteArray> to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
+LocalVector<CharString> to_godot_type_arr(EOS_ProductUserId *p_from, Tint p_count) {
     return to_godot_type_arr((const EOS_ProductUserId *)p_from, p_count);
 }
 
@@ -422,8 +399,9 @@ static const uint8_t *to_eos_requested_channel(uint16_t p_channel) {
 // Hack
 using eos_p2p_socketid_socked_name_t = char[EOS_P2P_SOCKETID_SOCKETNAME_SIZE];
 template <>
-PackedByteArray to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
-    return String(&p_from[0]).to_utf8_buffer();
+CharString to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
+    // 长度限制？
+    return CharString(&p_from[0]);
 }
 template <>
 String to_godot_type(const eos_p2p_socketid_socked_name_t &p_from) {
@@ -436,20 +414,21 @@ inline void to_eos_type_out(gd_arg_t<From> p_from, To &r_to) {
 }
 
 template <>
-inline void to_eos_type_out<PackedByteArray, eos_p2p_socketid_socked_name_t>(const PackedByteArray &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+inline void to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+    if ((p_from.size() == 33 && p_from[32] != 0) || p_from.size() > 33) {
+        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than 32, will be truncatured.", String(p_from)));
+    }
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
-    memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
+    memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
 }
 template <>
-inline void to_eos_type_out<const PackedByteArray &, eos_p2p_socketid_socked_name_t>(const PackedByteArray &p_from, eos_p2p_socketid_socked_name_t &r_to) {
-    memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
-    memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
+inline void to_eos_type_out<CharString, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
+    to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(p_from, r_to);
 }
+
 template <>
 inline void to_eos_type_out<const String &, eos_p2p_socketid_socked_name_t>(const String &p_from, eos_p2p_socketid_socked_name_t &r_to) {
-    memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
-    CharString utf8 = p_from.utf8();
-    memcpy(&r_to[0], (char *)utf8.get_data(), MIN(utf8.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));
+    to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(p_from.utf8(), r_to);
 }
 
 template <>
@@ -515,7 +494,7 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
 }
 
 template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
-inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionType &r_union_type) {
+inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionType &r_union_type, CharString &r_str_cache) {
     if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
         switch (p_gd.get_type()) {
             case Variant::OBJECT: {
@@ -530,8 +509,8 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
             case Variant::STRING_NAME:
             case Variant::NODE_PATH: {
                 // Hack: 是否有不使用静态变量的方案
-                static CharString utf8 = String(p_gd).utf8();
-                p_union.String = utf8.get_data();
+                r_str_cache = String(p_gd).utf8();
+                p_union.String = r_str_cache.size() == 1 ? nullptr : r_str_cache.ptr();
                 r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_String;
             } break;
             case Variant::VECTOR3:
@@ -572,9 +551,8 @@ inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionTy
             case Variant::STRING:
             case Variant::STRING_NAME:
             case Variant::NODE_PATH: {
-                // Hack: 是否有不使用静态变量的方案
-                static CharString utf8 = String(p_gd).utf8();
-                p_union.AsUtf8 = utf8.get_data();
+                r_str_cache = String(p_gd).utf8();
+                p_union.AsUtf8 = r_str_cache.size() == 1 ? nullptr : r_str_cache.ptr();
                 r_union_type = EOS_EAttributeType::EOS_AT_STRING;
             } break;
             default: {
@@ -657,14 +635,18 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
 }
 
 template <typename FromGD, typename ToUnion, typename UnionTy, std::enable_if_t<!std::is_same_v<std::decay_t<UnionTy>, EOS_EMetricsAccountIdType>> *_dummy = nullptr>
-void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy &p_union_type) {
-    variant_to_eos_union(p_from, p_union, p_union_type);
+void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy &p_union_type, CharString &r_str_cache) {
+    variant_to_eos_union(p_from, p_union, p_union_type, r_str_cache);
 }
 
 template <typename ToUnion>
-void to_eos_data_union(const String &p_from, ToUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
-    static CharString utf8_from = p_from.utf8();
-    string_to_eos_union_account_id(utf8_from, p_union, p_union_type);
+void to_eos_data_union(const String &p_from, ToUnion &p_union, EOS_EMetricsAccountIdType p_union_type, CharString &r_str_cache) {
+    r_str_cache = p_from.utf8();
+    string_to_eos_union_account_id(r_str_cache, p_union, p_union_type);
+}
+template <typename ToUnion>
+void to_eos_data_union(const CharString &p_from, ToUnion &p_union, EOS_EMetricsAccountIdType p_union_type, CharString &r_str_cache) {
+    string_to_eos_union_account_id(p_from, p_union, p_union_type);
 }
 
 template <typename FromUnion, typename UnionTy, std::enable_if_t<!std::is_same_v<std::decay_t<UnionTy>, EOS_EMetricsAccountIdType>> *_dummy = nullptr>
@@ -685,7 +667,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     gd_field.clear();                                                                           \
     for (decltype(eos_field_count) i = 0; i < eos_field_count; ++i) {                           \
         using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>; \
-        gd_field.push_back(to_godot_type<eos_str_t, PackedByteArray>(eos_field[i]));            \
+        gd_field.push_back(to_godot_type<eos_str_t, CharString>(eos_field[i]));                 \
     }
 #define _FROM_EOS_FIELD_CLIENT_DATA(gd_field, eos_field) \
     gd_field = ((_CallbackClientData *)eos_field)->client_data
@@ -733,7 +715,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         using arr_ty = eos_str_t *;                                                             \
         arr_ty arr = memnew_arr(eos_str_t, gd_field.size());                                    \
         for (decltype(gd_field.size()) i = 0; i < gd_field.size(); ++i) {                       \
-            arr[i] = to_eos_type<const PackedByteArray &, eos_str_t>(gd_field[i]);              \
+            arr[i] = to_eos_type<const CharString &, eos_str_t>(gd_field[i]);                   \
         }                                                                                       \
         eos_field = arr;                                                                        \
         r_eos_field_count = gd_field.size();                                                    \
@@ -782,11 +764,12 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
     eos_field = to_eos_requested_channel(gd_field)
 #define _TO_EOS_FIELD_UNION(eos_field, gd_field)                                                        \
+    CharString cache_##gd_field;                                                                        \
     if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<decltype(eos_field##Type)>>) { \
-        to_eos_data_union(gd_field, eos_field, gd_field##_type);                                        \
+        to_eos_data_union(gd_field, eos_field, gd_field##_type, cache_##gd_field);                      \
         eos_field##Type = gd_field##_type;                                                              \
     } else {                                                                                            \
-        to_eos_data_union(gd_field, eos_field, eos_field##Type);                                        \
+        to_eos_data_union(gd_field, eos_field, eos_field##Type, cache_##gd_field);                      \
     }
 
 // 绑定
@@ -908,6 +891,17 @@ protected:                                                                      
         }                                                                                                                                                                             \
     }
 
+// Memory
+EOS_MEMORY_CALL static void *_memallocate(size_t SizeInBytes, size_t Alignment) {
+    return Memory::alloc_static(SizeInBytes);
+}
+EOS_MEMORY_CALL static void *_memreallocate(void *Pointer, size_t SizeInBytes, size_t Alignment) {
+    return Memory::realloc_static(Pointer, SizeInBytes);
+}
+EOS_MEMORY_CALL static void _memrelease(void *Pointer) {
+    Memory::free_static(Pointer);
+}
+
 } //namespace godot::eos::internal
 
 namespace godot::eos {
@@ -918,4 +912,5 @@ void setup_eos_project_settings();
 #endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 
 void *get_platform_specific_options();
+
 } //namespace godot::eos
