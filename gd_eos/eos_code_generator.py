@@ -4,6 +4,7 @@ import os, sys
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 # TODO: 对RTC的子句柄进行处理，避免硬编码
+# TODO: 对数组类型进行memfree ！！
 
 sdk_inclide_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -2248,9 +2249,29 @@ def _gen_method(
             disable_macro = _gen_disabled_macro(interface)
             handle_identifier = interface.removeprefix("EOS_H").lower() + "_handle"
             r_define_lines.append(f"#ifndef {disable_macro}")
-            r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
-            r_define_lines.append(f"\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
-            r_define_lines.append(f"\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});;")
+            # 
+            if handle_identifier.startswith("rtc"):
+                # 需要设置RTC选项才能使用RTC相关功能
+                r_define_lines.append(f'\tif ({options_prepare_identifier}.RTCOptions != nullptr) {{')
+                r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
+                r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
+                r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
+                r_define_lines.append(f'\t}}')
+            elif handle_identifier.startswith("anticheatclient"):
+                # 反作弊客户端需要从 bootstrapper 启动，非必须功能，允许为空
+                r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
+                r_define_lines.append(f'\tif ({handle_identifier}) {{ {_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier}); }};')
+            elif handle_identifier.startswith("anticheatserver"):
+                # 如果不是以客户端进行启动则不对反作弊服务器进行初始化。
+                r_define_lines.append(f'\tif ({options_prepare_identifier}.bIsServer) {{')
+                r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
+                r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
+                r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
+                r_define_lines.append(f'\t}}')
+            else:
+                r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
+                r_define_lines.append(f"\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
+                r_define_lines.append(f"\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
         r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
