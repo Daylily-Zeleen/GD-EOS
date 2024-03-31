@@ -682,9 +682,9 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     # Hack
     cb = _gen_callback(_decay_eos_type(callback_type), [])
     if "_EOS_METHOD_CALLBACK" in cb:
-        cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
+        cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
     elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
-        cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPAND")
+        cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPAND")
     else:
         print("ERROR")
         exit(1)
