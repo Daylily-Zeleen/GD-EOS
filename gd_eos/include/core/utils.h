@@ -288,18 +288,21 @@ PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
     return ret;
 }
 
-template <typename Tint>
-int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
-    int16_t *ret = nullptr;
-    if (p_from.size()) {
-        ret = (int16_t *)memalloc(sizeof(int16_t) * p_from.size());
-        for (int i = 0; i < p_from.size(); i++) {
-            ret[i] = p_from[i];
-        }
+inline void _packedint32_to_autio_frames(const PackedInt32Array &p_from, LocalVector<int16_t> &p_to) {
+    p_to.clear();
+    p_to.reserve(p_from.size());
+    for (int32_t e : p_from) {
+#ifdef DEBUG_ENABLED
+        ERR_CONTINUE_MSG(e < INT16_MIN || e > INT16_MAX, "Audio Frme should be a int16_t.");
+#endif // DEBUG_ENABLED
+        p_to.push_back(e);
     }
-    r_count = p_from.size();
-    return ret;
 }
+
+// template <typename Tint>
+// int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
+//     static_assert(std::is_same_v<decltype(p_from), const PackedInt32Array &>, "已经特殊处理，不该被调用");
+// }
 
 // const int16_t*
 template <typename Tint>
@@ -318,33 +321,24 @@ PackedInt32Array to_godot_type_arr(const uint8_t *p_from, Tint p_count) {
     return ret;
 }
 
-// uint32_t*
+// uint32_t* Plaform ID数组使用（不会超过int32 的正值范围）
 template <typename Tint>
-PackedInt64Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
-    PackedInt64Array ret;
+PackedInt32Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
+    PackedInt32Array ret;
     ret.resize(p_count);
-    for (int i = 0; i < p_count; ++i) {
-        ret[i] = p_from[i];
-    }
+    memcpy(ret.ptrw(), p_from, p_count);
     return ret;
 }
 
 template <typename Tint>
-uint32_t *to_eos_type_arr(const PackedInt64Array &p_from, Tint &r_count) {
-    uint32_t *ret = nullptr;
-    if (p_from.size()) {
-        ret = (uint32_t *)memalloc(sizeof(uint32_t) * p_from.size());
-        for (int i = 0; i < p_from.size(); i++) {
-            ret[i] = p_from[i];
-        }
-    }
+uint32_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
     r_count = p_from.size();
-    return ret;
+    return (uint32_t *)p_from.ptr();
 }
 
 // const uint32_t*
 template <typename Tint>
-PackedInt64Array to_godot_type_arr(uint32_t *p_from, Tint p_count) {
+PackedInt32Array to_godot_type_arr(uint32_t *p_from, Tint p_count) {
     return to_godot_type_arr((const uint32_t *)p_from, p_count);
 }
 
@@ -360,13 +354,8 @@ PackedByteArray to_godot_type_arr(const void *p_from, Tint p_length) {
 
 template <typename Tint>
 const void *to_eos_type_arr(const PackedByteArray &p_from, Tint &r_count) {
-    void *ret = nullptr;
-    if (p_from.size()) {
-        ret = (char *)memalloc(sizeof(char) * p_from.size());
-        memcpy(ret, p_from.ptr(), p_from.size());
-    }
     r_count = p_from.size();
-    return ret;
+    return (const void *)p_from.ptr();
 }
 
 static const uint8_t *to_eos_requested_channel(uint16_t p_channel) {

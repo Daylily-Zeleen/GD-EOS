@@ -1464,6 +1464,9 @@ def _gen_packed_result_type(
         elif _is_internal_struct_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
             exit(1)
+        elif _is_audio_frames_type(arg_type, arg_name):
+            print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
+            exit(1)
         else:
             menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
@@ -1783,6 +1786,12 @@ def __expend_input_struct(
         if _is_anticheat_client_handle_type(decay_field_type):
             r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({options_field}, p_{snake_field});")
+        elif _is_audio_frames_type(arg_type, arg_name):
+            r_declare_args.append(f"const PackedInt32Array &p_{snake_field}")
+            r_prepare_lines.append(f"\tLocalVector<int32_t> _shadow_{snake_field};")
+            r_prepare_lines.append(f"\t_packedint32_to_autio_frames(p_{snake_field}, _shadow_{snake_field});")
+            r_prepare_lines.append(f'\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();')
+            r_prepare_lines.append(f'\t{options_field} = _shadow_{snake_field}.ptr();')
         elif _is_str_type(field_type):
             r_declare_args.append(f"const String &p_{snake_field}")
             r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
@@ -2518,7 +2527,6 @@ def remap_type(type: str, field: str = "") -> str:
         "const char*": "String",
         "EOS_Ecom_SandboxId": "String",
         "const EOS_Ecom_CatalogItemId*": "PackedStringArray",
-        "int16_t*": "PackedInt32Array",
         ## Options 新增
         "EOS_AntiCheatCommon_Vec3f*": "Vector3",
         "EOS_AntiCheatCommon_Quat*": "Quaternion",
@@ -2535,7 +2543,6 @@ def remap_type(type: str, field: str = "") -> str:
         "const char* const*": "PackedStringArray",
         "EOS_Ecom_EntitlementName*": "PackedStringArray",
         "EOS_OnlinePlatformType": "uint32_t",
-        "const uint32_t*": "PackedInt64Array",
         "EOS_IntegratedPlatformType": "String",
         "Union{EOS_AntiCheatCommon_ClientHandle : ClientHandle, const char* : String, uint32_t : UInt32, in, EOS_AntiCheatCommon_Vec3f : Vec3f, EOS_AntiCheatCommon_Quat : Quat}": "Variant",
         "Union{int64_t : AsInt64, double : AsDouble, EOS_Bool : AsBool, const char* : AsUtf8}": "Vaiant",
@@ -2562,6 +2569,8 @@ def remap_type(type: str, field: str = "") -> str:
         "const uint8_t*": {
             "RequestedChannel": "int16_t",  # 可选字段，-1 将转为空指针
         },
+        "int16_t*": {"Frame": "PackedInt32Array"},
+        "const uint32_t*": {"AllowedPlatformIds": "PackedInt32Array"},  # 平台ID，虽然是uint32_t但可行的值在int32_t的正值范围内
         # 弃用的
         "const EOS_Auth_AccountFeatureRestrictedInfo*": {
             "AccountFeatureRestrictedInfo_DEPRECATED": "Dictionary",
@@ -3101,6 +3110,11 @@ def _is_str_arr_type(type: str) -> bool:
     return remap_type(type) == "PackedStringArray"
 
 
+def _is_audio_frames_type(type: str, field: str) -> bool:
+    map = {"int16_t*": ["Frames"]}
+    return type in map and field in map[type]
+
+
 def _gen_struct(
     struct_type: str,
     fields: dict[str, str],
@@ -3189,6 +3203,9 @@ def _gen_struct(
             lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
         elif _is_struct_ptr(type):
             lines.append(f"\t{_decay_eos_type(type)} {to_snake_case(field)}{{}};")
+        elif _is_audio_frames_type(type, field):
+            lines.append(f"\tPackedInt32Array {to_snake_case(field)}{{}};")
+            lines.append(f"\tLocalVector<int16_t> _shadow_{to_snake_case(field)}{{}};")
         else:
             lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
@@ -3391,6 +3408,10 @@ def _gen_struct(
                 case _:
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
+                    elif _is_audio_frames_type(field_type, field):
+                        r_structs_cpp.append(f"\t_packedint32_to_autio_frames({to_snake_case(field)}, _shadow_{to_snake_case(field)});")
+                        r_structs_cpp.append(f"\tp_data.{field} = _shadow_{to_snake_case(field)}.ptr();")
+                        r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{to_snake_case(field)}.size();")
                     elif _is_struct_ptr(fields[field]):
                         r_structs_cpp.append(f"\tp_data.{field} = &{to_snake_case(field)};")
                     elif _is_str_type(field_type):
