@@ -1825,7 +1825,8 @@ def __expend_input_struct(
         elif _is_internal_struct_arr_field(field_type, field):
             r_declare_args.append(f"const TypedArray<{__convert_to_struct_class(_decay_eos_type(field_type))}> &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
-            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(decay_field_type)}, {options_field}, p_{snake_field}, {option_count_field});")
+            r_prepare_lines.append(f'\tLocalVector<{_decay_eos_type(field_type)}> _shadow_{snake_field};')
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             if len(invalid_arg_return_value):
@@ -3206,6 +3207,11 @@ def _gen_struct(
         elif _is_audio_frames_type(type, field):
             lines.append(f"\tPackedInt32Array {to_snake_case(field)}{{}};")
             lines.append(f"\tLocalVector<int16_t> _shadow_{to_snake_case(field)}{{}};")
+        elif _is_internal_struct_arr_field(type, field):
+            lines.append(f'\t{remaped_type} {to_snake_case(field)}{{}};')
+            if addtional_methods_requirements["to"]:
+                # 需要转为eos类型的结构体数组才需要
+                lines.append(f'\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};')
         else:
             lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
@@ -3437,7 +3443,7 @@ def _gen_struct(
                         exit(1)
                     elif _is_internal_struct_arr_field(field_type, field):
                         r_structs_cpp.append(
-                            f"\t_TO_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
+                            f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
                         )
                     elif _is_internal_struct_field(field_type, field) or _is_integreate_platform_init_option(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")

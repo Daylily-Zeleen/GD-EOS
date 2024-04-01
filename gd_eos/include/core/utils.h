@@ -715,21 +715,21 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     }
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
-#define _TO_EOS_FIELD_STRUCT_ARR(gd_data_type, eos_field, gd_field, r_eos_field_count)              \
-    r_eos_field_count = gd_field.size();                                                            \
-    if (r_eos_field_count) {                                                                        \
-        using _eos_data_type = std::remove_const_t<std::remove_pointer_t<decltype(eos_field)>>;     \
-        auto eos_data_arr = (_eos_data_type *)memalloc(sizeof(_eos_data_type) * r_eos_field_count); \
-        memset(&eos_field, 0, sizeof(_eos_data_type) * r_eos_field_count);                          \
-        for (decltype(r_eos_field_count) i = 0; i < r_eos_field_count; ++i) {                       \
-            auto casted_data = Object::cast_to<gd_data_type>(gd_field[0]);                          \
-            ERR_BREAK(casted_data == nullptr);                                                      \
-            casted_data->set_to_eos(eos_data_arr[0]);                                               \
-        }                                                                                           \
-        eos_field = eos_data_arr;                                                                   \
-    } else {                                                                                        \
-        eos_field = nullptr;                                                                        \
+
+template <typename GDFrom, typename EOSTo>
+inline void _conver_to_eos_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
+    p_to.resize(p_from.size());
+    for (decltype(p_from.size()) i = 0; i < p_from.size(); ++i) {
+        auto casted = Object::cast_to<GDFrom>(p_from[i]);
+        ERR_CONTINUE(casted == nullptr);
+        casted->set_to_eos(p_to[i]);
     }
+}
+
+#define _TO_EOS_FIELD_STRUCT_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
+    _conver_to_eos_vector(gd_field, shadow_field);                                     \
+    r_eos_field_count = shadow_field.size();                                           \
+    eos_field = shadow_field.ptr();
 #define _TO_EOS_FIELD_HANDLER(eos_field, gd_field, gd_type_to_cast) \
     eos_field = gd_field.is_valid() ? Object::cast_to<gd_type_to_cast>(gd_field.ptr())->get_handle() : nullptr
 #define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
