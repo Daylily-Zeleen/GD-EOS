@@ -76,7 +76,7 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     void klass::set_##field(const PackedStringArray &p_val) {           \
         field.clear();                                                  \
         for (const String &str : p_val) {                               \
-            field.push_back(str.utf8());                                \
+            field.push_back(str.length() ? str.utf8() : CharString{});  \
         }                                                               \
     }
 
@@ -201,7 +201,7 @@ String to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to
 template <>
 CharString to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from).utf8(); }
 template <>
-EOS_ProductUserId to_eos_type(const CharString &p_from) { return EOS_ProductUserId_FromString((char *)p_from.get_data()); }
+EOS_ProductUserId to_eos_type(const CharString &p_from) { return EOS_ProductUserId_FromString((char *)(p_from.size() == 1 ? nullptr : p_from.ptr())); }
 template <>
 const EOS_ProductUserId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_ProductUserId>(p_from); }
 template <>
@@ -215,7 +215,7 @@ String to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to
 template <>
 CharString to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from).utf8(); }
 template <>
-EOS_EpicAccountId to_eos_type(const CharString &p_from) { return EOS_EpicAccountId_FromString((char *)p_from.get_data()); }
+EOS_EpicAccountId to_eos_type(const CharString &p_from) { return EOS_EpicAccountId_FromString((char *)(p_from.size() == 1 ? nullptr : p_from.ptr())); }
 template <>
 const EOS_EpicAccountId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_EpicAccountId>(p_from); }
 template <>
@@ -597,9 +597,9 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
 template <typename EOSUnion>
 inline void string_to_eos_union_account_id(const CharString &p_gd, EOSUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
     if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_Epic) {
-        p_union.Epic = string_to_epic_account_id(p_gd.get_data());
+        p_union.Epic = string_to_epic_account_id((p_gd.size() == 1) ? nullptr : p_gd.ptr());
     } else if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_External) {
-        p_union.External = p_gd.get_data();
+        p_union.External = (p_gd.size() == 1) ? nullptr : p_gd.ptr();
     }
 }
 template <typename EOSUnion>
@@ -683,35 +683,33 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     to_eos_type_out<_DECLTYPE_GODOT_ARG_TYPE(gd_field), decltype(eos_field)>(std::move(gd_field), eos_field)
 #define _TO_EOS_FIELD_ARR(eos_field, gd_field, r_eos_field_count) \
     eos_field = (decltype(eos_field))to_eos_type_arr(gd_field, r_eos_field_count)
-#define _TO_EOS_STR_ARR(eos_field, gd_field, r_eos_field_count)                                 \
+#define _TO_EOS_STR_ARR(eos_field, gd_field, shadow_field, r_eos_field_count)                   \
     eos_field = nullptr;                                                                        \
     if (gd_field.size()) {                                                                      \
         using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>; \
-        using arr_ty = eos_str_t *;                                                             \
-        arr_ty arr = memnew_arr(eos_str_t, gd_field.size());                                    \
+        shadow_field.resize(gd_field.size());                                                   \
         for (decltype(gd_field.size()) i = 0; i < gd_field.size(); ++i) {                       \
-            arr[i] = to_eos_type<const CharString &, eos_str_t>(gd_field[i]);                   \
+            shadow_field[i] = to_eos_type<const CharString &, eos_str_t>(gd_field[i]);          \
         }                                                                                       \
-        eos_field = arr;                                                                        \
+        eos_field = shadow_field.ptr();                                                         \
         r_eos_field_count = gd_field.size();                                                    \
     } else {                                                                                    \
         r_eos_field_count = 0;                                                                  \
     }
-#define _TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR(eos_field, gd_field, r_eos_field_count)          \
-    eos_field = nullptr;                                                                        \
-    LocalVector<CharString> _##gd_field;                                                        \
-    if (gd_field.size()) {                                                                      \
-        using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>; \
-        using arr_ty = eos_str_t *;                                                             \
-        arr_ty arr = memnew_arr(eos_str_t, gd_field.size());                                    \
-        for (decltype(gd_field.size()) i = 0; i < gd_field.size(); ++i) {                       \
-            _##gd_field.push_back(gd_field[i].to_utf8_buffer());                                \
-            eos_field[i] = to_eos_type<const CharString &, eos_str_t>(_##gd_field[i]);          \
-        }                                                                                       \
-        eos_field = arr;                                                                        \
-        r_eos_field_count = gd_field.size();                                                    \
-    } else {                                                                                    \
-        r_eos_field_count = 0;                                                                  \
+#define _TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
+    eos_field = nullptr;                                                                             \
+    LocalVector<CharString> _##gd_field;                                                             \
+    if (gd_field.size()) {                                                                           \
+        using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>;      \
+        shadow_field.resize(gd_field.size());                                                        \
+        for (decltype(gd_field.size()) i = 0; i < gd_field.size(); ++i) {                            \
+            _##gd_field.push_back(gd_field[i].to_utf8_buffer());                                     \
+            shadow_field[i] = to_eos_type<const CharString &, eos_str_t>(_##gd_field[i]);            \
+        }                                                                                            \
+        eos_field = shadow_field.ptr();                                                              \
+        r_eos_field_count = gd_field.size();                                                         \
+    } else {                                                                                         \
+        r_eos_field_count = 0;                                                                       \
     }
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)

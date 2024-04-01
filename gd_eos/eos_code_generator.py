@@ -1730,6 +1730,17 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
     return map[method_name]
 
 
+def __get_str_arr_element_type(str_arr_type:str)->str:
+    if str_arr_type in  ["const char**" , "const char* const*"]:
+        return "const char*"
+    elif str_arr_type.endswith("EOS_EpicAccountId*"):
+        return "EOS_EpicAccountId"
+    elif str_arr_type.endswith("EOS_ProductUserId*"):
+        return "EOS_ProductUserId"
+    else:
+        return str_arr_type.removesuffix("*").removeprefix("const ")
+
+
 def __expend_input_struct(
     arg_type: str,
     arg_name: str,
@@ -1790,8 +1801,8 @@ def __expend_input_struct(
             r_declare_args.append(f"const PackedInt32Array &p_{snake_field}")
             r_prepare_lines.append(f"\tLocalVector<int32_t> _shadow_{snake_field};")
             r_prepare_lines.append(f"\t_packedint32_to_autio_frames(p_{snake_field}, _shadow_{snake_field});")
-            r_prepare_lines.append(f'\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();')
-            r_prepare_lines.append(f'\t{options_field} = _shadow_{snake_field}.ptr();')
+            r_prepare_lines.append(f"\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();")
+            r_prepare_lines.append(f"\t{options_field} = _shadow_{snake_field}.ptr();")
         elif _is_str_type(field_type):
             r_declare_args.append(f"const String &p_{snake_field}")
             r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
@@ -1799,7 +1810,9 @@ def __expend_input_struct(
         elif _is_str_arr_type(field_type):
             r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())};"
-            r_prepare_lines.append(f"\t_TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR({options_field}, p_{snake_field}, {option_count_field});")
+            element_type:str = __get_str_arr_element_type(field_type)
+            r_prepare_lines.append(f'\tLovalVector<{element_type}> _shadow_{snake_field};')
+            r_prepare_lines.append(f"\t_TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_nullable_float_pointer_field(field_type, field):
             r_declare_args.append(f"{decay_field_type} p_{snake_field} = -1.0")
             r_prepare_lines.append(f"\t{options_field} = p_{snake_field} < 0.0? nullptr: &p_{snake_field};")
@@ -1825,7 +1838,7 @@ def __expend_input_struct(
         elif _is_internal_struct_arr_field(field_type, field):
             r_declare_args.append(f"const TypedArray<{__convert_to_struct_class(_decay_eos_type(field_type))}> &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
-            r_prepare_lines.append(f'\tLocalVector<{_decay_eos_type(field_type)}> _shadow_{snake_field};')
+            r_prepare_lines.append(f"\tLocalVector<{_decay_eos_type(field_type)}> _shadow_{snake_field};")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
@@ -3202,16 +3215,21 @@ def _gen_struct(
             lines.append(f"\tCharString {to_snake_case(field)};")
         elif _is_str_arr_type(type):
             lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
+            if addtional_methods_requirements["to"]:
+                # 需要转为eos类型的结构体数组才需要的字段
+                element_type:str = __get_str_arr_element_type(type)
+                if element_type != "const char*": # 如果是C字符串则直接使用CharString
+                    lines.append(f'\tLocalVector<{element_type}> _shadow_{to_snake_case(field)}{{}};')
         elif _is_struct_ptr(type):
             lines.append(f"\t{_decay_eos_type(type)} {to_snake_case(field)}{{}};")
         elif _is_audio_frames_type(type, field):
             lines.append(f"\tPackedInt32Array {to_snake_case(field)}{{}};")
             lines.append(f"\tLocalVector<int16_t> _shadow_{to_snake_case(field)}{{}};")
         elif _is_internal_struct_arr_field(type, field):
-            lines.append(f'\t{remaped_type} {to_snake_case(field)}{{}};')
+            lines.append(f"\t{remaped_type} {to_snake_case(field)}{{}};")
             if addtional_methods_requirements["to"]:
-                # 需要转为eos类型的结构体数组才需要
-                lines.append(f'\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};')
+                # 需要转为eos类型的结构体数组才需要的字段
+                lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};")
         else:
             lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
@@ -3415,15 +3433,23 @@ def _gen_struct(
                     if __is_api_version_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
                     elif _is_audio_frames_type(field_type, field):
-                        r_structs_cpp.append(f"\t_packedint32_to_autio_frames({to_snake_case(field)}, _shadow_{to_snake_case(field)});")
-                        r_structs_cpp.append(f"\tp_data.{field} = _shadow_{to_snake_case(field)}.ptr();")
-                        r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{to_snake_case(field)}.size();")
+                        r_structs_cpp.append(f"\t_packedint32_to_autio_frames({snake_field_name}, _shadow_{snake_field_name});")
+                        r_structs_cpp.append(f"\tp_data.{field} = _shadow_{snake_field_name}.ptr();")
+                        r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
                     elif _is_struct_ptr(fields[field]):
-                        r_structs_cpp.append(f"\tp_data.{field} = &{to_snake_case(field)};")
+                        r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
                     elif _is_str_type(field_type):
-                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({to_snake_case(field)});")
+                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
                     elif _is_str_arr_type(field_type):
-                        r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {to_snake_case(field)}, p_data.{_find_count_field(field, fields.keys())});")
+                        count_filed :str= _find_count_field(field, fields.keys())
+                        if __get_str_arr_element_type(field_type) == "const char*":
+                            # C字符串数组直接使用LocalVector<CharString>的指针
+                            r_structs_cpp.append(f'\tp_data.{field} = (decltype(p_data.{field})){snake_field_name}.ptr();')
+                            r_structs_cpp.append(f'\tp_data.{count_filed} = {snake_field_name}.size();')
+                        else:
+                            r_structs_cpp.append(
+                                f"\t_TO_EOS_STR_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{count_filed});"
+                            )
                     elif _is_nullable_float_pointer_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
                     elif _is_platform_specific_options_field(field):
