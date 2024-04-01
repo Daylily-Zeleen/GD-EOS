@@ -703,7 +703,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         using eos_str_t = std::remove_const_t<std::remove_reference_t<decltype(eos_field[0])>>;      \
         shadow_field.resize(gd_field.size());                                                        \
         for (decltype(gd_field.size()) i = 0; i < gd_field.size(); ++i) {                            \
-            _##gd_field.push_back(gd_field[i].to_utf8_buffer());                                     \
+            _##gd_field.push_back(gd_field[i].utf8());                                               \
             shadow_field[i] = to_eos_type<const CharString &, eos_str_t>(_##gd_field[i]);            \
         }                                                                                            \
         eos_field = shadow_field.ptr();                                                              \

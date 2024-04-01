@@ -1809,9 +1809,9 @@ def __expend_input_struct(
             r_prepare_lines.append(f"\t{options_field} = to_eos_type<const char *, decltype({options_field})>(utf8_{snake_field});")
         elif _is_str_arr_type(field_type):
             r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
-            option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())};"
+            option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
             element_type:str = __get_str_arr_element_type(field_type)
-            r_prepare_lines.append(f'\tLovalVector<{element_type}> _shadow_{snake_field};')
+            r_prepare_lines.append(f'\tLocalVector<{element_type}> _shadow_{snake_field};')
             r_prepare_lines.append(f"\t_TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_nullable_float_pointer_field(field_type, field):
             r_declare_args.append(f"{decay_field_type} p_{snake_field} = -1.0")
@@ -2800,7 +2800,7 @@ def _make_additional_method_requirements():
 
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
-        field_count = len(structs[struct_type])
+        field_count = len(structs[struct_type]) - (1 if "ClientData" in structs[struct_type] else 0) - (1 if "ApiVersion" in structs[struct_type] else 0)
         if max_field_count_to_expend_of_input_options > 0 and field_count <= max_field_count_to_expend_of_input_options and __is_method_input_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
         if max_field_count_to_expend_of_callback_info > 0 and field_count <= max_field_count_to_expend_of_callback_info and __is_callback_output_only_struct(struct_type):
