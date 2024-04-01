@@ -1646,7 +1646,7 @@ def _gen_callback(
             snake_case_field = to_snake_case(field)
             if _is_enum_type(field_type):
                 ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {_get_enum_owned_interface(field_type)}, {field_type})"
+                signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {_get_enum_owned_interface(field_type)}, {_convert_enum_type(field_type)})"
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type).removesuffix('*')}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type).removesuffix('*')}, {snake_case_field})"
