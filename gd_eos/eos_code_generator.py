@@ -492,6 +492,8 @@ def gen_files(file_base_name: str, infos: dict):
         interface_handle_h_lines.append(f"\tREGISTER_DATA_CLASSES_OF_{macro_suffix}()\\")
     if has_packed_result:
         interface_handle_h_lines.append(f"\tREGISTER_PACKED_RESULTS_{macro_suffix}()\\")
+    if len(sub_handles):
+        interface_handle_h_lines.append(f"\tREGISTER_HANDLES_OF_{macro_suffix}()\\")
 
     __remove_backslash_of_last_line(interface_handle_h_lines)
 
@@ -645,7 +647,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
 
 
 def gen_handles(interface_handle_class: str, additional_include_lines: list[str], p_handles: dict, r_cpp_lines: list[str]) -> list[str]:
-    register_lines: list[str] = [f"#define REGISTER_HANDLES_OF_{interface_handle_class}()\\"]
+    register_lines: list[str] = [f"#define REGISTER_HANDLES_OF_{_convert_handle_class_name(interface_handle_class)}()\\"]
 
     h_lines: list[str] = [f"#pragma once"]
 
@@ -907,7 +909,7 @@ def _gen_handle(
     r_cpp_lines.append(f"}}")
 
     # 注册宏
-    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{handle_name})\\")
+    r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
 
     return ret
 
