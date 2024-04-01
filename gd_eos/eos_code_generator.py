@@ -2134,8 +2134,6 @@ def _gen_method(
 
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
-            declare_args.append("const Variant& p_client_data")
-            bind_args.append('"client_data"')
             if (i + 1) < len(info["args"]) and __is_callback_type(_decay_eos_type(info["args"][i + 1]["type"])):
                 match _decay_eos_type(info["args"][i + 1]["type"]):
                     case "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
@@ -2144,7 +2142,7 @@ def _gen_method(
                         completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
                         prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {write_cb}, {progress_cb}, {completion_cb});")
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {write_cb}, {progress_cb}, {completion_cb});")
                         call_args.append(f"transfer_data")
                         for_file_transfer = True
                     case "EOS_PlayerDataStorage_OnReadFileCompleteCallback" | "EOS_TitleStorage_OnReadFileCompleteCallback":
@@ -2153,15 +2151,14 @@ def _gen_method(
                         completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
                         prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, p_client_data, {read_cb}, {progress_cb}, {completion_cb});")
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {read_cb}, {progress_cb}, {completion_cb});")
                         call_args.append(f"transfer_data")
                         for_file_transfer = True
-                    case "EOS_IntegratedPlatform_SetUserPreLogoutCallback":
-                        prepare_lines.append("\tstatic auto client_data = _CallbackClientData(this, {}, {});")
-                        prepare_lines.append("\tclient_data.handle_wrapper = this;")
-                        prepare_lines.append("\tclient_data.client_data = p_client_data;")
-                        prepare_lines.append(f'\tclient_data.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
-                        call_args.append("&client_data")
+                    case "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
+                        prepare_lines.append("\tstatic auto ClientData = _CallbackClientData(this, {});")
+                        prepare_lines.append("\tClientData.handle_wrapper = this;")
+                        prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
+                        call_args.append("&ClientData")
                     case _:
                         call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
             else:

@@ -7,8 +7,6 @@
 namespace godot::eos::internal {
 
 struct _FileTransferData {
-    Variant client_data;
-
     Object *interface_handle;
     Ref<RefCounted> request_handle;
 
@@ -17,8 +15,8 @@ struct _FileTransferData {
 
     Callable completion_callback;
 
-    _FileTransferData(Object *p_interface_handle, const Ref<RefCounted> &p_request_handle, const Variant &p_client_data, const Callable &p_operation_callback, const Callable &p_progress_callback, const Callable &p_completion_callback) :
-            client_data(p_client_data), interface_handle(p_interface_handle), request_handle(p_request_handle), operation_callback(p_operation_callback), progress_callback(p_progress_callback), completion_callback(p_completion_callback) {}
+    _FileTransferData(Object *p_interface_handle, const Ref<RefCounted> &p_request_handle, const Callable &p_operation_callback, const Callable &p_progress_callback, const Callable &p_completion_callback) :
+            interface_handle(p_interface_handle), request_handle(p_request_handle), operation_callback(p_operation_callback), progress_callback(p_progress_callback), completion_callback(p_completion_callback) {}
 };
 
 template <typename EOSCallbackInfoTy, typename GDCallbackInfoTy, const char *SIGNAL_NAME>
@@ -129,4 +127,4 @@ void file_transfer_completion_callback(const EOSCallbackInfoTy *p_data) {
 
 #define MAKE_FILE_TRANSFER_DATA(...) memnew(_FileTransferData(this, __VA_ARGS__))
 
-} //namespace godot
+} //namespace godot::eos::internal
