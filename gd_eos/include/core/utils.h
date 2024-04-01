@@ -392,7 +392,7 @@ inline void to_eos_type_out(gd_arg_t<From> p_from, To &r_to) {
 
 template <>
 inline void to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
-    if ((p_from.size() == 33 && p_from[32] != 0) || p_from.size() > 33) {
+    if ((p_from.size() == 33 && p_from.get(32) != 0) || p_from.size() > 33) {
         WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than 32, will be truncatured.", String(p_from)));
     }
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
@@ -862,13 +862,13 @@ protected:                                                                      
     }
 
 // Memory
-EOS_MEMORY_CALL static void *_memallocate(size_t SizeInBytes, size_t Alignment) {
+static void *EOS_MEMORY_CALL _memallocate(size_t SizeInBytes, size_t Alignment) {
     return Memory::alloc_static(SizeInBytes);
 }
-EOS_MEMORY_CALL static void *_memreallocate(void *Pointer, size_t SizeInBytes, size_t Alignment) {
+static void *EOS_MEMORY_CALL _memreallocate(void *Pointer, size_t SizeInBytes, size_t Alignment) {
     return Memory::realloc_static(Pointer, SizeInBytes);
 }
-EOS_MEMORY_CALL static void _memrelease(void *Pointer) {
+static void EOS_MEMORY_CALL _memrelease(void *Pointer) {
     Memory::free_static(Pointer);
 }
 
