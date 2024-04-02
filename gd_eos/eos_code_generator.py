@@ -526,10 +526,16 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
         if _is_need_skip_enum_type(enum_type):
             continue
         lines.append(f"#define _BIND_ENUM_{enum_type}()\\")
-        for e in enum_info[enum_type]:
-            if _is_need_skip_enum_value(enum_type, e):
-                continue
-            lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}");\\')
+        if _is_enum_flags_type(enum_type):
+            for e in enum_info[enum_type]:
+                if _is_need_skip_enum_value(enum_type, e):
+                    continue
+                lines.append(f'\t_BIND_ENUM_BITFIELD_FLAG({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
+        else:
+            for e in enum_info[enum_type]:
+                if _is_need_skip_enum_value(enum_type, e):
+                    continue
+                lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
         __remove_backslash_of_last_line(lines)
         lines.append("")
 
@@ -556,7 +562,10 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
     for enum_type in enum_info:
         if _is_need_skip_enum_type(enum_type):
             continue
-        lines.append(f"\tVARIANT_ENUM_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)});\\")
+        if _is_enum_flags_type(enum_type):
+            lines.append(f"\tVARIANT_BITFIELD_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)})\\")
+        else:
+            lines.append(f"\tVARIANT_ENUM_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)})\\")
     __remove_backslash_of_last_line(lines)
     lines.append("")
 
@@ -1469,6 +1478,11 @@ def _gen_packed_result_type(
         elif _is_audio_frames_type(arg_type, arg_name):
             print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
             exit(1)
+        elif _is_enum_flags_type(arg_type):
+            menbers_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
+            setget_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_name})")
+            r_cpp_lines.append(f"_DEFINE_SETGET_FLAGS({typename}, {snake_name})")
+            bind_lines.append(f"\t_BIND_PROP_BITFIELD({snake_name})")
         else:
             menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
@@ -1645,7 +1659,10 @@ def _gen_callback(
 
             snake_case_field = to_snake_case(field)
             if _is_enum_type(field_type):
-                ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
+                if _is_enum_flags_type(field_type):
+                    ret += f"_EXPAND_TO_GODOT_VAL_FLAGS({remap_type(field_type)}, data->{field})"
+                else:
+                    ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {_get_enum_owned_interface(field_type)}, {_convert_enum_type(field_type)})"
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type).removesuffix('*')}, data->{field})"
@@ -1732,8 +1749,8 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
     return map[method_name]
 
 
-def __get_str_arr_element_type(str_arr_type:str)->str:
-    if str_arr_type in  ["const char**" , "const char* const*"]:
+def __get_str_arr_element_type(str_arr_type: str) -> str:
+    if str_arr_type in ["const char**", "const char* const*"]:
         return "const char*"
     elif str_arr_type.endswith("EOS_EpicAccountId*"):
         return "EOS_EpicAccountId"
@@ -1812,8 +1829,8 @@ def __expend_input_struct(
         elif _is_str_arr_type(field_type):
             r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
-            element_type:str = __get_str_arr_element_type(field_type)
-            r_prepare_lines.append(f'\tLocalVector<{element_type}> _shadow_{snake_field};')
+            element_type: str = __get_str_arr_element_type(field_type)
+            r_prepare_lines.append(f"\tLocalVector<{element_type}> _shadow_{snake_field};")
             r_prepare_lines.append(f"\t_TO_EOS_STR_ARR_FROM_PACKED_STRING_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_nullable_float_pointer_field(field_type, field):
             r_declare_args.append(f"{decay_field_type} p_{snake_field} = -1.0")
@@ -1857,6 +1874,9 @@ def __expend_input_struct(
             r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
             r_prepare_lines.append(f"\t{field_type} shadow_{snake_field} = to_eos_type<decltype(p_{snake_field}), {_decay_eos_type(field_type)}>(p_{snake_field});")
             r_prepare_lines.append(f"\t{options_field} = &shadow_{snake_field};")
+        elif _is_enum_flags_type(field_type):
+            r_declare_args.append(f"BitField<{remap_type(field_type, field)}> p_{snake_field}")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_FLAGS({options_field.split('[')[0]}, p_{snake_field});")
         else:
             r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD({options_field.split('[')[0]}, p_{snake_field});")
@@ -2065,6 +2085,10 @@ def _gen_method(
         return_type = "EOS_EResult"
         invalid_arg_return_val = "EOS_EResult::EOS_InvalidParameters"
 
+    if _is_enum_flags_type(return_type):
+        return_type = f"BitField<{return_type}>"
+        invalid_arg_return_val = f"{return_type}({{}})"
+
     declare_args: list[str] = []
     call_args: list[str] = []
     bind_args: list[str] = []
@@ -2224,6 +2248,11 @@ def _gen_method(
             # 字符串数组参数
             print("ERROR")
             exit(1)
+        elif _is_enum_flags_type(type):
+            # 普通参数
+            declare_args.append(f"BitField<{type}> p_{snake_name}")
+            bind_args.append(f'"{snake_name}"')
+            call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
         else:
             # 普通参数
             declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
@@ -2328,6 +2357,8 @@ def _gen_method(
         r_define_lines.append(f"\treturn result_code;")
     elif return_type == "Signal":
         r_define_lines.append(f'\treturn Signal(this, SNAME("{callback_signal}"));')
+    elif return_type.startswith("BitField"):
+        r_define_lines.append(f"\treturn _EXPAND_TO_GODOT_VAL_FLAGS({return_type}, ret);")
     elif return_type != "void":
         r_define_lines.append(f"\treturn _EXPAND_TO_GODOT_VAL({return_type}, ret);")
 
@@ -3128,6 +3159,10 @@ def _is_audio_frames_type(type: str, field: str) -> bool:
     return type in map and field in map[type]
 
 
+def _is_enum_flags_type(type: str) -> bool:
+    return _is_enum_type(type) and (type.endswith("Flags") or type.endswith("Combination"))
+
+
 def _gen_struct(
     struct_type: str,
     fields: dict[str, str],
@@ -3216,9 +3251,9 @@ def _gen_struct(
             lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
             if addtional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
-                element_type:str = __get_str_arr_element_type(type)
-                if element_type != "const char*": # 如果是C字符串则直接使用CharString
-                    lines.append(f'\tLocalVector<{element_type}> _shadow_{to_snake_case(field)}{{}};')
+                element_type: str = __get_str_arr_element_type(type)
+                if element_type != "const char*":  # 如果是C字符串则直接使用CharString
+                    lines.append(f"\tLocalVector<{element_type}> _shadow_{to_snake_case(field)}{{}};")
         elif _is_struct_ptr(type):
             lines.append(f"\t{_decay_eos_type(type)} {to_snake_case(field)}{{}};")
         elif _is_audio_frames_type(type, field):
@@ -3229,6 +3264,8 @@ def _gen_struct(
             if addtional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
                 lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};")
+        elif _is_enum_flags_type(type):
+            lines.append(f"\tBitField<{type}> {to_snake_case(field)}{{{type}{{}}}};")
         else:
             lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
@@ -3276,6 +3313,9 @@ def _gen_struct(
         elif _is_struct_ptr(type):
             lines.append(f"\t_DECLARE_SETGET_STRUCT_PTR({remaped_type}, {to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_STRUCT_PTR({typename}, {remaped_type},  {to_snake_case(field)})")
+        elif _is_enum_flags_type(type):
+            lines.append(f"\t_DECLARE_SETGET_FLAGS({to_snake_case(field)})")
+            r_structs_cpp.append(f"_DEFINE_SETGET_FLAGS({typename}, {to_snake_case(field)})")
         else:
             lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET({typename}, {to_snake_case(field)})")
@@ -3336,6 +3376,8 @@ def _gen_struct(
             r_structs_cpp.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
         elif __is_struct_type(decayed_type) or _is_handle_type(decayed_type):
             r_structs_cpp.append(f"\t_BIND_PROP_OBJ({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
+        elif _is_enum_flags_type(type):
+            r_structs_cpp.append(f"\t_BIND_PROP_FLAGS({snake_field_name})")
         else:
             r_structs_cpp.append(f"\t_BIND_PROP({snake_field_name})")
     r_structs_cpp.append(f"\t_BIND_END()")
@@ -3399,6 +3441,8 @@ def _gen_struct(
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_STRUCT({to_snake_case(field)}, p_origin.{field});")
             elif _is_arr_field(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
+            elif _is_enum_flags_type(field_type):
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_FLAGS({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
             else:
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
         r_structs_cpp.append("}")
@@ -3440,15 +3484,13 @@ def _gen_struct(
                     elif _is_str_type(field_type):
                         r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
                     elif _is_str_arr_type(field_type):
-                        count_filed :str= _find_count_field(field, fields.keys())
+                        count_filed: str = _find_count_field(field, fields.keys())
                         if __get_str_arr_element_type(field_type) == "const char*":
                             # C字符串数组直接使用LocalVector<CharString>的指针
-                            r_structs_cpp.append(f'\tp_data.{field} = (decltype(p_data.{field})){snake_field_name}.ptr();')
-                            r_structs_cpp.append(f'\tp_data.{count_filed} = {snake_field_name}.size();')
+                            r_structs_cpp.append(f"\tp_data.{field} = (decltype(p_data.{field})){snake_field_name}.ptr();")
+                            r_structs_cpp.append(f"\tp_data.{count_filed} = {snake_field_name}.size();")
                         else:
-                            r_structs_cpp.append(
-                                f"\t_TO_EOS_STR_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{count_filed});"
-                            )
+                            r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{count_filed});")
                     elif _is_nullable_float_pointer_field(field_type, field):
                         r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
                     elif _is_platform_specific_options_field(field):
@@ -3474,6 +3516,8 @@ def _gen_struct(
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
                     elif _is_arr_field(field_type, field):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
+                    elif _is_enum_flags_type(field_type):
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_FLAGS(p_data.{field}, {snake_field_name});")
                     elif __is_callback_type(_decay_eos_type(field_type)):
                         cb_arg = _get_callback_infos(_decay_eos_type(field_type))["args"][0]
                         eos_cb_type = _decay_eos_type(cb_arg["type"])
