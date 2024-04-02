@@ -786,6 +786,7 @@ def _gen_handle(
         if "RemoveNotify" in method:
             if method in skip_remove_notify_methods:
                 continue  # 已经成对处理
+
         _gen_method(
             handle_name,
             method,
@@ -795,6 +796,9 @@ def _gen_handle(
             method_bind_lines,
         )
         r_cpp_lines.append("")
+    
+    method_define_lines.append(f'\tString _to_string() const;')
+    method_define_lines.append("")
 
     if need_singleton:
         r_cpp_lines.append(f"{klass}::{klass}() {{")
@@ -902,6 +906,10 @@ def _gen_handle(
         ret.append(f"_CAST_ENUMS_{macro_suffix}()")
     ret.append(f"")
 
+    # _to_string
+    r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[%s:%d]", get_class_static(), get_instance_id()); }}')
+    r_cpp_lines.append("")
+    
     # bind
     r_cpp_lines.append(f"void {klass}::_bind_methods() {{")
     r_cpp_lines += method_bind_lines
