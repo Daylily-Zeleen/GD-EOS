@@ -1,10 +1,8 @@
 import os, sys
 
-# TODO: 生成绑定常量（xxxMAX_LENTGTH 等等）
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 # TODO: 对RTC的子句柄进行处理，避免硬编码
-# TODO: 对数组类型进行memfree ！！
 
 sdk_inclide_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -30,11 +28,13 @@ handles: dict[str, dict] = {
         "methods": {},
         "callbacks": {"EOS_LogMessageFunc": {"return": "", "args": [{"type": "const EOS_LogMessage*", "name": "Message"}]}},
         "enums": {},
+        "constants": {},
     },
     "EOS_HAntiCheatCommon": {
         "methods": {},
         "callbacks": {},
         "enums": {},
+        "constants": {},
     },
 }
 
@@ -45,6 +45,7 @@ release_methods: dict[str, dict] = {}
 unhandled_methods: dict[str, dict] = {}
 unhandled_callbacks: dict[str, dict] = {}
 unhandled_enums: dict[str, list[str]] = {}
+unhandled_constants: dict[str, list[str]] = {}
 unhandled_infos: dict[str, dict] = {}
 
 generate_infos: dict = {}
@@ -711,6 +712,14 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     r_remove_lines.append(f"\tif ({id_identifier} != EOS_INVALID_NOTIFICATIONID) {remove_method}(m_handle, {id_identifier});")
 
 
+def _convert_constant_name(name: str) -> str:
+    return name.removeprefix("EOS_")
+
+
+def _convert_constant_as_method_name(name: str) -> str:
+    return f'get_{name.removeprefix("EOS_").replace("OPT_", "ONLINE_PLATFORM_TYPE_").replace("IPT", "INTEGRATED_PLATFORM_TYPE_")}'
+
+
 def _gen_handle(
     handle_name: str,
     infos: dict[str, dict],
@@ -796,9 +805,21 @@ def _gen_handle(
             method_bind_lines,
         )
         r_cpp_lines.append("")
-    
-    method_define_lines.append(f'\tString _to_string() const;')
+
+    # to_string
     method_define_lines.append("")
+    method_define_lines.append(f"\tString _to_string() const;")
+    method_define_lines.append("")
+
+    # String Constants
+    # Hack: Godot 不能绑定字符串常量，作为方法进行绑定
+    has_string_constants = False
+    for constant in infos["constants"]:
+        if _is_string_constant(infos["constants"][constant]):
+            method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {infos["constants"][constant]}; }}')
+            has_string_constants = True
+    if has_string_constants:
+        method_define_lines.append("")
 
     if need_singleton:
         r_cpp_lines.append(f"{klass}::{klass}() {{")
@@ -909,7 +930,7 @@ def _gen_handle(
     # _to_string
     r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[%s:%d]", get_class_static(), get_instance_id()); }}')
     r_cpp_lines.append("")
-    
+
     # bind
     r_cpp_lines.append(f"void {klass}::_bind_methods() {{")
     r_cpp_lines += method_bind_lines
@@ -923,6 +944,14 @@ def _gen_handle(
     # BIND 枚举
     if len(infos["enums"]):
         r_cpp_lines.append(f"\t_BIND_ENUMS_{macro_suffix}()")
+    # 常量
+    for constant in infos["constants"]:
+        if _is_string_constant(infos["constants"][constant]):
+            r_cpp_lines.append(
+                f'\tClassDB::bind_static_method(get_class_static(), D_METHOD("{_convert_constant_as_method_name(constant)}"), &{klass}::{_convert_constant_as_method_name(constant)});'
+            )
+        else:
+            r_cpp_lines.append(f'\t_BIND_CONSTANT({constant}, "{_convert_constant_name(constant)}")')
     r_cpp_lines.append(f"}}")
 
     # 注册宏
@@ -1020,6 +1049,27 @@ def _cheat_as_handle_callback(callback_type: str) -> str:
     return map.get(callback_type, "")
 
 
+def _cheat_as_handle_constant(constant_name: str) -> str:
+    if constant_name.startswith("EOS_ANTICHEATCOMMON_"):
+        return "EOS_HAntiCheatCommon"
+    if constant_name.startswith("EOS_IPT_"):
+        return "EOS_HIntegratedPlatform"
+    if constant_name in [
+        "EOS_EPICACCOUNTID_MAX_LENGTH",
+        "EOS_PRODUCTUSERID_MAX_LENGTH",
+        "EOS_INVALID_NOTIFICATIONID",
+        "EOS_PAGEQUERY_MAXCOUNT_DEFAULT",
+        "EOS_PAGEQUERY_MAXCOUNT_MAXIMUM",
+        "EOS_INITIALIZEOPTIONS_PRODUCTNAME_MAX_LENGTH",
+        "EOS_INITIALIZEOPTIONS_PRODUCTVERSION_MAX_LENGTH",
+        "EOS_OPT_Unknown",
+        "EOS_OPT_Epic",
+        "EOS_OPT_Steam",
+    ]:
+        return "EOS"
+    return ""
+
+
 def parse_all_file():
     file_lower2infos: dict[str] = {}
     file_lower2infos[_convert_to_interface_lower("eos_common.h")] = {
@@ -1029,6 +1079,7 @@ def parse_all_file():
         "callbacks": {},
         "structs": {},
         "handles": {},
+        "constants": {},
     }
     file_lower2infos["platform"] = {
         "file": "eos_sdk",
@@ -1037,6 +1088,7 @@ def parse_all_file():
         "callbacks": {},
         "structs": {},
         "handles": {},
+        "constants": {},
     }
 
     for f in os.listdir(sdk_inclide_dir):
@@ -1067,6 +1119,7 @@ def parse_all_file():
                 "enums": {},  # 最终为空
                 "structs": {},  # 最终为空
                 "handles": {},  # 最终为空
+                "constants": {},  # 最终为空
             }
         _parse_file(interface_lower, fp, file_lower2infos)
 
@@ -1147,6 +1200,7 @@ def parse_all_file():
             "handles": {},
             "structs": {},
             "enums": {},
+            "constants": {},
             #
             "callbacks": {},
             "methods": {},
@@ -1178,6 +1232,16 @@ def parse_all_file():
                 generate_infos[file_lower2infos[il]["file"]]["handles"]["EOS_H" + interface]["enums"][e] = file_lower2infos[il]["enums"][e]
             file_lower2infos[il].pop("enums")  # 容器为引用类型，不能直接clear()
             file_lower2infos[il]["enums"] = {}
+
+    # 移动常量
+    for il in file_lower2infos:
+        interface = _convert_interface_class_name(il).removeprefix("EOS")
+        if interface in interfaces:
+            handles["EOS_H" + interface]["constants"] = file_lower2infos[il]["constants"]
+            for e in file_lower2infos[il]["constants"]:
+                generate_infos[file_lower2infos[il]["file"]]["handles"]["EOS_H" + interface]["constants"][e] = file_lower2infos[il]["constants"][e]
+            file_lower2infos[il].pop("constants")  # 容器为引用类型，不能直接clear()
+            file_lower2infos[il]["constants"] = {}
 
     # Cheat as handle's method
     for il in file_lower2infos:
@@ -1235,7 +1299,7 @@ def parse_all_file():
         for cb in callbacks:
             cheat_handle_type = _cheat_as_handle_callback(cb)
             if not len(cheat_handle_type):
-                print("WARN: has not owned handle type:", e)
+                print("WARN: has not owned handle type:", cb)
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKONWN handle type:", cheat_handle_type)
@@ -1244,6 +1308,23 @@ def parse_all_file():
             to_remove.append(cb)
         for cb in to_remove:
             callbacks.pop(cb)
+
+    # Cheat as handle's constants
+    for il in file_lower2infos:
+        constants = file_lower2infos[il]["constants"]
+        to_remove: list[str] = []
+        for c in constants:
+            cheat_handle_type = _cheat_as_handle_constant(c)
+            if not len(cheat_handle_type):
+                print("WARN: has not owned constant:", c)
+                continue
+            if not cheat_handle_type in handles:
+                print("ERR UNKONWN handle type:", cheat_handle_type)
+                exit(1)
+            handles[cheat_handle_type]["constants"][c] = constants[c]
+            to_remove.append(c)
+        for c in to_remove:
+            constants.pop(c)
 
     # 复制特殊的回调
     handles["EOS_HTitleStorageFileTransferRequest"]["callbacks"]["EOS_TitleStorage_OnReadFileCompleteCallback"] = handles["EOS_HTitleStorage"]["callbacks"][
@@ -1271,6 +1352,10 @@ def parse_all_file():
             unhandled_enums[e] = file_lower2infos[il]["enums"][e]
             generate_infos[file_lower2infos[il]["file"]]["enums"][e] = file_lower2infos[il]["enums"][e]
 
+        for c in file_lower2infos[il]["constants"]:
+            unhandled_constants[c] = file_lower2infos[il]["constants"][c]
+            generate_infos[file_lower2infos[il]["file"]]["constants"][c] = file_lower2infos[il]["constants"][c]
+
         if len(file_lower2infos[il]["callbacks"]):
             if not il in unhandled_infos:
                 unhandled_infos[il] = {}
@@ -1283,10 +1368,16 @@ def parse_all_file():
             if not il in unhandled_infos:
                 unhandled_infos[il] = {}
             unhandled_infos[il]["enums"] = file_lower2infos[il]["enums"]
+        if len(file_lower2infos[il]["constants"]):
+            if not il in unhandled_infos:
+                unhandled_infos[il] = {}
+            print(file_lower2infos[il]["constants"].keys())
+            unhandled_infos[il]["constants"] = file_lower2infos[il]["constants"]
 
         file_lower2infos[il].pop("callbacks")
         file_lower2infos[il].pop("methods")
         file_lower2infos[il].pop("enums")
+        file_lower2infos[il].pop("constants")
 
     classes: list[str] = []
     for il in file_lower2infos.keys():
@@ -1305,11 +1396,8 @@ def parse_all_file():
 
     for il in unhandled_infos:
         print(
-            f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}'
+            f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}\tconstantes:{len(unhandled_infos[il].get("constants", {}))}'
         )
-        # if il in ["common"]:
-        #     print(il, "  ", unhandled_infos[il]["enums"].keys())
-    # exit()
 
 
 def _convert_interface_class_name(interface_name_lower: str) -> str:
@@ -2848,6 +2936,24 @@ def _make_additional_method_requirements():
             expended_as_args_structs.append(struct_type)
 
 
+def _is_deprecated_constant(name: str) -> bool:
+    prefixes: list[str] = ["EOS_SAT_", "EOS_OCO_", "EOS_Platform_GetDesktopCrossplayStatusInfo"]
+    for p in prefixes:
+        if name.startswith(p):
+            return True
+    return False
+
+
+def _is_need_skip_constant(name: str) -> bool:
+    return name in [
+        "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
+    ]
+
+
+def _is_string_constant(val: str) -> bool:
+    return val.startswith("(const char*)") or val.startswith('"')
+
+
 def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dict]):
     f = open(fp, "r")
     lines = f.readlines()
@@ -2864,6 +2970,20 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             i += 1
             continue
 
+        # 常量宏
+        if line.startswith("#define EOS_"):
+            text: str = line.strip().split(" ", 1)[1]
+            splited: list[str] = []
+            if len(text.split(" ", 1)) > 1 and not "(" in text.split(" ", 1)[0]:
+                splited = text.split(" ", 1)
+            if len(text.split("\t", 1)) > 1 and not "(" in text.split(" ", 1)[0]:
+                splited = text.split("\t", 1)
+            if splited:
+                for j in range(len(splited)):
+                    splited[j] = splited[j].strip()
+                if not _is_deprecated_constant(splited[0]) and not _is_need_skip_constant(splited[0]):
+                    r_file_lower2infos[interface_lower]["constants"][splited[0]] = splited[1]
+
         # 句柄类型
         if "typedef struct " in line:  #  and "Handle*" in line
             handle_type = line.split("* ", 1)[1].split(";", 1)[0]
@@ -2871,6 +2991,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 "methods": {},
                 "callbacks": {},
                 "enums": {},
+                "constants": {},
             }
             i += 1
             continue

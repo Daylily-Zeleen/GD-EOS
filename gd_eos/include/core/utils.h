@@ -25,6 +25,9 @@ namespace godot::eos::internal {
 #define _BIND_ENUM_BITFIELD_FLAG(enume_type_name, e, e_bind) \
     godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enume_type_name::e, e_bind), e_bind, enume_type_name::e, true);
 
+#define _BIND_CONSTANT(constant, constant_bind)\
+    godot::ClassDB::bind_integer_constant(get_class_static(), "", constant_bind, constant);
+
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
 
 #define VARIANT_TO_CHARSTRING(str) ((String)str).utf8()
