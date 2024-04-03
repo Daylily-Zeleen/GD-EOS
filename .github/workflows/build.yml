@@ -203,7 +203,7 @@ jobs:
             - name: Copy extra files to addon folder
               shell: sh
               run: |
-                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/test_project/addons/gd-eos/'
+                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/test_project/addons/gd-eos/'
 
             - name: Create artifact folder
               shell: sh
