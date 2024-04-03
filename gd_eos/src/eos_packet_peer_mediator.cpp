@@ -19,8 +19,8 @@
  ****************************************/
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
-#include <interfaces/eos_p2p_interface.h>
 #include <eos_p2p.h>
+#include <interfaces/eos_p2p_interface.h>
 #include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/main_loop.hpp>
 
@@ -56,15 +56,14 @@ void EOSPacketPeerMediator::_bind_methods() {
  * stop being polled if the queue size limit is reached.
  ****************************************/
 void EOSPacketPeerMediator::_on_process_frame() {
-    if (EOSMultiplayerPeer::get_local_user_id().is_empty())
+    if (EOSMultiplayerPeer::get_local_user_id())
         return;
     if (socket_packet_queues.size() == 0)
         return;
     if (get_total_packet_count() >= max_queue_size)
         return;
 
-    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = EOSMultiplayerPeer::get_local_user_id();
     EOS_P2P_GetNextReceivedPacketSizeOptions packet_size_options;
     packet_size_options.ApiVersion = EOS_P2P_GETNEXTRECEIVEDPACKETSIZE_API_LATEST;
     packet_size_options.LocalUserId = local_user_id;
@@ -223,7 +222,7 @@ void EOSPacketPeerMediator::clear_packets_from_remote_user(const String &socket_
  * main loop's process signal. Adds EOS callbacks so that it can receive notifications.
  ****************************************/
 void EOSPacketPeerMediator::_init() {
-    ERR_FAIL_COND_MSG(EOSMultiplayerPeer::get_local_user_id().is_empty(), "Failed to initialize EOSPacketPeerMediator. Local user id has not been set.");
+    ERR_FAIL_COND_MSG(EOSMultiplayerPeer::get_local_user_id(), "Failed to initialize EOSPacketPeerMediator. Local user id has not been set.");
     if (initialized)
         return;
 
@@ -392,9 +391,8 @@ void EOS_CALL EOSPacketPeerMediator::_on_incoming_connection_request(const EOS_P
 void EOSPacketPeerMediator::_on_connect_interface_login(const Ref<EOSConnect_LoginCallbackInfo> &p_login_callback_info) {
     ERR_FAIL_COND(initialized);
     ERR_FAIL_COND(p_login_callback_info->get_result_code() != EOS_EResult::EOS_Success);
-    String local_user_id = p_login_callback_info->get_local_user_id();
-    ERR_FAIL_COND_MSG(local_user_id.is_empty(), "Local user id was not set on connect interface login.");
-    EOSMultiplayerPeer::set_local_user_id(local_user_id);
+    ERR_FAIL_NULL_MSG(p_login_callback_info->get_local_user_id(), "Local user id was not set on connect interface login.");
+    EOSMultiplayerPeer::set_local_user_id(p_login_callback_info->get_local_user_id());
     _init();
 }
 
@@ -402,7 +400,7 @@ void EOSPacketPeerMediator::_on_connect_interface_login_statues_changed(const Re
     if (p_callback_info->get_current_status() == EOS_ELoginStatus::EOS_LS_LoggedIn) {
         return;
     }
-    EOSMultiplayerPeer::set_local_user_id("");
+    EOSMultiplayerPeer::set_local_user_id({});
     _terminate();
 }
 
@@ -413,8 +411,7 @@ void EOSPacketPeerMediator::_on_connect_interface_login_statues_changed(const Re
  * in _init()
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_established_callback() {
-    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = EOSMultiplayerPeer::get_local_user_id();
     EOS_P2P_AddNotifyPeerConnectionEstablishedOptions connection_established_options;
     connection_established_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONESTABLISHED_API_LATEST;
     connection_established_options.LocalUserId = local_user_id;
@@ -431,8 +428,7 @@ bool EOSPacketPeerMediator::_add_connection_established_callback() {
  * in _init()
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_interrupted_callback() {
-    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = EOSMultiplayerPeer::get_local_user_id();
     EOS_P2P_AddNotifyPeerConnectionInterruptedOptions connection_interrupted_options;
     connection_interrupted_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONINTERRUPTED_API_LATEST;
     connection_interrupted_options.LocalUserId = local_user_id;
@@ -449,8 +445,7 @@ bool EOSPacketPeerMediator::_add_connection_interrupted_callback() {
  * in _init()
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_closed_callback() {
-    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = EOSMultiplayerPeer::get_local_user_id();
     EOS_P2P_AddNotifyPeerConnectionClosedOptions connection_closed_options;
     connection_closed_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONCLOSED_API_LATEST;
     connection_closed_options.LocalUserId = local_user_id;
@@ -467,8 +462,7 @@ bool EOSPacketPeerMediator::_add_connection_closed_callback() {
  * in _init()
  ****************************************/
 bool EOSPacketPeerMediator::_add_connection_request_callback() {
-    String local_user_id_str = EOSMultiplayerPeer::get_local_user_id();
-    EOS_ProductUserId local_user_id = internal::string_to_product_user_id(local_user_id_str.utf8());
+    EOS_ProductUserId local_user_id = EOSMultiplayerPeer::get_local_user_id();
     EOS_P2P_AddNotifyPeerConnectionRequestOptions connection_request_options;
     connection_request_options.ApiVersion = EOS_P2P_ADDNOTIFYPEERCONNECTIONREQUEST_API_LATEST;
     connection_request_options.LocalUserId = local_user_id;

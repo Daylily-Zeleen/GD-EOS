@@ -28,9 +28,10 @@
 namespace godot::eos {
 
 EOS_ProductUserId EOSMultiplayerPeer::s_local_user_id = nullptr;
+Ref<EOSProductUserId> EOSMultiplayerPeer::s_local_user_id_wrapped = nullptr;
 
 void EOSMultiplayerPeer::_bind_methods() {
-    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local_user_id"), &EOSMultiplayerPeer::get_local_user_id);
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local_user_id"), &EOSMultiplayerPeer::get_local_user_id_wrapped);
 
     ClassDB::bind_method(D_METHOD("create_server", "socket_id"), &EOSMultiplayerPeer::create_server);
     ClassDB::bind_method(D_METHOD("create_client", "socket_id", "remote_user_id"), &EOSMultiplayerPeer::create_client);
@@ -862,20 +863,22 @@ MultiplayerPeer::ConnectionStatus EOSMultiplayerPeer::_get_connection_status() c
  * players first log into the connect interface. This needs to be done for the multiplayer instance
  * to work.
  ****************************************/
-void EOSMultiplayerPeer::set_local_user_id(const String &p_local_user_id) {
-    CharString local_user_id = p_local_user_id.utf8();
-    s_local_user_id = internal::string_to_product_user_id(local_user_id);
+void EOSMultiplayerPeer::set_local_user_id(const Ref<EOSProductUserId> &p_local_user_id) {
+    if (p_local_user_id->is_valid()) {
+        s_local_user_id_wrapped = p_local_user_id;
+        s_local_user_id = p_local_user_id->get_handle();
+    } else {
+        s_local_user_id_wrapped.unref();
+        s_local_user_id = nullptr;
+    }
 }
 
 /****************************************
  * get_local_user_id
  * Description: Returns the currently set local user id. Returns an empty string if it was not set.
  ****************************************/
-String EOSMultiplayerPeer::get_local_user_id() {
-    if (s_local_user_id == nullptr)
-        return "";
-    String local_user_id = internal::product_user_id_to_string(s_local_user_id);
-    return local_user_id;
+Ref<EOSProductUserId> EOSMultiplayerPeer::get_local_user_id_wrapped() {
+    return s_local_user_id_wrapped;
 }
 
 /****************************************

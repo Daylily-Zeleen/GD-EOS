@@ -910,6 +910,9 @@ def _gen_handle(
     if not is_base_handle_type:
         ret.append(f"\tvoid set_handle({handle_name} p_handle);")
         ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
+        if not need_singleton:
+            # 非单例句柄类添加比较方法
+            ret.append(f"\tbool is_equal(const Ref<{klass}> &p_other) const {{ _EOS_HANDLE_IS_EQUAL(m_handle, p_other); }}")
         ret.append(f"")
 
     ret += method_define_lines
@@ -928,12 +931,32 @@ def _gen_handle(
     ret.append(f"")
 
     # _to_string
-    r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[%s:%d]", get_class_static(), get_instance_id()); }}')
+    match handle_name:
+        case "EOS_ProductUserId" | "EOS_EpicAccountId":
+            r_cpp_lines.append(f"String {klass}::_to_string() const {{")
+            r_cpp_lines.append(f'\tString str{{"Invalid"}};')
+            r_cpp_lines.append(f"\tif (m_handle) {{")
+            r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
+            r_cpp_lines.append(f"\t\tint32_t InOutBufferLength = 0;")
+            r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
+            r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
+            r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
+            r_cpp_lines.append(f"\t\t}} else {{")
+            r_cpp_lines.append(f"\t\t\tstr = &OutBuffer[0];")
+            r_cpp_lines.append(f"\t\t}}")
+            r_cpp_lines.append(f"\t}}")
+            r_cpp_lines.append(f'\treturn vformat("[{klass}:%s]", str);')
+            r_cpp_lines.append(f"}}")
+        case _:
+            r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[{klass}:%d]", get_instance_id()); }}')
     r_cpp_lines.append("")
 
     # bind
     r_cpp_lines.append(f"void {klass}::_bind_methods() {{")
     r_cpp_lines += method_bind_lines
+    if not need_singleton and not is_base_handle_type:
+        # 非单例句柄类添加比较方法
+        r_cpp_lines.append(f'\tClassDB::bind_method(D_METHOD("is_equal", "other"), &{klass}::is_equal);')
     for callback in callback_infos:
         if _is_need_skip_callback(callback):
             continue
@@ -1770,7 +1793,7 @@ def _gen_callback(
                 ret += f"_EXPAND_TO_GODOT_VAL_UNION({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
             elif _is_handle_type(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({remap_type(_decay_eos_type(field_type))}, data->{field})"
+                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({_convert_handle_class_name(_decay_eos_type(field_type))}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_internal_struct_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({remap_type(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
@@ -2349,6 +2372,10 @@ def _gen_method(
             declare_args.append(f"BitField<{type}> p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
+        elif _is_handle_type(type):
+            declare_args.append(f"const {remap_type(type, name)} &p_{snake_name}")
+            bind_args.append(f'"{snake_name}"')
+            call_args.append(f"p_{snake_name}.is_valid()? p_{snake_name}->get_handle() : nullptr")
         else:
             # 普通参数
             declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
@@ -3211,9 +3238,9 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
 
 
 def _is_handle_type(type: str, filed: str = "") -> bool:
-    if type in ["EOS_EpicAccountId", "EOS_ProductUserId"]:
-        # Hack
-        return False
+    # if type in ["EOS_EpicAccountId", "EOS_ProductUserId"]:
+    #     # Hack
+    #     return False
     return type in handles or (type.startswith("EOS") and "_H" in type) or type in ["EOS_ContinuanceToken"]
 
 

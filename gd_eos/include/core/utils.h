@@ -25,7 +25,7 @@ namespace godot::eos::internal {
 #define _BIND_ENUM_BITFIELD_FLAG(enume_type_name, e, e_bind) \
     godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enume_type_name::e, e_bind), e_bind, enume_type_name::e, true);
 
-#define _BIND_CONSTANT(constant, constant_bind)\
+#define _BIND_CONSTANT(constant, constant_bind) \
     godot::ClassDB::bind_integer_constant(get_class_static(), "", constant_bind, constant);
 
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
@@ -59,7 +59,7 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     decltype(klass::field) klass::get_##field() const { return field; } \
     void klass::set_##field(_ARG_TYPE(field) p_val) { field = p_val; }
 
-#define _DECLARE_SETGET_FLAGS(field)  \
+#define _DECLARE_SETGET_FLAGS(field)     \
     decltype(field) get_##field() const; \
     void set_##field(decltype(field) p_val);
 
@@ -125,7 +125,7 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant(decltype(_BINDING_CLASS::field){}).get_type(), #field), "set_" #field, "get_" #field);
 
-#define _BIND_PROP_FLAGS(field)                                                      \
+#define _BIND_PROP_FLAGS(field)                                                         \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant::INT, #field), "set_" #field, "get_" #field);
@@ -328,11 +328,6 @@ inline void _packedint32_to_autio_frames(const PackedInt32Array &p_from, LocalVe
         p_to.push_back(e);
     }
 }
-
-// template <typename Tint>
-// int16_t *to_eos_type_arr(const PackedInt32Array &p_from, Tint &r_count) {
-//     static_assert(std::is_same_v<decltype(p_from), const PackedInt32Array &>, "已经特殊处理，不该被调用");
-// }
 
 // const int16_t*
 template <typename Tint>
@@ -858,6 +853,13 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         cd->handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                              \
         return return_action;                                                                                                            \
     }
+
+//
+#define _EOS_HANDLE_IS_EQUAL(m_handle_identifier, m_other_identifier) \
+    if (m_other_identifier.is_null()) {                               \
+        return m_handle_identifier == nullptr;                        \
+    }                                                                 \
+    return m_handle_identifier == m_other_identifier->get_handle()
 
 //
 #define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                    \
