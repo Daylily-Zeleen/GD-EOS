@@ -937,7 +937,7 @@ def _gen_handle(
             r_cpp_lines.append(f'\tString str{{"Invalid"}};')
             r_cpp_lines.append(f"\tif (m_handle) {{")
             r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
-            r_cpp_lines.append(f"\t\tint32_t InOutBufferLength = 0;")
+            r_cpp_lines.append(f"\t\tint32_t InOutBufferLength{{ {handle_name.upper()}_MAX_LENGTH + 1 }};")
             r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
             r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
             r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
@@ -2071,7 +2071,10 @@ def __make_packed_result(
                 r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};")
         elif arg_type == "char*" and (i + 1) < len(args) and args[i + 1]["type"].endswith("int32_t*") and args[i + 1]["name"].endswith("Length"):
             r_prepare_lines.append(f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};")
-            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]} = 0;')
+            initialize_vlaue = "0"
+            if args[i+1]["name"].startswith("InOut"):
+                initialize_vlaue = f"{__get_str_result_max_length_macro(method_name)} + 1"
+            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]}{{ {initialize_vlaue} }};')
 
             r_call_args.append(f"&{arg_name}[0]")
             r_call_args.append(f'&{args[i+1]["name"]}')
