@@ -854,14 +854,23 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         return return_action;                                                                                                            \
     }
 
-//
+// EOS VERSION
+#define _EOS_GET_VERSION() \
+    static String get_eos_version() { return EOS_GetVersion(); }
+#define _EOS_BING_VERSION_CONSTANTS() \
+    BIND_CONSTANT(EOS_MAJOR_VERSION)  \
+    BIND_CONSTANT(EOS_MINOR_VERSION)  \
+    BIND_CONSTANT(EOS_PATCH_VERSION)  \
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_eos_version"), &EOS::get_eos_version);
+
+// Handles
 #define _EOS_HANDLE_IS_EQUAL(m_handle_identifier, m_other_identifier) \
     if (m_other_identifier.is_null()) {                               \
         return m_handle_identifier == nullptr;                        \
     }                                                                 \
     return m_handle_identifier == m_other_identifier->get_handle()
 
-//
+// Platform tick
 #define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                    \
 protected:                                                                                                                                                                            \
     void tick_internal() {                                                                                                                                                            \

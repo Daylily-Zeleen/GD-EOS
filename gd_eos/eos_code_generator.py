@@ -446,6 +446,7 @@ def gen_files(file_base_name: str, infos: dict):
     if file_base_name == "eos_common":
         interface_handle_h_lines.append(f"#include <eos_types.h>")
         interface_handle_h_lines.append(f"#include <eos_logging.h>")
+        interface_handle_h_lines.append(f"#include <eos_version.h>")
         interface_handle_h_lines.append(f"#include <godot_cpp/classes/object.hpp>")
         interface_handle_h_lines.append(f"#include <godot_cpp/core/binder_common.hpp>")
         interface_handle_h_lines.append(f"#include <core/utils.h>")
@@ -811,6 +812,10 @@ def _gen_handle(
     method_define_lines.append(f"\tString _to_string() const;")
     method_define_lines.append("")
 
+    if klass == "EOS":
+        method_define_lines.append("\t_EOS_GET_VERSION()")
+        method_define_lines.append("")
+
     # String Constants
     # Hack: Godot 不能绑定字符串常量，作为方法进行绑定
     has_string_constants = False
@@ -975,6 +980,8 @@ def _gen_handle(
             )
         else:
             r_cpp_lines.append(f'\t_BIND_CONSTANT({constant}, "{_convert_constant_name(constant)}")')
+    if klass == "EOS":
+        r_cpp_lines.append("\t_EOS_BING_VERSION_CONSTANTS()")
     r_cpp_lines.append(f"}}")
 
     # 注册宏
@@ -2072,7 +2079,7 @@ def __make_packed_result(
         elif arg_type == "char*" and (i + 1) < len(args) and args[i + 1]["type"].endswith("int32_t*") and args[i + 1]["name"].endswith("Length"):
             r_prepare_lines.append(f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};")
             initialize_vlaue = "0"
-            if args[i+1]["name"].startswith("InOut"):
+            if args[i + 1]["name"].startswith("InOut"):
                 initialize_vlaue = f"{__get_str_result_max_length_macro(method_name)} + 1"
             r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]}{{ {initialize_vlaue} }};')
 
