@@ -39,6 +39,7 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
     REGISTER_EOS_SINGLETONS()
 
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSMultiPlayerConnectionInfo);
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPacketPeerMediator);
     memnew(godot::eos::EOSPacketPeerMediator);
     Engine::get_singleton()->register_singleton(godot::eos::EOSPacketPeerMediator::get_class_static(), godot::eos::EOSPacketPeerMediator::get_singleton());

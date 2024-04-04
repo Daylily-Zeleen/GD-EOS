@@ -1,29 +1,45 @@
 #pragma once
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
+#include <handles/eos_common.handles.h>
 #include <godot_cpp/classes/multiplayer_peer_extension.hpp>
 #include <godot_cpp/templates/hash_map.hpp>
 
 #include "core/utils.h"
 
 namespace godot::eos {
-
 struct ConnectionRequestData {
+    EOS_ProductUserId local_user_id;
+    EOS_ProductUserId remote_user_id;
     String socket_name;
-    String remote_user_id;
-    String local_user_id;
+};
 
-    Dictionary to_dict() {
-        Dictionary ret;
-        ret["local_user_id"] = local_user_id;
-        ret["remote_user_id"] = remote_user_id;
-        ret["socket_id"] = socket_name;
-        return ret;
-    }
+class EOSMultiPlayerConnectionInfo : public RefCounted {
+    GDCLASS(EOSMultiPlayerConnectionInfo, RefCounted)
+
+    String socket_id;
+    Ref<EOSProductUserId> remote_user_id;
+    Ref<EOSProductUserId> local_user_id;
+
+protected:
+    static void _bind_methods();
+
+public:
+    _DECLARE_SETGET(socket_id);
+    _DECLARE_SETGET(remote_user_id);
+    _DECLARE_SETGET(local_user_id);
+
+    static Ref<EOSMultiPlayerConnectionInfo> make(const String &p_socket_id, EOS_ProductUserId p_local_user_id, EOS_ProductUserId p_remote_user_id);
+    static Ref<EOSMultiPlayerConnectionInfo> make(const ConnectionRequestData &p_from);
+
+    static PropertyInfo make_property_info(const String &p_property_name = "connection_info");
 };
 
 class EOSMultiplayerPeer : public MultiplayerPeerExtension {
     GDCLASS(EOSMultiplayerPeer, MultiplayerPeerExtension)
+
+    template <typename T>
+    using SharedPtr = internal::_SharedPtr<T>;
 
 private:
     enum Event : int8_t {
@@ -52,7 +68,7 @@ private:
         MODE_MESH,
     };
 
-    class EOSPacket {
+    class EOSPacket : public internal::_Sharable {
     private:
         PackedByteArray packet;
         int sender_peer_id = 0;
@@ -126,7 +142,7 @@ private:
     class EOSSocket {
     private:
         EOS_P2P_SocketId socket;
-        List<EOSPacket *> incoming_packets;
+        List<SharedPtr<EOSPacket>> incoming_packets;
 
     public:
         const EOS_P2P_SocketId *get_id() const {
@@ -137,12 +153,12 @@ private:
             return socket.SocketName;
         }
 
-        void push_packet(EOSPacket *packet) {
+        void push_packet(const SharedPtr<EOSPacket> &packet) {
             incoming_packets.push_back(packet);
         }
 
-        EOSPacket *pop_packet() {
-            EOSPacket *ret = incoming_packets.front()->get();
+        SharedPtr<EOSPacket> pop_packet() {
+            SharedPtr<EOSPacket> ret = incoming_packets.front()->get();
             incoming_packets.pop_front();
             return ret;
         }
@@ -160,17 +176,17 @@ private:
         }
 
         EOS_EPacketReliability get_packet_reliability() const {
-            EOSPacket *packet = incoming_packets.front()->get();
+            const SharedPtr<EOSPacket> &packet = incoming_packets.front()->get();
             return packet->get_reliability();
         }
 
         int32_t get_packet_channel() const {
-            EOSPacket *packet = incoming_packets.front()->get();
+            const SharedPtr<EOSPacket> &packet = incoming_packets.front()->get();
             return packet->get_channel();
         }
 
         int32_t get_packet_peer() const {
-            EOSPacket *packet = incoming_packets.front()->get();
+            const SharedPtr<EOSPacket> &packet = incoming_packets.front()->get();
             return packet->get_sender();
         }
 
@@ -178,7 +194,7 @@ private:
         void clear_packets_from_peer(int p_peer);
         bool _socket_id_is_valid(const String &socket_id);
 
-        EOSSocket() {}
+        EOSSocket() = default;
 
         EOSSocket(const EOS_P2P_SocketId &socket) {
             this->socket = socket;
@@ -190,29 +206,23 @@ private:
             socket.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;
             STRNCPY_S(socket.SocketName, EOS_P2P_SOCKETID_SOCKETNAME_SIZE, socket_name.utf8(), socket_name.length());
         }
-
-        ~EOSSocket() {
-            while (!incoming_packets.is_empty()) {
-                memdelete(incoming_packets.front()->get());
-                incoming_packets.pop_front();
-            }
-        }
     };
 
     _FORCE_INLINE_ bool _is_active() const { return active_mode != MODE_NONE; }
 
     Error _broadcast(const EOSPacket &packet, int exclude = 0);
-    Error _send_to(const EOS_ProductUserId &remote_peer, const EOSPacket &packet);
-    bool _find_connection_request(const String &remote_user, EOS_ProductUserId &out_request);
+    Error _send_to(EOS_ProductUserId remote_peer, const EOSPacket &packet);
+    bool _is_requesting_connection(EOS_ProductUserId p_remote_user_id);
+    // bool _find_connection_request(EOS_ProductUserId remote_user, EOS_ProductUserId &out_request);
     EOS_EPacketReliability _convert_transfer_mode_to_eos_reliability(TransferMode mode) const;
     TransferMode _convert_eos_reliability_to_transfer_mode(EOS_EPacketReliability reliability) const;
-    void _disconnect_remote_user(const EOS_ProductUserId &remote_user);
+    void _disconnect_remote_user(EOS_ProductUserId remote_user_id);
     void _clear_peer_packet_queue(int p_id);
 
     static Ref<class EOSProductUserId> s_local_user_id_wrapped;
     static EOS_ProductUserId s_local_user_id;
 
-    EOSPacket *current_packet;
+    SharedPtr<EOSPacket> current_packet;
     uint32_t unique_id;
     int target_peer = 0;
     ConnectionStatus connection_status = CONNECTION_DISCONNECTED;
@@ -231,6 +241,11 @@ private:
 
     static void _bind_methods();
 
+    int _get_peer_id(EOS_ProductUserId remote_user_id);
+    bool _has_user_id(EOS_ProductUserId remote_user_id);
+    void _accept_connection_request(EOS_ProductUserId remote_user_id);
+    void _deny_connection_request(EOS_ProductUserId remote_user_id);
+
 public:
     static void set_local_user_id(const Ref<class EOSProductUserId> &p_local_user_id);
     static Ref<class EOSProductUserId> get_local_user_id_wrapped();
@@ -243,23 +258,23 @@ public:
     void connection_request_callback(const ConnectionRequestData &data);
 
     Error create_server(const String &socket_id);
-    Error create_client(const String &socket_id, const String &remote_user_id);
+    Error create_client(const String &socket_id, const Ref<EOSProductUserId> &remote_user_id);
     Error create_mesh(const String &socket_id);
-    Error add_mesh_peer(const String &remote_user_id);
+    Error add_mesh_peer(const Ref<EOSProductUserId> &remote_user_id);
 
     String get_socket() const;
     Array get_all_connection_requests();
     String get_peer_user_id(int peer_id);
-    int get_peer_id(const String &remote_user_id);
+    int get_peer_id(const Ref<EOSProductUserId> &remote_user_id);
     bool has_peer(int peer_id);
-    bool has_user_id(const String &remote_user_id);
+    bool has_user_id(const Ref<EOSProductUserId> &remote_user_id);
     Dictionary get_all_peers();
     void set_allow_delayed_delivery(bool allow);
     bool is_allowing_delayed_delivery();
     void set_auto_accept_connection_requests(bool enable);
     bool is_auto_accepting_connection_requests();
-    void accept_connection_request(const String &remote_user);
-    void deny_connection_request(const String &remote_user);
+    void accept_connection_request(const Ref<EOSProductUserId> &remote_user_id);
+    void deny_connection_request(const Ref<EOSProductUserId> &remote_user_id);
     void accept_all_connection_requests();
     void deny_all_connection_requests();
     int get_active_mode();
@@ -296,7 +311,7 @@ public:
     virtual bool _is_server_relay_supported() const override;
     virtual MultiplayerPeer::ConnectionStatus _get_connection_status() const override;
 
-    EOSMultiplayerPeer(){};
+    EOSMultiplayerPeer() = default;
     ~EOSMultiplayerPeer();
 };
 } //namespace godot::eos

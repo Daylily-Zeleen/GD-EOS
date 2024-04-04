@@ -42,8 +42,8 @@ void EOSPacketPeerMediator::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::INT, "queue_size_limit"), "set_queue_size_limit", "get_queue_size_limit");
 
     ADD_SIGNAL(MethodInfo("packet_queue_full"));
-    ADD_SIGNAL(MethodInfo("connection_request_received", PropertyInfo(Variant::DICTIONARY, "connection_info")));
-    ADD_SIGNAL(MethodInfo("connection_request_removed", PropertyInfo(Variant::DICTIONARY, "connection_info")));
+    ADD_SIGNAL(MethodInfo("connection_request_received", EOSMultiPlayerConnectionInfo::make_property_info()));
+    ADD_SIGNAL(MethodInfo("connection_request_removed", EOSMultiPlayerConnectionInfo::make_property_info()));
 }
 
 /****************************************
@@ -132,16 +132,15 @@ void EOSPacketPeerMediator::_on_process_frame() {
  * Description: Polls the next packet available for the given socket.
  * Returns true if a packet has been successfully polled. False otherwise.
  ****************************************/
-bool EOSPacketPeerMediator::poll_next_packet(const String &socket_id, PacketData **out_packet) {
+EOSPacketPeerMediator::SharedPtr<PacketData> EOSPacketPeerMediator::poll_next_packet(const String &socket_id) {
     if (!socket_packet_queues.has(socket_id))
-        return false;
+        return {};
     if (socket_packet_queues[socket_id].size() == 0)
-        return false;
+        return {};
 
-    PacketData *next_packet = socket_packet_queues[socket_id].front()->get();
-    *out_packet = next_packet;
+    SharedPtr<PacketData> next_packet = socket_packet_queues[socket_id].front()->get();
     socket_packet_queues[socket_id].pop_front();
-    return true;
+    return next_packet;
 }
 
 /****************************************
@@ -157,7 +156,7 @@ bool EOSPacketPeerMediator::register_peer(EOSMultiplayerPeer *peer) {
     ERR_FAIL_COND_V_MSG(active_peers.has(peer->get_socket()), false, "Failed to register peer. This peer has already been registered.");
 
     active_peers.insert(peer->get_socket(), peer);
-    socket_packet_queues.insert(peer->get_socket(), List<PacketData *>());
+    socket_packet_queues.insert(peer->get_socket(), List<SharedPtr<PacketData>>());
 
     _forward_pending_connection_requests(peer);
 
@@ -201,17 +200,17 @@ void EOSPacketPeerMediator::clear_packet_queue(const String &socket_id) {
  * Description: Removes all packets queued for the given socket and from the given remote user.
  * This is usually called when a peer disconnects. All packets from that peer are removed.
  ****************************************/
-void EOSPacketPeerMediator::clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id) {
+void EOSPacketPeerMediator::clear_packets_from_remote_user(const String &socket_id, EOS_ProductUserId remote_user_id) {
     ERR_FAIL_COND_MSG(!socket_packet_queues.has(socket_id), vformat("Failed to clear packet queue for socket \"%s\". Socket was not registered.", socket_id));
 
-    List<List<PacketData *>::Element *> del;
-    for (List<PacketData *>::Element *e = socket_packet_queues[socket_id].front(); e != nullptr; e = e->next()) {
+    using ElementTy = List<SharedPtr<PacketData>>::Element;
+    List<ElementTy *> del;
+    for (ElementTy *e = socket_packet_queues[socket_id].front(); e != nullptr; e = e->next()) {
         if (e->get()->get_sender() != remote_user_id)
             continue;
         del.push_back(e);
     }
-    for (List<PacketData *>::Element *e : del) {
-        memdelete(e->get());
+    for (ElementTy *e : del) {
         e->erase();
     }
 }
@@ -273,15 +272,20 @@ void EOSPacketPeerMediator::_terminate() {
  * Description: Counts the number of packets from the given remote user and for
  * the given socket. Returns the packet count.
  ****************************************/
-int EOSPacketPeerMediator::get_packet_count_from_remote_user(const String &remote_user, const String &socket_id) {
-    ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), 0, vformat("Failed to get packet count for remote user. Socket \"%s\" does not exist", socket_id));
+int EOSPacketPeerMediator::_get_packet_count_from_remote_user(EOS_ProductUserId remote_user_id, const String &socket_id) {
     int ret = 0;
-    for (PacketData *data : socket_packet_queues[socket_id]) {
-        if (data->get_sender() == remote_user) {
+    for (const SharedPtr<PacketData> &data : socket_packet_queues[socket_id]) {
+        if (data->get_sender() == remote_user_id) {
             ret++;
         }
     }
     return ret;
+}
+
+int EOSPacketPeerMediator::get_packet_count_from_remote_user(const Ref<EOSProductUserId> &remote_user_id, const String &socket_id) {
+    ERR_FAIL_NULL_V(remote_user_id, 0);
+    ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), 0, vformat("Failed to get packet count for remote user. Socket \"%s\" does not exist", socket_id));
+    return _get_packet_count_from_remote_user(remote_user_id->get_handle(), socket_id);
 }
 
 /****************************************
@@ -295,7 +299,7 @@ bool EOSPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_i
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), false, "Failed to check next packet. Socket \"%s\" does not exist.");
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
-    PacketData *packet = socket_packet_queues[socket_id][0];
+    const SharedPtr<PacketData> &packet = socket_packet_queues[socket_id][0];
     uint8_t event = packet->get_data().ptr()[0];
     if (event == 1)
         return true;
@@ -344,11 +348,9 @@ void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_
     //Check if any connection requests need to be removed.
     List<ConnectionRequestData>::Element *e = singleton->pending_connection_requests.front();
     for (; e != nullptr; e = e->next()) {
-        String request_remote_user_id = e->get().remote_user_id;
-        String closed_remote_user_id = internal::product_user_id_to_string(data->RemoteUserId);
         String request_socket_name = e->get().socket_name;
-        if (request_remote_user_id == closed_remote_user_id && socket_name == request_socket_name) {
-            singleton->emit_signal(SNAME("connection_request_removed"), e->get().to_dict());
+        if (e->get().remote_user_id == data->RemoteUserId && socket_name == request_socket_name) {
+            singleton->emit_signal(SNAME("connection_request_removed"), EOSMultiPlayerConnectionInfo::make(e->get()));
             e->erase();
             break;
         }
@@ -368,14 +370,16 @@ void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_
  * If there is, forward the connection request to that multiplayer instance.
  ****************************************/
 void EOS_CALL EOSPacketPeerMediator::_on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data) {
-    ConnectionRequestData request_data;
-    request_data.local_user_id = internal::product_user_id_to_string(data->LocalUserId);
-    request_data.remote_user_id = internal::product_user_id_to_string(data->RemoteUserId);
-    request_data.socket_name = data->SocketId->SocketName;
+    ConnectionRequestData request_data{
+        data->LocalUserId,
+        data->RemoteUserId,
+        data->SocketId->SocketName,
+    };
+
     if (!singleton->active_peers.has(request_data.socket_name)) {
         //Hold onto the connection request just in case a socket does get opened with this socket id
         singleton->pending_connection_requests.push_back(request_data);
-        singleton->emit_signal(SNAME("connection_request_received"), request_data.to_dict());
+        singleton->emit_signal(SNAME("connection_request_received"), EOSMultiPlayerConnectionInfo::make(request_data));
         return;
     }
     singleton->active_peers[request_data.socket_name]->connection_request_callback(request_data);
@@ -482,16 +486,17 @@ bool EOSPacketPeerMediator::_add_connection_request_callback() {
  * are forwarded.
  ****************************************/
 void EOSPacketPeerMediator::_forward_pending_connection_requests(EOSMultiplayerPeer *peer) {
-    List<ConnectionRequestData>::Element *e = pending_connection_requests.front();
-    List<List<ConnectionRequestData>::Element *> del;
+    using ElementTy = List<ConnectionRequestData>::Element;
+    ElementTy *e = pending_connection_requests.front();
+    List<ElementTy *> del;
     for (; e != nullptr; e = e->next()) {
         if (peer->get_socket() != e->get().socket_name)
             continue;
         peer->connection_request_callback(e->get());
         del.push_back(e);
     }
-    for (List<ConnectionRequestData>::Element *e : del) {
-        emit_signal(SNAME("connection_request_removed"), e->get().to_dict());
+    for (ElementTy *e : del) {
+        emit_signal(SNAME("connection_request_removed"), EOSMultiPlayerConnectionInfo::make(e->get()));
         e->erase();
     }
 }
@@ -523,15 +528,6 @@ EOSPacketPeerMediator::~EOSPacketPeerMediator() {
         return;
 
     _terminate();
-    for (auto &kv : socket_packet_queues) {
-        auto packets = kv.value;
-        while (!packets.is_empty()) {
-            memdelete(packets.front()->get());
-            packets.pop_front();
-        }
-    }
-    socket_packet_queues.clear();
-
     singleton = nullptr;
 }
 

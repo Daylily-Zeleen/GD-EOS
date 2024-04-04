@@ -900,6 +900,83 @@ static void EOS_MEMORY_CALL _memrelease(void *Pointer) {
     Memory::free_static(Pointer);
 }
 
+// MyRefCounted
+template <typename T>
+class _SharedPtr {
+    T *sharable = nullptr;
+
+public:
+    _SharedPtr() = default;
+    ~_SharedPtr() { unref(); }
+
+    static _SharedPtr make_shared() {
+        _SharedPtr ret;
+        ret.ref(memnew(T));
+        return ret;
+    }
+
+    _SharedPtr(T *p_sharable) { ref(p_sharable); }
+    _SharedPtr &operator=(T *p_sharable) {
+        ref(p_sharable);
+        return *this;
+    }
+    // Copy
+    _SharedPtr(const _SharedPtr &p_other) {
+        ref(p_other.sharable);
+    }
+    _SharedPtr &operator=(const _SharedPtr &p_other) {
+        ref(p_other.sharable);
+        return *this;
+    }
+    // Move
+    _SharedPtr(_SharedPtr &&p_other) {
+        ref(p_other.sharable);
+        p_other.unref();
+    }
+    _SharedPtr &operator=(_SharedPtr &&p_other) {
+        ref(p_other.sharable);
+        p_other.unref();
+        return *this;
+    }
+
+    inline void unref() {
+        if (!sharable) {
+            return;
+        }
+        sharable->refcount--;
+        if (sharable->refcount <= 0) {
+            memdelete(sharable);
+        }
+        sharable = nullptr;
+    }
+
+    inline void ref(T *p_sharable) {
+        ERR_FAIL_NULL(p_sharable);
+        unref();
+
+        sharable = p_sharable;
+        sharable->refcount++;
+    }
+
+    _FORCE_INLINE_ bool is_valid() { return sharable; }
+    _FORCE_INLINE_ bool is_null() { return sharable = nullptr; }
+
+    // Operators
+    _FORCE_INLINE_ bool operator==(const _SharedPtr &p_other) { return sharable == p_other.sharable; }
+    _FORCE_INLINE_ bool operator!=(const _SharedPtr &p_other) { return sharable != p_other.sharable; }
+    _FORCE_INLINE_ operator bool() { return sharable; }
+    _FORCE_INLINE_ T *operator*() const { return sharable; }
+    _FORCE_INLINE_ T *operator->() const { return sharable; }
+    _FORCE_INLINE_ T *ptr() const { return sharable; }
+};
+
+class _Sharable {
+    int refcount = 0;
+
+    template <typename T>
+    friend class _SharedPtr;
+};
+
 } //namespace godot::eos::internal
 
 namespace godot::eos {

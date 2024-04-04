@@ -27,6 +27,39 @@
 
 namespace godot::eos {
 
+_DEFINE_SETGET(EOSMultiPlayerConnectionInfo, socket_id)
+_DEFINE_SETGET(EOSMultiPlayerConnectionInfo, remote_user_id)
+_DEFINE_SETGET(EOSMultiPlayerConnectionInfo, local_user_id)
+
+void EOSMultiPlayerConnectionInfo::_bind_methods() {
+    _BIND_BEGIN(EOSMultiPlayerConnectionInfo);
+    _BIND_PROP_STR(socket_id);
+    _BIND_PROP_OBJ(local_user_id, EOSProductUserId);
+    _BIND_PROP_OBJ(remote_user_id, EOSProductUserId);
+    _BIND_END();
+}
+
+Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(const String &p_socket_id, EOS_ProductUserId p_local_user_id, EOS_ProductUserId p_remote_user_id) {
+    Ref<EOSMultiPlayerConnectionInfo> ret;
+    ret.instantiate();
+    ret->socket_id = p_socket_id;
+    ret->local_user_id.instantiate();
+    ret->local_user_id->set_handle(p_local_user_id);
+    ret->remote_user_id->get_instance_id();
+    ret->remote_user_id->set_handle(p_remote_user_id);
+    return ret;
+}
+
+Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(const ConnectionRequestData &p_from) {
+    return make(p_from.socket_name, p_from.local_user_id, p_from.remote_user_id);
+}
+
+PropertyInfo EOSMultiPlayerConnectionInfo::make_property_info(const String &p_property_name) {
+    return PropertyInfo(Variant::OBJECT, p_property_name, {}, "", {}, get_class_static());
+}
+
+// =============
+
 EOS_ProductUserId EOSMultiplayerPeer::s_local_user_id = nullptr;
 Ref<EOSProductUserId> EOSMultiplayerPeer::s_local_user_id_wrapped = nullptr;
 
@@ -62,13 +95,13 @@ void EOSMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("is_polling"), &EOSMultiplayerPeer::is_polling);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "polling"), "set_is_polling", "is_polling");
 
-    ADD_SIGNAL(MethodInfo("peer_connection_established", PropertyInfo(Variant::DICTIONARY, "connection_info"),
+    ADD_SIGNAL(MethodInfo("peer_connection_established", EOSMultiPlayerConnectionInfo::make_property_info(),
             PropertyInfo(Variant::INT, "connection_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionEstablishedType ")),
             PropertyInfo(Variant::INT, "network_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "NetworkConnectionType "))));
-    ADD_SIGNAL(MethodInfo("peer_connection_interrupted", PropertyInfo(Variant::DICTIONARY, "connection_info")));
-    ADD_SIGNAL(MethodInfo("peer_connection_closed", PropertyInfo(Variant::DICTIONARY, "connection_info"),
+    ADD_SIGNAL(MethodInfo("peer_connection_interrupted", EOSMultiPlayerConnectionInfo::make_property_info()));
+    ADD_SIGNAL(MethodInfo("peer_connection_closed", EOSMultiPlayerConnectionInfo::make_property_info(),
             PropertyInfo(Variant::INT, "reason", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionClosedReason"))));
-    ADD_SIGNAL(MethodInfo("incoming_connection_request", PropertyInfo(Variant::DICTIONARY, "connection_info")));
+    ADD_SIGNAL(MethodInfo("incoming_connection_request", EOSMultiPlayerConnectionInfo::make_property_info()));
 }
 
 /****************************************
@@ -113,9 +146,10 @@ Error EOSMultiplayerPeer::create_server(const String &socket_id) {
  * the socket id and remote user id. Clients are only allowed to connect to servers. If the
  * remote user is another client or a mesh instance, connection will fail.
  ****************************************/
-Error EOSMultiplayerPeer::create_client(const String &socket_id, const String &remote_user_id) {
+Error EOSMultiplayerPeer::create_client(const String &socket_id, const Ref<EOSProductUserId> &remote_user_id) {
     ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to create client. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(_is_active(), ERR_ALREADY_IN_USE, "Failed to create client. Multiplayer instance is already active.");
+    ERR_FAIL_COND_V_MSG(remote_user_id.is_null() || remote_user_id->get_handle() == nullptr, ERR_INVALID_PARAMETER, "Failed to create client. The remote user id is invalid.");
 
     polling = true;
     set_refuse_new_connections(false);
@@ -147,7 +181,7 @@ Error EOSMultiplayerPeer::create_client(const String &socket_id, const String &r
     packet.prepare();
 
     //send peer id to the server
-    Error result = _send_to(internal::string_to_product_user_id(remote_user_id.utf8()), packet);
+    Error result = _send_to(remote_user_id->get_handle(), packet);
 
     if (result != OK) {
         _close();
@@ -197,7 +231,7 @@ Error EOSMultiplayerPeer::create_mesh(const String &socket_id) {
  * Description: Sends a connection request to another mesh instance using the remote user id. If the connection
  * request is accepted, the other instance is added as a peer.
  ****************************************/
-Error EOSMultiplayerPeer::add_mesh_peer(const String &remote_user_id) {
+Error EOSMultiplayerPeer::add_mesh_peer(const Ref<EOSProductUserId> &remote_user_id) {
     ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to add mesh peer. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(active_mode != MODE_MESH, ERR_UNCONFIGURED, "Failed to add mesh peer. Multiplayer instance is not in mesh mode.");
     ERR_FAIL_COND_V_MSG(has_user_id(remote_user_id), ERR_ALREADY_EXISTS, "Failed to add mesh peer. Already connected to peer");
@@ -210,7 +244,7 @@ Error EOSMultiplayerPeer::add_mesh_peer(const String &remote_user_id) {
     packet.set_sender(unique_id);
     packet.prepare();
 
-    _send_to(internal::string_to_product_user_id(remote_user_id.utf8()), packet);
+    _send_to(remote_user_id->get_handle(), packet);
 
     return OK;
 }
@@ -260,15 +294,17 @@ String EOSMultiplayerPeer::get_peer_user_id(int peer_id) {
  * Description: Retrieves the peer id of a peer using their remote user id. Returns 0
  * if no peer with a matching remote user id could be found.
  ****************************************/
-int EOSMultiplayerPeer::get_peer_id(const String &remote_user_id) {
+int EOSMultiplayerPeer::_get_peer_id(EOS_ProductUserId remote_user_id) {
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
-        EOS_ProductUserId user_id = E.value;
-        String user_id_str = internal::product_user_id_to_string(user_id);
-        if (remote_user_id == user_id_str) {
+        if (remote_user_id == E.value) {
             return E.key;
         }
     }
     return 0;
+}
+int EOSMultiplayerPeer::get_peer_id(const Ref<EOSProductUserId> &remote_user_id) {
+    ERR_FAIL_NULL_V(remote_user_id, 0);
+    return _get_peer_id(remote_user_id->get_handle());
 }
 
 /****************************************
@@ -289,14 +325,17 @@ bool EOSMultiplayerPeer::has_peer(int peer_id) {
  * Description: Returns whether or not this multiplayer instance has a peer with the given
  * remote user id.
  ****************************************/
-bool EOSMultiplayerPeer::has_user_id(const String &remote_user_id) {
+bool EOSMultiplayerPeer::_has_user_id(EOS_ProductUserId remote_user_id) {
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
-        String peer_user_id = internal::product_user_id_to_string(E.value);
-        if (remote_user_id != peer_user_id)
-            continue;
-        return true;
+        if (remote_user_id == E.value)
+            return true;
     }
     return false;
+}
+
+bool EOSMultiplayerPeer::has_user_id(const Ref<EOSProductUserId> &remote_user_id) {
+    ERR_FAIL_NULL_V(remote_user_id, false);
+    return _has_user_id(remote_user_id->get_handle());
 }
 
 /****************************************
@@ -309,8 +348,7 @@ void EOSMultiplayerPeer::_clear_peer_packet_queue(int p_id) {
     ERR_FAIL_COND_MSG(!peers.has(p_id), "Failed to clear packet queue for peer. Peer was not found.");
 
     socket.clear_packets_from_peer(p_id);
-    String remote_user_id = internal::product_user_id_to_string(peers[p_id]);
-    EOSPacketPeerMediator::get_singleton()->clear_packets_from_remote_user(socket.get_name(), remote_user_id);
+    EOSPacketPeerMediator::get_singleton()->clear_packets_from_remote_user(socket.get_name(), peers[p_id]);
 }
 
 /****************************************
@@ -375,13 +413,12 @@ bool EOSMultiplayerPeer::is_auto_accepting_connection_requests() {
  * the peer will establish a connection with this multiplayer instance and peer id's will be exchanged.
  * The method does nothing if no connection request could be found using the given remote user id.
  ****************************************/
-void EOSMultiplayerPeer::accept_connection_request(const String &remote_user) {
+void EOSMultiplayerPeer::_accept_connection_request(EOS_ProductUserId remote_user_id) {
     ERR_FAIL_COND_MSG(active_mode == MODE_NONE, "Cannot accept connection requests when multiplayer instance is not active.");
     ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT, "Clients are not allowed to accept connection requests.");
     ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
-    EOS_ProductUserId remote_user_id;
-    if (!_find_connection_request(remote_user, remote_user_id))
+    if (!_is_requesting_connection(remote_user_id))
         return;
 
     EOS_P2P_AcceptConnectionOptions options;
@@ -396,6 +433,11 @@ void EOSMultiplayerPeer::accept_connection_request(const String &remote_user) {
     pending_connection_requests.erase(remote_user_id);
 }
 
+void EOSMultiplayerPeer::accept_connection_request(const Ref<EOSProductUserId> &remote_user_id) {
+    ERR_FAIL_NULL(remote_user_id);
+    _accept_connection_request(remote_user_id->get_handle());
+}
+
 /****************************************
  * deny_connection_request
  * Parameters:
@@ -403,12 +445,12 @@ void EOSMultiplayerPeer::accept_connection_request(const String &remote_user) {
  * Description: Denies a connection request from the given peer. The connection request is removed
  * from the list of pending connection requests when denied and the connection is closed with the peer.
  ****************************************/
-void EOSMultiplayerPeer::deny_connection_request(const String &remote_user) {
+void EOSMultiplayerPeer::_deny_connection_request(EOS_ProductUserId remote_user_id) {
     ERR_FAIL_NULL_MSG(s_local_user_id, "Failed to deny connection request. Local user id not set");
     if (active_mode == MODE_NONE || active_mode == MODE_CLIENT)
         return;
-    EOS_ProductUserId remote_user_id;
-    if (!_find_connection_request(remote_user, remote_user_id))
+
+    if (!_is_requesting_connection(remote_user_id))
         return;
 
     EOS_P2P_CloseConnectionOptions options;
@@ -421,6 +463,11 @@ void EOSMultiplayerPeer::deny_connection_request(const String &remote_user) {
     ERR_FAIL_COND_MSG(result == EOS_EResult::EOS_InvalidParameters, "Failed to deny connection. Invalid parameters.");
 
     pending_connection_requests.erase(remote_user_id);
+}
+
+void EOSMultiplayerPeer::deny_connection_request(const Ref<EOSProductUserId> &remote_user_id) {
+    ERR_FAIL_NULL(remote_user_id);
+    _deny_connection_request(remote_user_id->get_handle());
 }
 
 /****************************************
@@ -436,8 +483,7 @@ void EOSMultiplayerPeer::accept_all_connection_requests() {
     ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
     for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = internal::product_user_id_to_string(remote_user_id);
-        accept_connection_request(remote_user_id_str);
+        _accept_connection_request(remote_user_id);
     }
 }
 
@@ -451,8 +497,7 @@ void EOSMultiplayerPeer::deny_all_connection_requests() {
         return;
 
     for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = internal::product_user_id_to_string(remote_user_id);
-        deny_connection_request(remote_user_id_str);
+        _deny_connection_request(remote_user_id);
     }
 
     pending_connection_requests.clear();
@@ -478,10 +523,7 @@ int EOSMultiplayerPeer::get_active_mode() {
  * the r_buffer and r_buffer_size out parameters.
  ****************************************/
 Error EOSMultiplayerPeer::_get_packet(const uint8_t **r_buffer, int32_t *r_buffer_size) {
-    if (current_packet) {
-        memdelete(current_packet);
-    }
-    current_packet = socket.pop_packet();
+    current_packet = std::move(socket.pop_packet());
 
     *r_buffer = current_packet->get_payload();
     *r_buffer_size = current_packet->payload_size();
@@ -692,21 +734,21 @@ void EOSMultiplayerPeer::_poll() {
     if (EOSPacketPeerMediator::get_singleton()->get_packet_count_for_socket(socket.get_name()) == 0)
         return; //No packets available
 
-    List<PacketData *> packets;
-    PacketData *next_packet{ nullptr };
+    List<SharedPtr<PacketData>> packets;
     if (!polling) { //The next packet should be a peer id packet if we're at this point
         while (EOSPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket.get_name())) {
-            EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name(), &next_packet);
+            SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name());
+            ERR_CONTINUE(next_packet.is_null());
             packets.push_back(next_packet);
         }
     } else {
-        while (EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name(), &next_packet)) {
+        while (SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name())) {
             packets.push_back(next_packet);
         }
     }
 
     //process all the packets
-    for (PacketData *packet_data : packets) {
+    for (const SharedPtr<PacketData> &packet_data : packets) {
         const PackedByteArray &data_ptr = packet_data->get_data();
         Event event = static_cast<Event>(data_ptr.ptr()[INDEX_EVENT_TYPE]);
         switch (event) {
@@ -737,20 +779,20 @@ void EOSMultiplayerPeer::_poll() {
                     ERR_FAIL_MSG("Failed to connect. Instance is not a server.");
                 }
 
-                EOS_ProductUserId remote_user = internal::string_to_product_user_id(packet_data->get_sender().utf8());
+                EOS_ProductUserId remote_user_id = packet_data->get_sender();
                 if (peer_id < 1 || peers.has(peer_id) || unique_id == peer_id) {
-                    _disconnect_remote_user(remote_user); //Invalid peer id. reject the peer.
+                    _disconnect_remote_user(remote_user_id); //Invalid peer id. reject the peer.
                     break;
                 }
 
-                if (has_user_id(packet_data->get_sender())) {
+                if (_has_user_id(remote_user_id)) {
                     //Peer may have reconnected with a new multiplayer instance. Remove their old peer id.
-                    int old_id = get_peer_id(packet_data->get_sender());
+                    int old_id = _get_peer_id(remote_user_id);
                     peers.erase(old_id);
                     emit_signal(SNAME("peer_disconnected"), old_id);
                 }
 
-                peers.insert(peer_id, remote_user);
+                peers.insert(peer_id, remote_user_id);
                 if (active_mode == MODE_CLIENT) {
                     connection_status = CONNECTION_CONNECTED;
                 }
@@ -761,8 +803,6 @@ void EOSMultiplayerPeer::_poll() {
             case Event::EVENT_MESH_CONNECTION_REQUEST:
                 break;
         }
-
-        memdelete(packet_data);
     }
 }
 
@@ -926,7 +966,7 @@ Error EOSMultiplayerPeer::_broadcast(const EOSPacket &packet, int exclude) {
  *   packet - The packet being sent.
  * Description: Sends a packet to the given peer identified by the product user id.
  ****************************************/
-Error EOSMultiplayerPeer::_send_to(const EOS_ProductUserId &remote_peer, const EOSPacket &packet) {
+Error EOSMultiplayerPeer::_send_to(EOS_ProductUserId remote_peer, const EOSPacket &packet) {
     ERR_FAIL_COND_V_MSG(packet.packet_size() > _get_max_packet_size(), ERR_OUT_OF_MEMORY, "Failed to send packet. Packet exceeds max size limits.");
 
     EOS_P2P_SendPacketOptions options;
@@ -951,18 +991,15 @@ Error EOSMultiplayerPeer::_send_to(const EOS_ProductUserId &remote_peer, const E
 }
 
 /****************************************
- * _find_connection_request
+ * _is_requesting_connection
  * Parameters:
  *   remote_user - The user to look for a connection request.
- *   out_request - An out parameter that returns the found connection request.
  * Description: Looks for a connection request in the pending connection request list for the given remote user.
  * Method returns true if a connection request was found for the user. False otherwise.
  ****************************************/
-bool EOSMultiplayerPeer::_find_connection_request(const String &remote_user, EOS_ProductUserId &out_request) {
-    for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
-        String remote_user_id_str = internal::product_user_id_to_string(remote_user_id);
-        if (remote_user == remote_user_id_str) {
-            out_request = remote_user_id;
+bool EOSMultiplayerPeer::_is_requesting_connection(EOS_ProductUserId p_remote_user_id) {
+    for (EOS_ProductUserId remote_user_id : pending_connection_requests) {
+        if (p_remote_user_id == remote_user_id) {
             return true;
         }
     }
@@ -1015,7 +1052,7 @@ MultiplayerPeer::TransferMode EOSMultiplayerPeer::_convert_eos_reliability_to_tr
  * and is called right before the peer with the remote user id is removed from the multiplayer
  * instance (see _disconnect_peer()).
  ****************************************/
-void EOSMultiplayerPeer::_disconnect_remote_user(const EOS_ProductUserId &remote_user) {
+void EOSMultiplayerPeer::_disconnect_remote_user(EOS_ProductUserId remote_user) {
     EOS_P2P_CloseConnectionOptions options;
     options.ApiVersion = EOS_P2P_CLOSECONNECTION_API_LATEST;
     options.LocalUserId = s_local_user_id;
@@ -1052,16 +1089,12 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
         Error result = _send_to(data->RemoteUserId, packet);
     }
 
-    String local_user_id_str = internal::product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = internal::product_user_id_to_string(data->RemoteUserId);
     int connection_type = static_cast<int>(data->ConnectionType);
     int network_type = static_cast<int>(data->NetworkType);
 
-    Dictionary connection_info;
-    connection_info["local_user_id"] = local_user_id_str;
-    connection_info["remote_user_id"] = remote_user_id_str;
-    connection_info["socket"] = data->SocketId->SocketName;
-    emit_signal(SNAME("peer_connection_established"), connection_info, data->ConnectionType, data->NetworkType);
+    emit_signal(SNAME("peer_connection_established"),
+            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId),
+            data->ConnectionType, data->NetworkType);
 }
 
 /****************************************
@@ -1079,18 +1112,15 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
  * has disconnected locally or connection with the server has failed.
  ****************************************/
 void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
-    String local_user_id_str = internal::product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = internal::product_user_id_to_string(data->RemoteUserId);
     int reason = data->Reason;
 
     //attempt to remove connection request if there was one.
-    EOS_ProductUserId remote_user_id;
-    if (_find_connection_request(remote_user_id_str, remote_user_id)) {
-        pending_connection_requests.erase(remote_user_id);
+    if (_is_requesting_connection(data->RemoteUserId)) {
+        pending_connection_requests.erase(data->RemoteUserId);
     }
 
     //Attempt to remove peer;
-    int peer_id = get_peer_id(remote_user_id_str);
+    int peer_id = _get_peer_id(data->RemoteUserId);
     if (peer_id != 0) {
         _clear_peer_packet_queue(peer_id);
         peers.erase(peer_id);
@@ -1109,11 +1139,9 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
         EOSPacketPeerMediator::get_singleton()->unregister_peer(this);
     }
 
-    Dictionary connection_info;
-    connection_info["local_user_id"] = local_user_id_str;
-    connection_info["remote_user_id"] = remote_user_id_str;
-    connection_info["socket_id"] = data->SocketId->SocketName;
-    emit_signal(SNAME("peer_connection_closed"), connection_info, data->Reason);
+    emit_signal(SNAME("peer_connection_closed"),
+            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId),
+            data->Reason);
 }
 
 /****************************************
@@ -1124,13 +1152,8 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
  * interrupted notification. Callback only emits a signal containing the data when it is called.
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_interrupted_callback(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
-    String local_user_id_str = internal::product_user_id_to_string(data->LocalUserId);
-    String remote_user_id_str = internal::product_user_id_to_string(data->RemoteUserId);
-    Dictionary connection_info;
-    connection_info["local_user_id"] = local_user_id_str;
-    connection_info["remote_user_id"] = remote_user_id_str;
-    connection_info["socket"] = data->SocketId->SocketName;
-    emit_signal(SNAME("peer_connection_interrupted"), connection_info);
+    emit_signal(SNAME("peer_connection_interrupted"),
+            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId));
 }
 
 /****************************************
@@ -1146,20 +1169,14 @@ void EOSMultiplayerPeer::connection_request_callback(const ConnectionRequestData
     if (active_mode == MODE_CLIENT || is_refusing_new_connections())
         return;
 
-    EOS_ProductUserId remote_user_id = internal::string_to_product_user_id(data.remote_user_id.utf8());
+    pending_connection_requests.push_back(data.remote_user_id);
 
-    pending_connection_requests.push_back(remote_user_id);
-
-    Dictionary connection_info;
-    connection_info["local_user_id"] = data.local_user_id;
-    connection_info["remote_user_id"] = data.remote_user_id;
-    connection_info["socket_id"] = String(data.socket_name);
-    emit_signal(SNAME("incoming_connection_request"), connection_info);
+    emit_signal(SNAME("incoming_connection_request"), EOSMultiPlayerConnectionInfo::make(data));
 
     if (!is_auto_accepting_connection_requests())
         return;
 
-    accept_connection_request(data.remote_user_id);
+    _accept_connection_request(data.remote_user_id);
 }
 
 /****************************************
@@ -1169,9 +1186,6 @@ void EOSMultiplayerPeer::connection_request_callback(const ConnectionRequestData
 EOSMultiplayerPeer::~EOSMultiplayerPeer() {
     if (active_mode != MODE_NONE) {
         _close();
-    }
-    if (current_packet) {
-        memdelete(current_packet);
     }
 }
 
@@ -1226,14 +1240,13 @@ void EOSMultiplayerPeer::EOSSocket::close() {
  * connected. Clears the packet queue.
  ****************************************/
 void EOSMultiplayerPeer::EOSSocket::clear_packets_from_peer(int p_peer) {
-    List<List<EOSPacket *>::Element *> del;
-    for (List<EOSPacket *>::Element *e = incoming_packets.front(); e != nullptr; e = e->next()) {
+    List<List<SharedPtr<EOSPacket>>::Element *> del;
+    for (List<SharedPtr<EOSPacket>>::Element *e = incoming_packets.front(); e != nullptr; e = e->next()) {
         if (e->get()->get_sender() != p_peer)
             continue;
         del.push_back(e);
     }
-    for (List<EOSPacket *>::Element *e : del) {
-        memdelete(e->get());
+    for (List<SharedPtr<EOSPacket>>::Element *e : del) {
         e->erase();
     }
 }

@@ -7,10 +7,10 @@
 #include "eos_multiplayer_peer.h"
 
 namespace godot::eos {
-struct PacketData {
+struct PacketData : public internal::_Sharable {
 private:
     PackedByteArray data;
-    String remote_user_id;
+    EOS_ProductUserId remote_user_id;
     int channel = 0;
 
 public:
@@ -27,7 +27,7 @@ public:
         return channel;
     }
 
-    String get_sender() {
+    EOS_ProductUserId get_sender() {
         return remote_user_id;
     }
 
@@ -36,7 +36,7 @@ public:
     }
 
     void set_sender(EOS_ProductUserId sender) {
-        remote_user_id = internal::product_user_id_to_string(sender);
+        remote_user_id = sender;
     }
 
     const PackedByteArray &get_data() {
@@ -47,13 +47,16 @@ public:
 class EOSPacketPeerMediator : public Object {
     GDCLASS(EOSPacketPeerMediator, Object)
 
+    template <typename T>
+    using SharedPtr = internal::_SharedPtr<T>;
+
 private:
     static EOSPacketPeerMediator *singleton;
 
     static void _bind_methods();
 
     HashMap<String, EOSMultiplayerPeer *> active_peers;
-    HashMap<String, List<PacketData *>> socket_packet_queues;
+    HashMap<String, List<SharedPtr<PacketData>>> socket_packet_queues;
     List<ConnectionRequestData> pending_connection_requests;
     int max_queue_size = 5000;
     bool initialized = false;
@@ -76,6 +79,8 @@ private:
     bool _add_connection_request_callback();
     void _forward_pending_connection_requests(EOSMultiplayerPeer *peer);
 
+    int _get_packet_count_from_remote_user(EOS_ProductUserId remote_user_id, const String &socket_id);
+
     EOS_NotificationId connection_established_callback_id = EOS_INVALID_NOTIFICATIONID;
     EOS_NotificationId connection_interrupted_callback_id = EOS_INVALID_NOTIFICATIONID;
     EOS_NotificationId connection_closed_callback_id = EOS_INVALID_NOTIFICATIONID;
@@ -88,7 +93,7 @@ public:
 
     int get_total_packet_count() {
         int ret = 0;
-        for (KeyValue<String, List<PacketData *>> &E : socket_packet_queues) {
+        for (KeyValue<String, List<SharedPtr<PacketData>>> &E : socket_packet_queues) {
             ret += E.value.size();
         }
         return ret;
@@ -101,7 +106,7 @@ public:
 
     PackedStringArray get_sockets() {
         PackedStringArray ret;
-        for (KeyValue<String, List<PacketData *>> &E : socket_packet_queues) {
+        for (KeyValue<String, List<SharedPtr<PacketData>>> &E : socket_packet_queues) {
             ret.push_back(E.key);
         }
         return ret;
@@ -124,13 +129,13 @@ public:
         return pending_connection_requests.size();
     }
 
-    int get_packet_count_from_remote_user(const String &remote_user_id, const String &socket_id);
-    bool poll_next_packet(const String &socket_id, PacketData **out_packet);
+    int get_packet_count_from_remote_user(const Ref<EOSProductUserId> &remote_user_id, const String &socket_id);
+    SharedPtr<PacketData> poll_next_packet(const String &socket_id);
     bool next_packet_is_peer_id_packet(const String &socket_id);
     bool register_peer(EOSMultiplayerPeer *peer);
     void unregister_peer(EOSMultiplayerPeer *peer);
     void clear_packet_queue(const String &socket_id);
-    void clear_packets_from_remote_user(const String &socket_id, const String &remote_user_id);
+    void clear_packets_from_remote_user(const String &socket_id, EOS_ProductUserId remote_user_id);
 
     void _notification(int p_what);
 
