@@ -2042,10 +2042,11 @@ def __make_packed_result(
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
-                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->get_{snake_name}()->set_handle({arg_name});")
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.reference_ptr(memnew({_convert_handle_class_name(decayed_type)}));")
+                r_after_call_lines.append(f"{acl_indents}ret->get_{snake_name}()->set_handle({arg_name});")
             else:
-                r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
-                r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_handle({arg_name});")
+                r_return_type_if_convert_to_return.append(f"Ret<{_convert_handle_class_name(decayed_type)}>")
+                r_after_call_lines.append(f"{acl_indents}Ret<{_convert_handle_class_name(decayed_type)}> ret; ret.instantiate(); ret->set_handle({arg_name});")
         elif __is_struct_type(decayed_type):
             if arg_type.endswith("**"):
                 r_prepare_lines.append(f"\t{decayed_type} *{arg_name}{{ nullptr }};")
