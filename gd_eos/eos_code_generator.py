@@ -2796,7 +2796,9 @@ def to_snake_case(text: str) -> str:
         .replace("k_w_s", "kws")
         .replace("p2_p_", "p2p_")
         .replace("n_a_t", "nat")
-        .removesuffix("_handle")  # Hack 去除 _handle 后缀
+        # Hack: 句柄将被包装为对象，因此命名上去除 handle 关键字
+        .removesuffix("_handle")
+        .replace("_handle_", "_")
     )
 
 
