@@ -222,7 +222,7 @@ void EOSPacketPeerMediator::clear_packets_from_remote_user(const String &socket_
  * main loop's process signal. Adds EOS callbacks so that it can receive notifications.
  ****************************************/
 void EOSPacketPeerMediator::_init() {
-    ERR_FAIL_COND_MSG(EOSMultiplayerPeer::get_local_user_id(), "Failed to initialize EOSPacketPeerMediator. Local user id has not been set.");
+    ERR_FAIL_NULL_MSG(EOSMultiplayerPeer::get_local_user_id(), "Failed to initialize EOSPacketPeerMediator. Local user id has not been set.");
     if (initialized)
         return;
 
