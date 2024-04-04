@@ -262,10 +262,13 @@ String EOSMultiplayerPeer::get_socket() const {
  * Description: Returns all connection requests currently pending. Returns an empty
  * array if there are none.
  ****************************************/
-Array EOSMultiplayerPeer::get_all_connection_requests() {
-    Array ret = Array();
-    for (const EOS_ProductUserId &remote_user : pending_connection_requests) {
-        ret.push_back(internal::product_user_id_to_string(remote_user));
+TypedArray<EOSProductUserId> EOSMultiplayerPeer::get_all_connection_requests() {
+    TypedArray<EOSProductUserId> ret;
+    for (const EOS_ProductUserId remote_user_id : pending_connection_requests) {
+        Ref<EOSProductUserId> remote_puid;
+        remote_puid.instantiate();
+        remote_puid->set_handle(remote_user_id);
+        ret.push_back(remote_puid);
     }
     return ret;
 }
@@ -277,13 +280,14 @@ Array EOSMultiplayerPeer::get_all_connection_requests() {
  * Description: Returns the remote user id of the given peer. Returns an empty string
  * if the peer could not be found.
  ****************************************/
-String EOSMultiplayerPeer::get_peer_user_id(int peer_id) {
-    String ret = "";
-    if (!peers.has(peer_id)) {
+Ref<EOSProductUserId> EOSMultiplayerPeer::get_peer_user_id(int peer_id) {
+    Ref<EOSProductUserId> ret;
+    auto it = peers.find(peer_id);
+    if (it == peers.end()) {
         return ret;
     }
-    EOS_ProductUserId user_id = peers.get(peer_id);
-    ret = internal::product_user_id_to_string(user_id);
+    ret.instantiate();
+    ret->set_handle(it->value);
     return ret;
 }
 
@@ -359,8 +363,10 @@ void EOSMultiplayerPeer::_clear_peer_packet_queue(int p_id) {
 Dictionary EOSMultiplayerPeer::get_all_peers() {
     Dictionary ret;
     for (KeyValue<uint32_t, EOS_ProductUserId> &E : peers) {
-        EOS_ProductUserId user_id = E.value;
-        ret[E.key] = internal::product_user_id_to_string(user_id);
+        Ref<EOSProductUserId> puid;
+        puid.instantiate();
+        puid->set_handle(E.value);
+        ret[E.key] = puid;
     }
     return ret;
 }
@@ -482,7 +488,7 @@ void EOSMultiplayerPeer::accept_all_connection_requests() {
     ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT, "Clients are not allowed to accept connection requests.");
     ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
-    for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
+    for (const EOS_ProductUserId remote_user_id : pending_connection_requests) {
         _accept_connection_request(remote_user_id);
     }
 }
@@ -496,7 +502,7 @@ void EOSMultiplayerPeer::deny_all_connection_requests() {
     if (active_mode == MODE_NONE || active_mode == MODE_CLIENT)
         return;
 
-    for (const EOS_ProductUserId &remote_user_id : pending_connection_requests) {
+    for (const EOS_ProductUserId remote_user_id : pending_connection_requests) {
         _deny_connection_request(remote_user_id);
     }
 

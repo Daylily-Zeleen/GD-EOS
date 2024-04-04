@@ -263,8 +263,8 @@ public:
     Error add_mesh_peer(const Ref<EOSProductUserId> &remote_user_id);
 
     String get_socket() const;
-    Array get_all_connection_requests();
-    String get_peer_user_id(int peer_id);
+    TypedArray<EOSProductUserId> get_all_connection_requests();
+    Ref<EOSProductUserId> get_peer_user_id(int peer_id);
     int get_peer_id(const Ref<EOSProductUserId> &remote_user_id);
     bool has_peer(int peer_id);
     bool has_user_id(const Ref<EOSProductUserId> &remote_user_id);
