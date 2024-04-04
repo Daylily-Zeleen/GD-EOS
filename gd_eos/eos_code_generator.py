@@ -689,7 +689,7 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     for a in method_info["args"]:
         if __is_callback_type(_decay_eos_type(a["type"])):
             callback_type = a["type"]
-    signal_name = __convert_to_signal_name(_decay_eos_type(callback_type))
+    signal_name = __convert_to_signal_name(_decay_eos_type(callback_type), add_notify_method)
     id_identifier: str = f"notify_id_{signal_name}"
 
     remove_method = add_notify_method.replace("AddNotify", "RemoveNotify").removesuffix("V2")
@@ -790,8 +790,6 @@ def _gen_handle(
                         if method.replace("AddNotify", "RemoveNotify") in m:
                             skip_remove_notify_methods.append(m)
                     continue
-                # else:
-                #     print(method)
 
         if "RemoveNotify" in method:
             if method in skip_remove_notify_methods:
@@ -835,16 +833,18 @@ def _gen_handle(
 
     if len(release_method) or len(remove_nofities_lines):
         r_cpp_lines.append(f"{klass}::~{klass}() {{")
-        if need_singleton:
-            r_cpp_lines.append(f'\tif(singleton != this) {{ ERR_PRINT("singleton != this"); }}')
-            r_cpp_lines.append(f"\telse {{ singleton = nullptr; }}")
+        if len(remove_nofities_lines):
+            r_cpp_lines.append(f"\tif (m_handle) {{")
+            for line in remove_nofities_lines:
+                r_cpp_lines.append("\t" + line)
+            r_cpp_lines.append(f"\t}}")
         if len(release_method):
             r_cpp_lines.append(f"\tif (m_handle) {{")
             r_cpp_lines.append(f"\t\t{release_method}(m_handle);")
             r_cpp_lines.append(f"\t}}")
-        if len(remove_nofities_lines):
-            for line in remove_nofities_lines:
-                r_cpp_lines.append(line)
+        if need_singleton:
+            r_cpp_lines.append(f"\tERR_FAIL_COND(singleton != this);")
+            r_cpp_lines.append(f"\tsingleton = nullptr;")
         r_cpp_lines.append(f"}}")
 
     if not is_base_handle_type:
@@ -1682,11 +1682,24 @@ def __get_struct_fields(type: str) -> dict[str, str]:
     return structs[_decay_eos_type(type)]
 
 
-def __convert_to_signal_name(callback_type: str) -> str:
+def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
+    if len(method_name) <= 0:
+        for infos in handles.values():
+            for m in infos["methods"]:
+                for a in infos["methods"][m]["args"]:
+                    if _decay_eos_type(a["type"]) == callback_type:
+                        if len(method_name):
+                            print("ERROR: ", callback_type, method_name)
+                            exit(1)
+                        method_name = m
+
     ret = to_snake_case(callback_type.rsplit("_", 1)[1])
     if ret.endswith("_callback_v2"):
         ret = ret.removesuffix("_callback_v2") + "_v2"
-    return ret.removesuffix("_callback")
+    ret = ret.removesuffix("_callback")
+    if "AddNotify" in method_name:
+        ret = ret.removeprefix("on_")
+    return ret
 
 
 def __convert_to_struct_class(strcut_type: str) -> str:
@@ -2187,7 +2200,7 @@ def _gen_method(
         if __is_callback_type(_decay_eos_type(a["type"])):
             if len(info["return"]) <= 0 or info["return"] == "void":
                 return_type = "Signal"
-                callback_signal = __convert_to_signal_name(_decay_eos_type(a["type"]))
+                callback_signal = __convert_to_signal_name(_decay_eos_type(a["type"]), method_name)
             break
 
     if (return_type == "Signal") and len(packed_result_type):
@@ -2268,8 +2281,8 @@ def _gen_method(
                 ]:
                     cb = _decay_eos_type(_get_callback_infos(decayed_type)["args"][0]["type"])
                     gd_cb = remap_type(cb, name).removeprefix("Ref<").removesuffix(">")
-                    signal_name = __convert_to_signal_name(decayed_type)
-                    interface_signal_name = __convert_to_signal_name(decayed_type)
+                    signal_name = __convert_to_signal_name(decayed_type, "")
+                    interface_signal_name = __convert_to_signal_name(decayed_type, "")
                     prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                     if signal_name != interface_signal_name:
                         prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
@@ -3691,7 +3704,7 @@ def _gen_struct(
                         cb_arg = _get_callback_infos(_decay_eos_type(field_type))["args"][0]
                         eos_cb_type = _decay_eos_type(cb_arg["type"])
                         gd_cb_type = remap_type(eos_cb_type).removeprefix("Ref<").removesuffix(">")
-                        signal_name = __convert_to_signal_name(_decay_eos_type(field_type))
+                        signal_name = __convert_to_signal_name(_decay_eos_type(field_type), "")
 
                         const_str_line: str = f'constexpr char {signal_name}[] = "{signal_name}";'
                         if not const_str_line in optional_cpp_lines and not const_str_line in r_structs_cpp:
