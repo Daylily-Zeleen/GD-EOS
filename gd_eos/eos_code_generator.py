@@ -1548,7 +1548,10 @@ def _gen_packed_result_type(
         arg_name: str = arg["name"]
         decayed_type: str = _decay_eos_type(arg["type"])
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
-        if _is_handle_type(decayed_type):
+        if _is_handle_arr_type(arg_type, arg_name):
+            print("ERROR UNSUPPORT handle arr:", method_name, arg_type)
+            exit(1)
+        elif _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
             handle_class = _convert_handle_class_name(decayed_type)
             menbers_lines.append(f"\tRef<RefCounted> {snake_name};")
@@ -1819,15 +1822,18 @@ def _gen_callback(
             elif field_type.startswith("Union"):
                 ret += f"_EXPAND_TO_GODOT_VAL_UNION({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::NIL, "{snake_case_field}")'
-            elif _is_handle_type(field_type, field):
-                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({_convert_handle_class_name(_decay_eos_type(field_type))}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_internal_struct_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT_ARR({remap_type(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
                 signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{__convert_to_struct_class(_decay_eos_type(field_type))}")'
             elif _is_internal_struct_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT({remap_type(_decay_eos_type(field_type))}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({__convert_to_struct_class(_decay_eos_type(field_type))}, {snake_case_field})"
+            elif _is_handle_arr_type(field_type, field):
+                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER_ARR({_convert_handle_class_name(_decay_eos_type(field_type))}, data->{field}, {_find_count_field(field, fields.keys())})"
+                signal_bind_args += f"_MAKE_PROP_INFO_TYPED_ARR({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
+            elif _is_handle_type(_decay_eos_type(field_type), field):
+                ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({_convert_handle_class_name(_decay_eos_type(field_type))}, data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({_convert_handle_class_name(_decay_eos_type(field_type))}, {snake_case_field})"
             elif _is_arr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_ARR({remap_type(field_type)}, data->{field}, data->{_find_count_field(field, fields.keys())})"
                 signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
@@ -1988,6 +1994,11 @@ def __expend_input_struct(
         elif field_type.startswith("Union"):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_UNION({options_field}, p_{snake_field});")
+        elif _is_handle_arr_type(field_type, field):
+            r_declare_args.append(f"const TypedArray<{_convert_handle_class_name(decay_field_type)}> &p_{snake_field}")
+            option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
+            r_prepare_lines.append(f"\tLocalVector<{decay_field_type}> _shadow_{snake_field};")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_handle_type(decay_field_type, field):
             r_declare_args.append(f"const class {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             if len(invalid_arg_return_value):
@@ -2058,7 +2069,11 @@ def __make_packed_result(
         arg_type: str = args[i]["type"]
         decayed_type: str = _decay_eos_type(arg_type)
         snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out").removeprefix("bOut"))
-        if _is_handle_type(decayed_type):
+
+        if _is_handle_arr_type(arg_type, arg_name):
+            print("ERROR UNSUPPORT handle arr:", method_name, arg_type)
+            exit(1)
+        elif _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
             if pack_result:
@@ -2403,8 +2418,11 @@ def _gen_method(
             declare_args.append(f"BitField<{type}> p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
-        elif _is_handle_type(type):
-            declare_args.append(f"const {remap_type(type, name)} &p_{snake_name}")
+        elif _is_handle_arr_type(type, name):
+            print("ERROR: Unsupport handle arr argument:", method_name, type, name)
+            exit(1)
+        elif _is_handle_type(decayed_type):
+            declare_args.append(f"const {remap_type(decayed_type, name)} &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"p_{snake_name}.is_valid()? p_{snake_name}->get_handle() : nullptr")
         else:
@@ -2570,6 +2588,15 @@ def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
     f.close()
 
 
+def _is_handle_arr_type(type: str, name: str) -> bool:
+    suffix = "*"
+    if name.startswith("Out") or name.startswith("InOut"):
+        suffix = "**"
+    if not type.endswith(suffix):
+        return False
+    return _is_handle_type(_decay_eos_type(type))
+
+
 def _convert_enum_type(ori: str) -> str:
     if ori.startswith("EOS_E"):
         return ori.replace("EOS_E", "")
@@ -2673,6 +2700,8 @@ def remap_type(type: str, field: str = "") -> str:
         return type
     if __is_struct_type(type):
         return f"Ref<{__convert_to_struct_class(type)}>"
+    if _is_handle_arr_type(type, field):
+        return f"TypedArray<{_convert_handle_class_name(type)}>"
     if _is_handle_type(type, field):
         return f"Ref<{_convert_handle_class_name(type)}>"
     if _is_internal_struct_arr_field(type, field):
@@ -2716,10 +2745,6 @@ def remap_type(type: str, field: str = "") -> str:
         "EOS_UI_EventId": "uint64_t",
         "EOS_Bool": "bool",
         "float": "float",
-        "EOS_ProductUserId": "String",
-        "const EOS_ProductUserId": "String",
-        "EOS_EpicAccountId": "String",
-        "const EOS_EpicAccountId": "String",
         "EOS_LobbyId": "String",
         "const EOS_LobbyId": "String",
         "const char*": "String",
@@ -2735,8 +2760,6 @@ def remap_type(type: str, field: str = "") -> str:
         "EOS_Ecom_EntitlementName": "String",
         "EOS_Ecom_EntitlementId*": "PackedStringArray",
         "EOS_Ecom_CatalogItemId*": "PackedStringArray",
-        "EOS_ProductUserId*": "PackedStringArray",
-        "const EOS_ProductUserId*": "PackedStringArray",
         "EOS_Ecom_SandboxId*": "PackedStringArray",
         "const char* const*": "PackedStringArray",
         "EOS_Ecom_EntitlementName*": "PackedStringArray",
@@ -3271,9 +3294,6 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
 
 
 def _is_handle_type(type: str, filed: str = "") -> bool:
-    # if type in ["EOS_EpicAccountId", "EOS_ProductUserId"]:
-    #     # Hack
-    #     return False
     return type in handles or (type.startswith("EOS") and "_H" in type) or type in ["EOS_ContinuanceToken"]
 
 
@@ -3455,6 +3475,11 @@ def _gen_struct(
                 lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};")
         elif _is_enum_flags_type(type):
             lines.append(f"\tBitField<{type}> {to_snake_case(field)}{{{type}{{}}}};")
+        elif _is_handle_arr_type(type, ""):
+            lines.append(f"\tTypedArray<class {_convert_handle_class_name(decayed_type)}> {to_snake_case(field)};")
+            if addtional_methods_requirements["to"]:
+                # 需要转为eos类型的结构体数组才需要的字段
+                lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{to_snake_case(field)}{{}};")
         else:
             lines.append(f"\t{remaped_type} {to_snake_case(field)}{initialize_expression};")
 
@@ -3496,6 +3521,9 @@ def _gen_struct(
         elif _is_str_arr_type(type):
             lines.append(f"\t_DECLARE_SETGET_STR_ARR({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_STR_ARR({typename}, {to_snake_case(field)})")
+        elif _is_handle_arr_type(type, ""):
+            lines.append(f"\t_DECLARE_SETGET({to_snake_case(field)})")
+            r_structs_cpp.append(f"_DEFINE_SETGET({typename}, {to_snake_case(field)})")
         elif _is_handle_type(decayed_type):
             lines.append(f"\t_DECLARE_SETGET_TYPED({to_snake_case(field)}, Ref<class {_convert_handle_class_name(decayed_type)}>)")
             r_structs_cpp.append(f"_DEFINE_SETGET_TYPED({typename}, {to_snake_case(field)}, {remap_type(decayed_type, field)})")
@@ -3565,6 +3593,8 @@ def _gen_struct(
             r_structs_cpp.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
         elif __is_struct_type(decayed_type) or _is_handle_type(decayed_type):
             r_structs_cpp.append(f"\t_BIND_PROP_OBJ({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
+        elif _is_handle_arr_type(type, ""):
+            r_structs_cpp.append(f"\t_BIND_PROP_TYPED_ARR({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
         elif _is_enum_flags_type(type):
             r_structs_cpp.append(f"\t_BIND_PROP_FLAGS({snake_field_name})")
         else:
@@ -3620,7 +3650,11 @@ def _gen_struct(
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({to_snake_case(field)}, p_origin.{field});")
             elif field_type.startswith("Union"):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_UNION({to_snake_case(field)}, p_origin.{field});")
-            elif _is_handle_type(field_type, field):
+            elif _is_handle_arr_type(field_type, ""):
+                r_structs_cpp.append(
+                    f"\t_FROM_EOS_FIELD_HANDLER_ARR({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
+                )
+            elif _is_handle_type(_decay_eos_type(field_type), field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field});")
             elif _is_internal_struct_arr_field(field_type, field):
                 r_structs_cpp.append(
@@ -3690,8 +3724,12 @@ def _gen_struct(
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {snake_field_name});")
                     elif field_type.startswith("Union"):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_UNION(p_data.{field}, {snake_field_name});")
-                    elif _is_handle_type(field_type, field):
-                        gd_type = remap_type(_decay_eos_type(field_type), field).removeprefix("Ref<").removesuffix(">")
+                    elif _is_handle_arr_type(field_type, ""):
+                        r_structs_cpp.append(
+                            f"\t_TO_EOS_FIELD_HANDLER_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
+                        )
+                    elif _is_handle_type(_decay_eos_type(field_type), field):
+                        gd_type = _convert_handle_class_name(_decay_eos_type(field_type))
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
                     elif _is_client_data_field(field_type, field):
                         # 没有需要设置ClientData的结构体

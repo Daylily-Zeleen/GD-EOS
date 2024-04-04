@@ -37,20 +37,6 @@ namespace godot::eos::internal {
 #define STRNCPY_S(dest, destsz, src, count) strncpy(dest, src, count)
 #endif
 
-String epic_account_id_to_string(const EOS_EpicAccountId accountId);
-
-static EOS_EpicAccountId string_to_epic_account_id(const char *p_account_id) {
-    EOS_EpicAccountId accountId = EOS_EpicAccountId_FromString(p_account_id);
-    return accountId;
-}
-
-String product_user_id_to_string(const EOS_ProductUserId localUserId);
-
-static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
-    EOS_ProductUserId accountId = EOS_ProductUserId_FromString(p_account_id);
-    return accountId;
-}
-
 #define _DECLARE_SETGET(field)           \
     decltype(field) get_##field() const; \
     void set_##field(_ARG_TYPE(field) p_val);
@@ -155,6 +141,12 @@ static EOS_ProductUserId string_to_product_user_id(const char *p_account_id) {
                          obj_ty::get_class_static()),                                                  \
             "set_" #field, "get_" #field);
 
+#define _BIND_PROP_TYPED_ARR(field, obj_ty)                                                                  \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                             \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                      \
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, #field, PROPERTY_HINT_ARRAY_TYPE, obj_ty::get_class_static()), \
+            "set_" #field, "get_" #field);
+
 #define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                               \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                    \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);             \
@@ -225,33 +217,6 @@ template <>
 EOS_Bool to_eos_type(bool p_from) { return p_from; }
 
 using cstr_t = const char *;
-// EOS_ProductUserId
-template <>
-String to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from); }
-template <>
-CharString to_godot_type(const EOS_ProductUserId p_from) { return product_user_id_to_string(p_from).utf8(); }
-template <>
-EOS_ProductUserId to_eos_type(const CharString &p_from) { return EOS_ProductUserId_FromString((char *)(p_from.size() == 1 ? nullptr : p_from.ptr())); }
-template <>
-const EOS_ProductUserId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_ProductUserId>(p_from); }
-template <>
-EOS_ProductUserId to_eos_type(cstr_t p_from) { return EOS_ProductUserId_FromString(p_from); }
-template <>
-const EOS_ProductUserId to_eos_type(cstr_t p_from) { return to_eos_type<cstr_t, EOS_ProductUserId>(p_from); }
-
-// EOS_EpicAccountId
-template <>
-String to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from); }
-template <>
-CharString to_godot_type(const EOS_EpicAccountId p_from) { return epic_account_id_to_string(p_from).utf8(); }
-template <>
-EOS_EpicAccountId to_eos_type(const CharString &p_from) { return EOS_EpicAccountId_FromString((char *)(p_from.size() == 1 ? nullptr : p_from.ptr())); }
-template <>
-const EOS_EpicAccountId to_eos_type(const CharString &p_from) { return to_eos_type<const CharString &, EOS_EpicAccountId>(p_from); }
-template <>
-EOS_EpicAccountId to_eos_type(cstr_t p_from) { return EOS_EpicAccountId_FromString(p_from); }
-template <>
-const EOS_EpicAccountId to_eos_type(cstr_t p_from) { return to_eos_type<cstr_t, EOS_EpicAccountId>(p_from); }
 
 // const char *
 template <>
@@ -604,7 +569,7 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
 template <typename EOSUnion>
 inline void string_to_eos_union_account_id(const CharString &p_gd, EOSUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
     if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_Epic) {
-        p_union.Epic = string_to_epic_account_id((p_gd.size() == 1) ? nullptr : p_gd.ptr());
+        p_union.Epic = EOS_EpicAccountId_FromString((p_gd.size() == 1) ? nullptr : p_gd.ptr());
     } else if (p_union_type == EOS_EMetricsAccountIdType::EOS_MAIT_External) {
         p_union.External = (p_gd.size() == 1) ? nullptr : p_gd.ptr();
     }
@@ -676,6 +641,14 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         gd_field.reference_ptr(memnew(gd_type_to_cast));              \
     }                                                                 \
     Object::cast_to<gd_type_to_cast>(gd_field.ptr())->set_handle(eos_field)
+
+#define _FROM_EOS_FIELD_HANDLER_ARR(gd_field, gd_type, eos_field, eos_filed_count) \
+    for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {              \
+        Ref<gd_type> e;                                                            \
+        e.instantiate();                                                           \
+        e->set_handle(eos_field[i]);                                               \
+        gd_field.push_back(e);                                                     \
+    }
 #define _FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(gd_field, eos_field) \
     gd_field = (decltype(gd_field))eos_field
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
@@ -726,7 +699,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
 
 template <typename GDFrom, typename EOSTo>
-inline void _conver_to_eos_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
+inline void _conver_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
     p_to.resize(p_from.size());
     for (decltype(p_from.size()) i = 0; i < p_from.size(); ++i) {
         auto casted = Object::cast_to<GDFrom>(p_from[i]);
@@ -736,11 +709,25 @@ inline void _conver_to_eos_vector(const TypedArray<GDFrom> &p_from, LocalVector<
 }
 
 #define _TO_EOS_FIELD_STRUCT_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
-    _conver_to_eos_vector(gd_field, shadow_field);                                     \
+    _conver_to_eos_struct_vector(gd_field, shadow_field);                              \
     r_eos_field_count = shadow_field.size();                                           \
     eos_field = shadow_field.ptr();
 #define _TO_EOS_FIELD_HANDLER(eos_field, gd_field, gd_type_to_cast) \
     eos_field = gd_field.is_valid() ? Object::cast_to<gd_type_to_cast>(gd_field.ptr())->get_handle() : nullptr
+
+template <typename GDFrom, typename EOSTo>
+inline void _conver_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
+    p_to.resize(p_from.size());
+    for (decltype(p_from.size()) i = 0; i < p_from.size(); ++i) {
+        auto casted = Object::cast_to<GDFrom>(p_from[i]);
+        ERR_CONTINUE(casted == nullptr);
+        p_to[i] = casted->get_handle();
+    }
+}
+#define _TO_EOS_FIELD_HANDLER_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
+    _conver_to_eos_handle_vector(gd_field, shadow_field);                               \
+    r_eos_field_count = shadow_field.size();                                            \
+    eos_field = shadow_field.ptr();
 #define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
     eos_field = (void *)gd_field
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
@@ -756,6 +743,7 @@ inline void _conver_to_eos_vector(const TypedArray<GDFrom> &p_from, LocalVector<
 
 // 绑定
 #define _MAKE_PROP_INFO(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
+#define _MAKE_PROP_INFO_TYPED_ARR(m_class, m_name) PropertyInfo(Variant::ARRAY, #m_name, PROPERTY_HINT_ARRAY_TYPE, m_class::get_class_static())
 #define _MAKE_PROP_INFO_ENUM(m_name, enum_owner, enum_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, #enum_owner "." #enum_type)
 
 // 展开转换
@@ -776,6 +764,18 @@ godot::Ref<GDHandle> _to_godot_handle(EOSHandle p_eos_handle) {
     ret->set_handle(p_eos_handle);
     return ret;
 }
+template <typename GDDataClass, typename EOSArraTy, typename TInt>
+godot::TypedArray<GDDataClass> _to_godot_value_handle_arr(EOSArraTy p_eos_arr, TInt p_count) {
+    godot::TypedArray<GDDataClass> ret;
+    ret.resize(p_count);
+    for (decltype(p_count) i = 0; i < p_count; ++i) {
+        Ref<GDDataClass> e;
+        e.instantiate();
+        e->set_handle(p_eos_arr[i]);
+        ret[i] = e;
+    }
+    return ret;
+}
 
 template <typename EOSUnion, typename EOSUnionTypeEnum>
 auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
@@ -793,6 +793,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_STRUCT(m_gd_Ty, eos_field) to_godot_data<m_gd_Ty, decltype(eos_field)>(eos_field)
 #define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
 #define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype((eos_field))>((eos_field))
+#define _EXPAND_TO_GODOT_VAL_HANDLER_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_handle_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
 #define _EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE(m_gd_Ty, eos_field) (m_gd_Ty *)((eos_field))
 #define _EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL(gd_field, eos_field) static_assert(false, "不该发生")
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
