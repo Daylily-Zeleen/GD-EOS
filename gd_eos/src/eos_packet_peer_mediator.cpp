@@ -499,7 +499,7 @@ void EOSPacketPeerMediator::_forward_pending_connection_requests(EOSMultiplayerP
 void EOSPacketPeerMediator::_notification(int p_what) {
     if (p_what == NOTIFICATION_POSTINITIALIZE) {
         EOSConnect::get_singleton()->connect("on_login", callable_mp(this, &EOSPacketPeerMediator::_on_connect_interface_login));
-        EOSConnect::get_singleton()->connect("on_login_status_changed", callable_mp(this, &EOSPacketPeerMediator::_on_connect_interface_login_statues_changed));
+        EOSConnect::get_singleton()->connect("login_status_changed", callable_mp(this, &EOSPacketPeerMediator::_on_connect_interface_login_statues_changed));
     }
 }
 

@@ -192,8 +192,15 @@ def gen_all_in_one():
         register_singleton_lines.append(
             f"\tgodot::Engine::get_singleton()->register_singleton(godot::eos::{handle_class}::get_class_static(), godot::eos::{handle_class}::get_singleton());\\"
         )
+        if handle_type == "EOS_HPlatform":
+            continue  # Pltform 接口必须在最后析构
         unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::eos::{handle_class}::get_class_static());\\")
         unregister_singleton_lines.append(f"\tmemdelete(godot::eos::{handle_class}::get_singleton());\\")
+
+    unregister_singleton_lines.append(
+        f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::eos::{ _convert_handle_class_name('EOS_HPlatform')}::get_class_static());\\"
+    )
+    unregister_singleton_lines.append(f"\tmemdelete(godot::eos::{ _convert_handle_class_name('EOS_HPlatform')}::get_singleton());\\")
     __remove_backslash_of_last_line(register_classes_lines)
     __remove_backslash_of_last_line(register_singleton_lines)
     __remove_backslash_of_last_line(unregister_singleton_lines)
