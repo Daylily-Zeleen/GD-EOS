@@ -45,7 +45,7 @@ Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(const Strin
     ret->socket_id = p_socket_id;
     ret->local_user_id.instantiate();
     ret->local_user_id->set_handle(p_local_user_id);
-    ret->remote_user_id->get_instance_id();
+    ret->remote_user_id.instantiate();
     ret->remote_user_id->set_handle(p_remote_user_id);
     return ret;
 }
@@ -60,8 +60,8 @@ PropertyInfo EOSMultiPlayerConnectionInfo::make_property_info(const String &p_pr
 
 // =============
 
-EOS_ProductUserId EOSMultiplayerPeer::s_local_user_id = nullptr;
-Ref<EOSProductUserId> EOSMultiplayerPeer::s_local_user_id_wrapped = nullptr;
+EOS_ProductUserId EOSMultiplayerPeer::local_user_id = nullptr;
+Ref<EOSProductUserId> EOSMultiplayerPeer::local_user_id_wrapped = nullptr;
 
 void EOSMultiplayerPeer::_bind_methods() {
     ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local_user_id"), &EOSMultiplayerPeer::get_local_user_id_wrapped);
@@ -111,7 +111,7 @@ void EOSMultiplayerPeer::_bind_methods() {
  * Description: Creates a server instance using the given socket id.
  ****************************************/
 Error EOSMultiplayerPeer::create_server(const String &socket_id) {
-    ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to create server. Local user id has not been set.");
+    ERR_FAIL_NULL_V_MSG(local_user_id, ERR_UNCONFIGURED, "Failed to create server. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(_is_active(), ERR_ALREADY_IN_USE, "Failed to create server. Multiplayer instance is already active.");
 
     unique_id = 1;
@@ -147,7 +147,7 @@ Error EOSMultiplayerPeer::create_server(const String &socket_id) {
  * remote user is another client or a mesh instance, connection will fail.
  ****************************************/
 Error EOSMultiplayerPeer::create_client(const String &socket_id, const Ref<EOSProductUserId> &remote_user_id) {
-    ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to create client. Local user id has not been set.");
+    ERR_FAIL_NULL_V_MSG(local_user_id, ERR_UNCONFIGURED, "Failed to create client. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(_is_active(), ERR_ALREADY_IN_USE, "Failed to create client. Multiplayer instance is already active.");
     ERR_FAIL_COND_V_MSG(remote_user_id.is_null() || remote_user_id->get_handle() == nullptr, ERR_INVALID_PARAMETER, "Failed to create client. The remote user id is invalid.");
 
@@ -198,7 +198,7 @@ Error EOSMultiplayerPeer::create_client(const String &socket_id, const Ref<EOSPr
  * connection requests to this instance using the socket id.
  ****************************************/
 Error EOSMultiplayerPeer::create_mesh(const String &socket_id) {
-    ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to create mesh. Local user id has not been set.");
+    ERR_FAIL_NULL_V_MSG(local_user_id, ERR_UNCONFIGURED, "Failed to create mesh. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(_is_active(), ERR_ALREADY_IN_USE, "Failed to create mesh. Multiplayer instance is already active.");
 
     unique_id = generate_unique_id();
@@ -232,7 +232,7 @@ Error EOSMultiplayerPeer::create_mesh(const String &socket_id) {
  * request is accepted, the other instance is added as a peer.
  ****************************************/
 Error EOSMultiplayerPeer::add_mesh_peer(const Ref<EOSProductUserId> &remote_user_id) {
-    ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Failed to add mesh peer. Local user id has not been set.");
+    ERR_FAIL_NULL_V_MSG(local_user_id, ERR_UNCONFIGURED, "Failed to add mesh peer. Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(active_mode != MODE_MESH, ERR_UNCONFIGURED, "Failed to add mesh peer. Multiplayer instance is not in mesh mode.");
     ERR_FAIL_COND_V_MSG(has_user_id(remote_user_id), ERR_ALREADY_EXISTS, "Failed to add mesh peer. Already connected to peer");
 
@@ -422,14 +422,14 @@ bool EOSMultiplayerPeer::is_auto_accepting_connection_requests() {
 void EOSMultiplayerPeer::_accept_connection_request(EOS_ProductUserId remote_user_id) {
     ERR_FAIL_COND_MSG(active_mode == MODE_NONE, "Cannot accept connection requests when multiplayer instance is not active.");
     ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT, "Clients are not allowed to accept connection requests.");
-    ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
+    ERR_FAIL_NULL_MSG(local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
     if (!_is_requesting_connection(remote_user_id))
         return;
 
     EOS_P2P_AcceptConnectionOptions options;
     options.ApiVersion = EOS_P2P_ACCEPTCONNECTION_API_LATEST;
-    options.LocalUserId = s_local_user_id;
+    options.LocalUserId = local_user_id;
     options.RemoteUserId = remote_user_id;
     options.SocketId = socket.get_id();
     EOS_EResult result = EOS_P2P_AcceptConnection(EOSP2P::get_singleton()->get_handle(), &options);
@@ -452,7 +452,7 @@ void EOSMultiplayerPeer::accept_connection_request(const Ref<EOSProductUserId> &
  * from the list of pending connection requests when denied and the connection is closed with the peer.
  ****************************************/
 void EOSMultiplayerPeer::_deny_connection_request(EOS_ProductUserId remote_user_id) {
-    ERR_FAIL_NULL_MSG(s_local_user_id, "Failed to deny connection request. Local user id not set");
+    ERR_FAIL_NULL_MSG(local_user_id, "Failed to deny connection request. Local user id not set");
     if (active_mode == MODE_NONE || active_mode == MODE_CLIENT)
         return;
 
@@ -461,7 +461,7 @@ void EOSMultiplayerPeer::_deny_connection_request(EOS_ProductUserId remote_user_
 
     EOS_P2P_CloseConnectionOptions options;
     options.ApiVersion = EOS_P2P_CLOSECONNECTION_API_LATEST;
-    options.LocalUserId = s_local_user_id;
+    options.LocalUserId = local_user_id;
     options.RemoteUserId = remote_user_id;
     options.SocketId = socket.get_id();
     EOS_EResult result = EOS_P2P_CloseConnection(EOSP2P::get_singleton()->get_handle(), &options);
@@ -486,7 +486,7 @@ void EOSMultiplayerPeer::accept_all_connection_requests() {
 
     ERR_FAIL_COND_MSG(active_mode == MODE_NONE, "Cannot accept connection requests when multiplayer instance is not active.");
     ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT, "Clients are not allowed to accept connection requests.");
-    ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot accept connection requests. Local user id has not been set.");
+    ERR_FAIL_NULL_MSG(local_user_id, "Cannot accept connection requests. Local user id has not been set.");
 
     for (const EOS_ProductUserId remote_user_id : pending_connection_requests) {
         _accept_connection_request(remote_user_id);
@@ -498,7 +498,7 @@ void EOSMultiplayerPeer::accept_all_connection_requests() {
  * Description: Denies all connection requests currently pending.
  ****************************************/
 void EOSMultiplayerPeer::deny_all_connection_requests() {
-    ERR_FAIL_NULL_MSG(s_local_user_id, "Failed to deny connection requests. Local user id not set");
+    ERR_FAIL_NULL_MSG(local_user_id, "Failed to deny connection requests. Local user id not set");
     if (active_mode == MODE_NONE || active_mode == MODE_CLIENT)
         return;
 
@@ -549,7 +549,7 @@ Error EOSMultiplayerPeer::_get_packet(const uint8_t **r_buffer, int32_t *r_buffe
  * peer.
  ****************************************/
 Error EOSMultiplayerPeer::_put_packet(const uint8_t *p_buffer, int32_t p_buffer_size) {
-    ERR_FAIL_NULL_V_MSG(s_local_user_id, ERR_UNCONFIGURED, "Local user id has not been set.");
+    ERR_FAIL_NULL_V_MSG(local_user_id, ERR_UNCONFIGURED, "Local user id has not been set.");
     ERR_FAIL_COND_V_MSG(!_is_active(), ERR_UNCONFIGURED, "The multiplayer instance isn't currently active.");
     ERR_FAIL_COND_V_MSG(connection_status != CONNECTION_CONNECTED, ERR_UNCONFIGURED, "The multiplayer instance isn't currently connected");
     ERR_FAIL_COND_V_MSG(target_peer != 0 && !peers.has(ABS(target_peer)), ERR_INVALID_PARAMETER, vformat("Invalid target peer: %d", target_peer));
@@ -847,7 +847,7 @@ void EOSMultiplayerPeer::_close() {
  ****************************************/
 void EOSMultiplayerPeer::_disconnect_peer(int32_t p_peer, bool p_force) {
     ERR_FAIL_COND(!_is_active() || !peers.has(p_peer));
-    ERR_FAIL_NULL_MSG(s_local_user_id, "Cannot close connection. Local user id is not set");
+    ERR_FAIL_NULL_MSG(local_user_id, "Cannot close connection. Local user id is not set");
 
     EOS_ProductUserId user_id = peers.get(p_peer);
     _disconnect_remote_user(user_id);
@@ -912,11 +912,11 @@ MultiplayerPeer::ConnectionStatus EOSMultiplayerPeer::_get_connection_status() c
  ****************************************/
 void EOSMultiplayerPeer::set_local_user_id(const Ref<EOSProductUserId> &p_local_user_id) {
     if (p_local_user_id->is_valid()) {
-        s_local_user_id_wrapped = p_local_user_id;
-        s_local_user_id = p_local_user_id->get_handle();
+        local_user_id_wrapped = p_local_user_id;
+        local_user_id = p_local_user_id->get_handle();
     } else {
-        s_local_user_id_wrapped.unref();
-        s_local_user_id = nullptr;
+        local_user_id_wrapped.unref();
+        local_user_id = nullptr;
     }
 }
 
@@ -925,7 +925,7 @@ void EOSMultiplayerPeer::set_local_user_id(const Ref<EOSProductUserId> &p_local_
  * Description: Returns the currently set local user id. Returns an empty string if it was not set.
  ****************************************/
 Ref<EOSProductUserId> EOSMultiplayerPeer::get_local_user_id_wrapped() {
-    return s_local_user_id_wrapped;
+    return local_user_id_wrapped;
 }
 
 /****************************************
@@ -941,7 +941,7 @@ Error EOSMultiplayerPeer::_broadcast(const EOSPacket &packet, int exclude) {
 
     EOS_P2P_SendPacketOptions options;
     options.ApiVersion = EOS_P2P_SENDPACKET_API_LATEST;
-    options.LocalUserId = s_local_user_id;
+    options.LocalUserId = local_user_id;
     options.Channel = packet.get_channel();
     options.DataLengthBytes = packet.packet_size();
     options.Data = packet.get_packet();
@@ -978,7 +978,7 @@ Error EOSMultiplayerPeer::_send_to(EOS_ProductUserId remote_peer, const EOSPacke
 
     EOS_P2P_SendPacketOptions options;
     options.ApiVersion = EOS_P2P_SENDPACKET_API_LATEST;
-    options.LocalUserId = s_local_user_id;
+    options.LocalUserId = local_user_id;
     options.RemoteUserId = remote_peer;
     options.SocketId = socket.get_id();
     options.Channel = packet.get_channel();
@@ -1054,16 +1054,16 @@ MultiplayerPeer::TransferMode EOSMultiplayerPeer::_convert_eos_reliability_to_tr
 /****************************************
  * _disconnect_remote_user
  * Parameters:
- *   remote_user - The remote user id of the user to close the connection.
+ *   remote_user_id - The remote user id of the user to close the connection.
  * Description: Closes the connection with the given remote user. This is done on the EOS side
  * and is called right before the peer with the remote user id is removed from the multiplayer
  * instance (see _disconnect_peer()).
  ****************************************/
-void EOSMultiplayerPeer::_disconnect_remote_user(EOS_ProductUserId remote_user) {
+void EOSMultiplayerPeer::_disconnect_remote_user(EOS_ProductUserId remote_user_id) {
     EOS_P2P_CloseConnectionOptions options;
     options.ApiVersion = EOS_P2P_CLOSECONNECTION_API_LATEST;
-    options.LocalUserId = s_local_user_id;
-    options.RemoteUserId = remote_user;
+    options.LocalUserId = local_user_id;
+    options.RemoteUserId = remote_user_id;
     options.SocketId = socket.get_id();
     EOS_EResult result = EOS_P2P_CloseConnection(EOSP2P::get_singleton()->get_handle(), &options);
 
@@ -1236,7 +1236,7 @@ void EOSMultiplayerPeer::EOSSocket::close() {
 
     EOS_P2P_CloseConnectionsOptions options;
     options.ApiVersion = EOS_P2P_CLOSECONNECTIONS_API_LATEST;
-    options.LocalUserId = s_local_user_id;
+    options.LocalUserId = local_user_id;
     options.SocketId = &socket;
     EOS_P2P_CloseConnections(EOSP2P::get_singleton()->get_handle(), &options);
 }

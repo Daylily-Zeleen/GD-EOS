@@ -220,8 +220,8 @@ private:
     void _disconnect_remote_user(EOS_ProductUserId remote_user_id);
     void _clear_peer_packet_queue(int p_id);
 
-    static Ref<EOSProductUserId> s_local_user_id_wrapped;
-    static EOS_ProductUserId s_local_user_id;
+    static Ref<EOSProductUserId> local_user_id_wrapped;
+    static EOS_ProductUserId local_user_id;
 
     SharedPtr<EOSPacket> current_packet;
     uint32_t unique_id;
@@ -251,7 +251,7 @@ public:
     static void set_local_user_id(const Ref<EOSProductUserId> &p_local_user_id);
     static Ref<EOSProductUserId> get_local_user_id_wrapped();
     // 只在 cpp 中使用
-    static const EOS_ProductUserId get_local_user_id() { return s_local_user_id; }
+    static const EOS_ProductUserId get_local_user_id() { return local_user_id; }
 
     void peer_connection_established_callback(const EOS_P2P_OnPeerConnectionEstablishedInfo *data);
     void remote_connection_closed_callback(const EOS_P2P_OnRemoteConnectionClosedInfo *data);
