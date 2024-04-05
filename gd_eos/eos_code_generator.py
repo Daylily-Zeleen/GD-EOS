@@ -1574,16 +1574,12 @@ def _gen_packed_result_type(
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
-        # elif _is_str_type(arg_type):
-        #     menbers_lines.append(f"\tCharString {snake_name};")
-        #     setget_lines.append(f"\t_DECLARE_SETGET_STR({snake_name});")
-        #     r_cpp_lines.append(f"_DEFINE_SETGET_STR({typename}, {snake_name})")
-        #     bind_lines.append(f"\t_BIND_PROP_STR({snake_name})")
-        # elif _is_str_arr_type(arg_type):
-        #     menbers_lines.append(f"\tLocalVector<CharString> {snake_name};")
-        #     setget_lines.append(f"\t_DECLARE_SETGET_STR_ARR({snake_name});")
-        #     r_cpp_lines.append(f"_DEFINE_SETGET_STR_ARR({typename}, {snake_name})")
-        #     bind_lines.append(f"\t_BIND_PROP_STR_ARR({snake_name})")
+        elif _is_str_type(arg_type, arg_name):
+            print("ERROR: UNSUPPORT")
+            exit(1)
+        elif _is_str_arr_type(arg_type, arg_name):
+            print("ERROR: UNSUPPORT")
+            exit(1)
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             menbers_lines.append(f"\tString {snake_name};")
@@ -1974,11 +1970,11 @@ def __expend_input_struct(
             r_prepare_lines.append(f"\t_packedint32_to_autio_frames(p_{snake_field}, _shadow_{snake_field});")
             r_prepare_lines.append(f"\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();")
             r_prepare_lines.append(f"\t{options_field} = _shadow_{snake_field}.ptr();")
-        elif _is_str_type(field_type):
+        elif _is_str_type(field_type, field):
             r_declare_args.append(f"const String &p_{snake_field}")
             r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
             r_prepare_lines.append(f"\t{options_field} = to_eos_type<const char *, decltype({options_field})>(utf8_{snake_field});")
-        elif _is_str_arr_type(field_type):
+        elif _is_str_arr_type(field_type, field):
             r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
             element_type: str = __get_str_arr_element_type(field_type)
@@ -2403,13 +2399,13 @@ def _gen_method(
 
             # Out 参数在最后，直接跳出
             break
-        elif _is_str_type(type):
+        elif _is_str_type(type, name):
             # 字符串参数
             declare_args.append(f"const String &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             prepare_lines.append(f"\tCharString utf8_{snake_name} = p_{snake_name}.utf8();")
             call_args.append(f"to_eos_type<const CharString &, {type}>(utf8_{snake_name})")
-        elif _is_str_arr_type(type):
+        elif _is_str_arr_type(type, name):
             # 字符串数组参数
             print("ERROR")
             exit(1)
@@ -3355,12 +3351,12 @@ def _is_struct_ptr(type: str) -> bool:
     return type in ["EOS_AntiCheatCommon_Vec3f*", "EOS_AntiCheatCommon_Quat*"]
 
 
-def _is_str_type(type: str) -> bool:
-    return not type.startswith("Union") and remap_type(type) == "String"
+def _is_str_type(type: str, name: str) -> bool:
+    return not type.startswith("Union") and remap_type(type, name) == "String"
 
 
-def _is_str_arr_type(type: str) -> bool:
-    return remap_type(type) == "PackedStringArray"
+def _is_str_arr_type(type: str, name: str) -> bool:
+    return remap_type(type, name) == "PackedStringArray"
 
 
 def _is_audio_frames_type(type: str, field: str) -> bool:
@@ -3454,9 +3450,9 @@ def _gen_struct(
         else:
             initialize_expression = "{}"
 
-        if _is_str_type(type):
+        if _is_str_type(type, field):
             lines.append(f"\tCharString {to_snake_case(field)};")
-        elif _is_str_arr_type(type):
+        elif _is_str_arr_type(type, field):
             lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
             if addtional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
@@ -3515,10 +3511,13 @@ def _gen_struct(
         if remaped_type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})")
-        elif _is_str_type(type):
+        elif _is_str_type(type, field):
             lines.append(f"\t_DECLARE_SETGET_STR({to_snake_case(field)})")
-            r_structs_cpp.append(f"_DEFINE_SETGET_STR({typename}, {to_snake_case(field)})")
-        elif _is_str_arr_type(type):
+            if not field.startswith("Socket"):
+                r_structs_cpp.append(f"_DEFINE_SETGET_STR({typename}, {to_snake_case(field)})")
+            else:
+                r_structs_cpp.append(f"_DEFINE_SETGET_STR_SOCKET_NAME({typename}, {to_snake_case(field)})")
+        elif _is_str_arr_type(type, field):
             lines.append(f"\t_DECLARE_SETGET_STR_ARR({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_STR_ARR({typename}, {to_snake_case(field)})")
         elif _is_handle_arr_type(type, ""):
@@ -3585,9 +3584,9 @@ def _gen_struct(
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
         elif _is_struct_ptr(type):
             r_structs_cpp.append(f"\t_BIND_PROP_STRUCT_PTR({snake_field_name}, {remap_type(type)})")
-        elif _is_str_type(type):
+        elif _is_str_type(type, field):
             r_structs_cpp.append(f"\t_BIND_PROP_STR({to_snake_case(field)})")
-        elif _is_str_arr_type(type):
+        elif _is_str_arr_type(type, field):
             r_structs_cpp.append(f"\t_BIND_PROP_STR_ARR({to_snake_case(field)})")
         elif _is_anticheat_client_handle_type(decayed_type):
             r_structs_cpp.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
@@ -3640,9 +3639,12 @@ def _gen_struct(
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
                 exit(1)
-            elif _is_str_type(field_type):
-                r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
-            elif _is_str_arr_type(field_type):
+            elif _is_str_type(field_type, field):
+                if field.startswith("SocketName"):
+                    r_structs_cpp.append(f'\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split("[", 1)[0]});')
+                else:
+                    r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
+            elif _is_str_arr_type(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
@@ -3704,9 +3706,12 @@ def _gen_struct(
                         r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
                     elif _is_struct_ptr(fields[field]):
                         r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
-                    elif _is_str_type(field_type):
-                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
-                    elif _is_str_arr_type(field_type):
+                    elif _is_str_type(field_type, field):
+                        if field.startswith("SocketName"):
+                            r_structs_cpp.append(f'\t_TO_EOS_FIELD(p_data.{field.split("[", 1)[0]}, {snake_field_name});')
+                        else:
+                            r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
+                    elif _is_str_arr_type(field_type, field):
                         count_filed: str = _find_count_field(field, fields.keys())
                         if __get_str_arr_element_type(field_type) == "const char*":
                             # C字符串数组直接使用LocalVector<CharString>的指针
