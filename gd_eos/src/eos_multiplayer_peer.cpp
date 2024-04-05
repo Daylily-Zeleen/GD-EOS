@@ -70,7 +70,7 @@ void EOSMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("create_client", "socket_id", "remote_user_id"), &EOSMultiplayerPeer::create_client);
     ClassDB::bind_method(D_METHOD("create_mesh", "socket_id"), &EOSMultiplayerPeer::create_mesh);
     ClassDB::bind_method(D_METHOD("add_mesh_peer", "remote_user_id"), &EOSMultiplayerPeer::add_mesh_peer);
-    ClassDB::bind_method(D_METHOD("get_socket"), &EOSMultiplayerPeer::get_socket);
+    ClassDB::bind_method(D_METHOD("get_socket_id"), &EOSMultiplayerPeer::get_socket_name);
     ClassDB::bind_method(D_METHOD("get_peer_id", "remote_user_id"), &EOSMultiplayerPeer::get_peer_id);
     ClassDB::bind_method(D_METHOD("get_all_connection_requests"), &EOSMultiplayerPeer::get_all_connection_requests);
     ClassDB::bind_method(D_METHOD("has_peer", "peer_id"), &EOSMultiplayerPeer::has_peer);
@@ -250,10 +250,10 @@ Error EOSMultiplayerPeer::add_mesh_peer(const Ref<EOSProductUserId> &remote_user
 }
 
 /****************************************
- * get_socket
+ * get_socket_name
  * Description: Returns the socket id of this multiplayer instance.
  ****************************************/
-String EOSMultiplayerPeer::get_socket() const {
+String EOSMultiplayerPeer::get_socket_name() const {
     return socket.get_name();
 }
 
@@ -735,20 +735,21 @@ bool EOSMultiplayerPeer::_is_server() const {
  ****************************************/
 void EOSMultiplayerPeer::_poll() {
     ERR_FAIL_COND_MSG(!_is_active(), "The multiplayer instance isn't currently active.");
-    if (!polling && !EOSPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket.get_name()))
+    String socket_name = socket.get_name();
+    if (!polling && !EOSPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket_name))
         return;
-    if (EOSPacketPeerMediator::get_singleton()->get_packet_count_for_socket(socket.get_name()) == 0)
+    if (EOSPacketPeerMediator::get_singleton()->get_packet_count_for_socket(socket_name) == 0)
         return; //No packets available
 
     List<SharedPtr<PacketData>> packets;
     if (!polling) { //The next packet should be a peer id packet if we're at this point
-        while (EOSPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket.get_name())) {
-            SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name());
+        while (EOSPacketPeerMediator::get_singleton()->next_packet_is_peer_id_packet(socket_name)) {
+            SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket_name);
             ERR_CONTINUE(next_packet.is_null());
             packets.push_back(next_packet);
         }
     } else {
-        while (SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket.get_name())) {
+        while (SharedPtr<PacketData> next_packet = EOSPacketPeerMediator::get_singleton()->poll_next_packet(socket_name)) {
             packets.push_back(next_packet);
         }
     }

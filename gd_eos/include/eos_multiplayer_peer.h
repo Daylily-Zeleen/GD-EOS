@@ -17,7 +17,8 @@ struct ConnectionRequestData {
 class EOSMultiPlayerConnectionInfo : public RefCounted {
     GDCLASS(EOSMultiPlayerConnectionInfo, RefCounted)
 
-    String socket_id;
+    // 暴露给 gds 不区分 SocketId 与 SocketName
+    String socket_id; 
     Ref<EOSProductUserId> remote_user_id;
     Ref<EOSProductUserId> local_user_id;
 
@@ -262,7 +263,7 @@ public:
     Error create_mesh(const String &socket_id);
     Error add_mesh_peer(const Ref<EOSProductUserId> &remote_user_id);
 
-    String get_socket() const;
+    String get_socket_name() const;
     TypedArray<EOSProductUserId> get_all_connection_requests();
     Ref<EOSProductUserId> get_peer_user_id(int peer_id);
     int get_peer_id(const Ref<EOSProductUserId> &remote_user_id);

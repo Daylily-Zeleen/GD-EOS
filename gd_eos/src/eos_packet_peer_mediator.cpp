@@ -152,11 +152,12 @@ EOSPacketPeerMediator::SharedPtr<PacketData> EOSPacketPeerMediator::poll_next_pa
  ****************************************/
 bool EOSPacketPeerMediator::register_peer(EOSMultiplayerPeer *peer) {
     ERR_FAIL_COND_V_MSG(!initialized, false, "Failed to register peer. EOSPacketPeerMediator has not been initialized. Call EOSPacketPeerMediator.init() before starting a multiplayer instance.");
-    ERR_FAIL_COND_V_MSG(peer->get_socket().is_empty(), false, "Failed to register peer. Peer is not active.");
-    ERR_FAIL_COND_V_MSG(active_peers.has(peer->get_socket()), false, "Failed to register peer. This peer has already been registered.");
+    String peer_socket_name = peer->get_socket_name();
+    ERR_FAIL_COND_V_MSG(peer_socket_name.is_empty(), false, "Failed to register peer. Peer is not active.");
+    ERR_FAIL_COND_V_MSG(active_peers.has(peer_socket_name), false, "Failed to register peer. This peer has already been registered.");
 
-    active_peers.insert(peer->get_socket(), peer);
-    socket_packet_queues.insert(peer->get_socket(), List<SharedPtr<PacketData>>());
+    active_peers.insert(peer_socket_name, peer);
+    socket_packet_queues.insert(peer_socket_name, List<SharedPtr<PacketData>>());
 
     _forward_pending_connection_requests(peer);
 
@@ -172,12 +173,13 @@ bool EOSPacketPeerMediator::register_peer(EOSMultiplayerPeer *peer) {
  * unregistration usually happens when a peer closes.
  ****************************************/
 void EOSPacketPeerMediator::unregister_peer(EOSMultiplayerPeer *peer) {
-    if (!active_peers.has(peer->get_socket()))
+    String peer_socket_name = peer->get_socket_name();
+    if (!active_peers.has(peer_socket_name))
         return;
 
-    clear_packet_queue(peer->get_socket());
-    socket_packet_queues.erase(peer->get_socket());
-    active_peers.erase(peer->get_socket());
+    clear_packet_queue(peer_socket_name);
+    socket_packet_queues.erase(peer_socket_name);
+    active_peers.erase(peer_socket_name);
 }
 
 /****************************************
@@ -490,7 +492,7 @@ void EOSPacketPeerMediator::_forward_pending_connection_requests(EOSMultiplayerP
     ElementTy *e = pending_connection_requests.front();
     List<ElementTy *> del;
     for (; e != nullptr; e = e->next()) {
-        if (peer->get_socket() != e->get().socket_name)
+        if (peer->get_socket_name() != e->get().socket_name)
             continue;
         peer->connection_request_callback(e->get());
         del.push_back(e);
