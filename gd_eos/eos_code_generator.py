@@ -1574,6 +1574,11 @@ def _gen_packed_result_type(
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
+        elif _is_socket_id_type(decayed_type, arg_name):
+            menbers_lines.append(f"\tString {snake_name};")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
+            bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif _is_str_type(arg_type, arg_name):
             print("ERROR: UNSUPPORT")
             exit(1)
@@ -1660,7 +1665,10 @@ def _gen_packed_result_type(
 
 
 def __is_struct_type(type: str) -> bool:
-    # Hack
+    # HACK
+    if _is_socket_id_type(_decay_eos_type(type), ""):
+        return False
+    # HACK
     if type in ["EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatCommon_Quat"]:
         return False
     return type in structs
@@ -1812,6 +1820,9 @@ def _gen_callback(
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                 ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type).removesuffix('*')}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type).removesuffix('*')}, {snake_case_field})"
+            elif _is_socket_id_type(_decay_eos_type(field_type), field):
+                ret += f"String(data->{field}.SocketName)"
+                signal_bind_args += f'PropertyInfo(Variant::STRING, "{snake_case_field}")'
             elif _is_requested_channel_ptr_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant::INT, "{snake_case_field}")'
@@ -1970,6 +1981,22 @@ def __expend_input_struct(
             r_prepare_lines.append(f"\t_packedint32_to_autio_frames(p_{snake_field}, _shadow_{snake_field});")
             r_prepare_lines.append(f"\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();")
             r_prepare_lines.append(f"\t{options_field} = _shadow_{snake_field}.ptr();")
+        elif _is_socket_id_type(decay_field_type, field):
+            r_declare_args.append(f"const String &p_{snake_field}")
+            r_prepare_lines.append(f"\tCharString ascii_{snake_field} = p_{snake_field}.ascii();")
+            r_prepare_lines.append(
+                f"\tif (ascii_{snake_field}.size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && ascii_{snake_field}.get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {{"
+            )
+            r_prepare_lines.append(
+                f'\t\tERR_PRINT(vformat("EOS: Socket name \\"%s\\"\'s length is greater than %d (in ASCII), will be truncatured.", p_{snake_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));'
+            )
+            r_prepare_lines.append(f"\t\tascii_{snake_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+            r_prepare_lines.append(f"\t\tascii_{snake_field}.set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);")
+            r_prepare_lines.append(f"\t}}")
+            r_prepare_lines.append(f"\tEOS_P2P_SocketId {field};")
+            r_prepare_lines.append(f"\t{field}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
+            r_prepare_lines.append(f"\tmemcpy(&{field}.SocketName[0], ascii_{snake_field}.get_data(), MIN(ascii_{snake_field}.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));")
+            r_prepare_lines.append(f"\t{options_field} = &{field};")
         elif _is_str_type(field_type, field):
             r_declare_args.append(f"const String &p_{snake_field}")
             r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
@@ -2096,9 +2123,16 @@ def __make_packed_result(
                 if pack_result:
                     r_after_call_lines.append(f"{acl_indents}ret->{snake_name}.instantiate(); ret->{snake_name}->set_from_eos({arg_name});")
                 else:
-                    r_return_type_if_convert_to_return.append(f"Ret<{remap_type(decayed_type, arg_name)}>")
-                    r_after_call_lines.append(f"{acl_indents}Ret<{remap_type(decayed_type, arg_name)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});")
-
+                    r_return_type_if_convert_to_return.append(f"Ret<{__convert_to_struct_class(decayed_type)}>")
+                    r_after_call_lines.append(f"{acl_indents}Ret<{__convert_to_struct_class(decayed_type)}> ret; ret.instantiate(); ret->set_from_eos({arg_name});")
+        elif _is_socket_id_type(decayed_type, arg_name):
+            r_prepare_lines.append(f"\t{decayed_type} {arg_name};")
+            r_call_args.append(f"&{arg_name}")
+            if pack_result:
+                r_after_call_lines.append(f"{acl_indents}ret->{snake_name} = String(&{arg_name}.SocketName[0]);")
+            else:
+                r_return_type_if_convert_to_return.append(f"String")
+                r_after_call_lines.append(f"{acl_indents}String ret{{ &{arg_name}.SocketName[0] }};")
         elif _is_enum_type(decayed_type):
             r_prepare_lines.append(f"\t{_convert_enum_type(decayed_type)} {arg_name};")
             r_call_args.append(f"&{arg_name}")
@@ -2614,6 +2648,8 @@ def _is_need_skip_struct(struct_type: str) -> bool:
     return struct_type in [
         "EOS_AntiCheatCommon_Quat",
         "EOS_AntiCheatCommon_Vec3f",
+        # 直接使用字符串代替
+        "EOS_P2P_SocketId",
         # 未使用
         "EOS_UI_Rect",
     ]
@@ -3289,7 +3325,7 @@ def _is_arr_field(type: str, field_or_arg: str) -> bool:
     return type.endswith("*")
 
 
-def _is_handle_type(type: str, filed: str = "") -> bool:
+def _is_handle_type(type: str, field: str = "") -> bool:
     return type in handles or (type.startswith("EOS") and "_H" in type) or type in ["EOS_ContinuanceToken"]
 
 
@@ -3352,11 +3388,18 @@ def _is_struct_ptr(type: str) -> bool:
 
 
 def _is_str_type(type: str, name: str) -> bool:
+    # HACK
+    if _is_socket_id_type(type, name):
+        return True
     return not type.startswith("Union") and remap_type(type, name) == "String"
 
 
 def _is_str_arr_type(type: str, name: str) -> bool:
     return remap_type(type, name) == "PackedStringArray"
+
+
+def _is_socket_id_type(type: str, name: str) -> bool:
+    return type == "EOS_P2P_SocketId"
 
 
 def _is_audio_frames_type(type: str, field: str) -> bool:
@@ -3450,7 +3493,12 @@ def _gen_struct(
         else:
             initialize_expression = "{}"
 
-        if _is_str_type(type, field):
+        if _is_socket_id_type(decayed_type, field):
+            if addtional_methods_requirements["set_to"]:
+                lines.append(f"\tEOS_P2P_SocketId {to_snake_case(field)};")
+            else:
+                lines.append(f"\tCharString {to_snake_case(field)};")
+        elif _is_str_type(type, field):
             lines.append(f"\tCharString {to_snake_case(field)};")
         elif _is_str_arr_type(type, field):
             lines.append(f"\tLocalVector<CharString> {to_snake_case(field)};")
@@ -3511,6 +3559,12 @@ def _gen_struct(
         if remaped_type == "bool":
             lines.append(f"\t_DECLARE_SETGET_BOOL({to_snake_case(field)})")
             r_structs_cpp.append(f"_DEFINE_SETGET_BOOL({typename}, {to_snake_case(field)})")
+        elif _is_socket_id_type(decayed_type, field):
+            lines.append(f"\t_DECLARE_SETGET_STR({to_snake_case(field)})")
+            if addtional_methods_requirements["set_to"]:
+                r_structs_cpp.append(f"_DEFINE_SETGET_STR_SOCKET_ID({typename}, {to_snake_case(field)})")
+            else:
+                r_structs_cpp.append(f"_DEFINE_SETGET_STR_SOCKET_NAME({typename}, {to_snake_case(field)})")
         elif _is_str_type(type, field):
             lines.append(f"\t_DECLARE_SETGET_STR({to_snake_case(field)})")
             if not field.startswith("Socket"):
@@ -3582,6 +3636,8 @@ def _gen_struct(
 
         if remap_type(type, field) == "bool":
             r_structs_cpp.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
+        elif _is_socket_id_type(decayed_type, field):
+            r_structs_cpp.append(f"\t_BIND_PROP_STR({snake_field_name})")
         elif _is_struct_ptr(type):
             r_structs_cpp.append(f"\t_BIND_PROP_STRUCT_PTR({snake_field_name}, {remap_type(type)})")
         elif _is_str_type(type, field):
@@ -3639,9 +3695,16 @@ def _gen_struct(
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
                 exit(1)
+            elif _is_socket_id_type(_decay_eos_type(field_type), field):
+                if addtional_methods_requirements["set_to"]:
+                    r_structs_cpp.append(f"\tmemcpy(&{to_snake_case(field)}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+                else:
+                    r_structs_cpp.append(f"\t{to_snake_case(field)}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+                    r_structs_cpp.append(f"\t{to_snake_case(field)} = p_origin.{field}->SocketName;")
             elif _is_str_type(field_type, field):
                 if field.startswith("SocketName"):
-                    r_structs_cpp.append(f'\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split("[", 1)[0]});')
+                    print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
+                    exit(1)
                 else:
                     r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif _is_str_arr_type(field_type, field):
@@ -3706,9 +3769,13 @@ def _gen_struct(
                         r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
                     elif _is_struct_ptr(fields[field]):
                         r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
+                    elif _is_socket_id_type(_decay_eos_type(field_type), field):
+                        r_structs_cpp.append(f"\t{snake_field_name}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
+                        r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
                     elif _is_str_type(field_type, field):
                         if field.startswith("SocketName"):
-                            r_structs_cpp.append(f'\t_TO_EOS_FIELD(p_data.{field.split("[", 1)[0]}, {snake_field_name});')
+                            print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
+                            exit(1)
                         else:
                             r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
                     elif _is_str_arr_type(field_type, field):

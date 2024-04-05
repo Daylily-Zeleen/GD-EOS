@@ -61,15 +61,28 @@ namespace godot::eos::internal {
     String klass::get_##field() const { return String::utf8((char *)field.get_data()); } \
     void klass::set_##field(const String &p_val) { field = p_val.utf8(); }
 
-#define _DEFINE_SETGET_STR_SOCKET_NAME(klass, field)                                                                           \
-    String klass::get_##field() const { return String((char *)field.get_data()); }                                             \
-    void klass::set_##field(const String &p_val) {                                                                             \
-        field = p_val.ascii();                                                                                                 \
-        if ((field).size() > 32 && (field).get(32) != 0) {                                                                     \
-            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than 32 (in ASCII), will be truncatured.", p_val)); \
-            (field).resize(33);                                                                                                \
-            (field).set(32, 0);                                                                                                \
-        }                                                                                                                      \
+#define _DEFINE_SETGET_STR_SOCKET_ID(klass, field)                                                                                                                   \
+    String klass::get_##field() const { return String(&(field).SocketName[0]); }                                                                                     \
+    void klass::set_##field(const String &p_val) {                                                                                                                   \
+        auto ascii = p_val.ascii();                                                                                                                                  \
+        if ((ascii).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (ascii).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                     \
+            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
+            (ascii).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                        \
+            (ascii).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                    \
+        }                                                                                                                                                            \
+        memset(&(field).SocketName[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                         \
+        memcpy(&(field).SocketName[0], ascii.get_data(), MIN(ascii.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));                                                       \
+    }
+
+#define _DEFINE_SETGET_STR_SOCKET_NAME(klass, field)                                                                                                                 \
+    String klass::get_##field() const { return String((char *)field.get_data()); }                                                                                   \
+    void klass::set_##field(const String &p_val) {                                                                                                                   \
+        field = p_val.ascii();                                                                                                                                       \
+        if ((field).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (field).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                     \
+            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
+            (field).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                        \
+            (field).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                    \
+        }                                                                                                                                                            \
     }
 
 #define _DECLARE_SETGET_STR_ARR(field)     \
@@ -393,8 +406,8 @@ inline void to_eos_type_out(gd_arg_t<From> p_from, To &r_to) {
 
 template <>
 inline void to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
-    if ((p_from.size() == 33 && p_from.get(32) != 0) || p_from.size() > 33) {
-        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than 32 (in ASCII), will be truncatured.", String(p_from)));
+    if (p_from.size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && p_from.get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {
+        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", String(p_from), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
     }
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
