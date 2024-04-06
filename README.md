@@ -56,10 +56,9 @@ Expacially andriod build, it may not work at all.
 
 ## TODO
 
-1. Detect constants and generate their binding to godot.
-2. Detect deprecated menbers instead of heard codeing.
-3. Generate typed callback apis for c++ user.
-4. Add ios build.
+1. Detect deprecated menbers instead of heard codeing.
+2. Generate typed callback apis for c++ user.
+3. Add ios build.
 
 ## Others
 
