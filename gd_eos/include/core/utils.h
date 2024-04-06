@@ -7,6 +7,11 @@
 
 namespace godot::eos {
 
+#ifdef DEBUG_ENABLED
+String eos_product_user_id_to_string(EOS_ProductUserId p_product_user_id);
+String eos_epic_account_id_to_string(EOS_EpicAccountId p_epic_account_id);
+#endif // DEBUG_ENABLED
+
 #define ENABLE_IF(condition) std::enable_if_t<condition> *_dummy = nullptr
 
 template <typename T>

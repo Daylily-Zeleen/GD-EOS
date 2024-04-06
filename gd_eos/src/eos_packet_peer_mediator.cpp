@@ -56,7 +56,7 @@ void EOSPacketPeerMediator::_bind_methods() {
  * stop being polled if the queue size limit is reached.
  ****************************************/
 void EOSPacketPeerMediator::_on_process_frame() {
-    if (EOSMultiplayerPeer::get_local_user_id())
+    if (EOSMultiplayerPeer::get_local_user_id() == nullptr)
         return;
     if (socket_packet_queues.size() == 0)
         return;
@@ -98,24 +98,26 @@ void EOSPacketPeerMediator::_on_process_frame() {
             EOS_P2P_SocketId socket;
             EOS_ProductUserId remote_user;
             result = EOS_P2P_ReceivePacket(EOSP2P::get_singleton()->get_handle(), &recieve_packet_options, &remote_user, &socket, &channel, packet_data.ptrw(), &buffer_size);
-            String socket_id_str = socket.SocketName;
+            String socket_name = socket.SocketName;
 
             ERR_FAIL_COND_MSG(result == EOS_EResult::EOS_InvalidParameters, "Failed to get packet! Invalid parameters.");
             ERR_FAIL_COND_MSG(result == EOS_EResult::EOS_NotFound, "Failed to get packet! Packet is too large. This should not have happened.");
 
-            if (!socket_packet_queues.has(socket_id_str))
+            if (!socket_packet_queues.has(socket_name))
                 return; //invalid socket. Drop the packet.
 
             PacketData *packet = memnew(PacketData);
             packet->store(packet_data.ptrw(), max_packet_size);
             packet->set_channel(channel);
             packet->set_sender(remote_user);
-            uint8_t event = packet->get_data().ptr()[0];
-            if (event == 1) {
-                socket_packet_queues[socket_id_str].push_front(packet);
+            uint8_t event = packet->get_data().ptr()[EOSMultiplayerPeer::INDEX_EVENT_TYPE];
+
+            if (event == EOSMultiplayerPeer::EVENT_RECIEVE_PEER_ID) {
+                socket_packet_queues[socket_name].push_front(packet);
             } else {
-                socket_packet_queues[socket_id_str].push_back(packet);
+                socket_packet_queues[socket_name].push_back(packet);
             }
+
             if (get_total_packet_count() >= max_queue_size) {
                 emit_signal(SNAME("packet_queue_full"));
                 break;
@@ -128,9 +130,8 @@ void EOSPacketPeerMediator::_on_process_frame() {
  * poll_next_packet
  * Parameters:
  *   socket_id - The socket to poll a packet from.
- *   out_packet - An out parameter that returns the polled packet.
  * Description: Polls the next packet available for the given socket.
- * Returns true if a packet has been successfully polled. False otherwise.
+ * Returns a valid packet if has been successfully polled.
  ****************************************/
 EOSPacketPeerMediator::SharedPtr<PacketData> EOSPacketPeerMediator::poll_next_packet(const String &socket_id) {
     if (!socket_packet_queues.has(socket_id))
@@ -302,10 +303,9 @@ bool EOSPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_i
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
     const SharedPtr<PacketData> &packet = socket_packet_queues[socket_id][0];
-    uint8_t event = packet->get_data().ptr()[0];
-    if (event == 1)
-        return true;
-    return false;
+    uint8_t event = packet->get_data().ptr()[EOSMultiplayerPeer::INDEX_EVENT_TYPE];
+
+    return event == EOSMultiplayerPeer::EVENT_RECIEVE_PEER_ID;
 }
 
 /****************************************

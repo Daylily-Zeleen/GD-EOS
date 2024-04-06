@@ -14,7 +14,7 @@ private:
     int channel = 0;
 
 public:
-    void store(uint8_t *p_packet, int p_size_bytes) {
+    void store(uint8_t *p_packet, uint32_t p_size_bytes) {
         data.resize(p_size_bytes);
         memcpy(data.ptrw(), p_packet, p_size_bytes);
     }
