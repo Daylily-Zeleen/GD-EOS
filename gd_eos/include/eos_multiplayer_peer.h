@@ -64,7 +64,8 @@ public:
     };
 
 private:
-    enum : int8_t {
+    // Reserved channels.
+    enum : uint8_t {
         CH_RELIABLE = 0,
         CH_UNRELIABLE = 1,
         CH_MAX = 2,

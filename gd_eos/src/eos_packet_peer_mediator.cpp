@@ -106,7 +106,7 @@ void EOSPacketPeerMediator::_on_process_frame() {
             if (!socket_packet_queues.has(socket_name))
                 return; //invalid socket. Drop the packet.
 
-            PacketData *packet = memnew(PacketData);
+            SharedPtr<PacketData> packet = SharedPtr<PacketData>::make_shared();
             packet->store(packet_data.ptrw(), max_packet_size);
             packet->set_channel(channel);
             packet->set_sender(remote_user);

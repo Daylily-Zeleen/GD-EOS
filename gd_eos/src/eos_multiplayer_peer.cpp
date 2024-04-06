@@ -585,7 +585,10 @@ Error EOSMultiplayerPeer::_put_packet(const uint8_t *p_buffer, int32_t p_buffer_
             channel = CH_RELIABLE;
         } break;
     }
+
     if (tr_channel > 0) {
+        ERR_FAIL_COND_V_MSG(tr_channel > UINT8_MAX - CH_MAX + 1, ERR_INVALID_PARAMETER, vformat("Invalid transfer channel. Valid transfer channels in range of [0, %d].", UINT8_MAX - CH_MAX + 1));
+        // 传输通道不为0时则保留的通道上进行偏移。
         channel = CH_MAX + tr_channel - 1;
     }
 
@@ -772,7 +775,7 @@ void EOSMultiplayerPeer::_poll() {
 
                 EOS_EPacketReliability reliability = static_cast<EOS_EPacketReliability>(data_ptr.ptr()[INDEX_TRANSFER_MODE]);
 
-                EOSPacket *packet = memnew(EOSPacket);
+                SharedPtr<EOSPacket> packet = SharedPtr<EOSPacket>::make_shared();
                 packet->store_payload(data_ptr.ptr() + INDEX_PAYLOAD_DATA, packet_data->size() - EOSPacket::PACKET_HEADER_SIZE);
                 packet->set_event(event);
                 packet->set_sender_peer_id(peer_id);

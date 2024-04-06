@@ -11,7 +11,7 @@ struct PacketData : public internal::_Sharable {
 private:
     PackedByteArray data;
     EOS_ProductUserId remote_user_id;
-    int channel = 0;
+    uint8_t channel = 0;
 
 public:
     void store(uint8_t *p_packet, uint32_t p_size_bytes) {
@@ -23,7 +23,7 @@ public:
         return data.size();
     }
 
-    int get_channel() {
+    uint8_t get_channel() {
         return channel;
     }
 
@@ -31,7 +31,7 @@ public:
         return remote_user_id;
     }
 
-    void set_channel(int channel) {
+    void set_channel(uint8_t channel) {
         this->channel = channel;
     }
 
