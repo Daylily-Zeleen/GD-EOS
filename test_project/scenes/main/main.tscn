@@ -1,80 +1,133 @@
-[gd_scene load_steps=2 format=3 uid="uid://bk1e5sgsxorpg"]
+[gd_scene load_steps=3 format=3 uid="uid://bk1e5sgsxorpg"]
 
 [ext_resource type="Script" path="res://scenes/main/main.gd" id="1_ppl4y"]
+[ext_resource type="Script" path="res://scenes/main/players.gd" id="2_lq3tg"]
 
-[node name="Main" type="CanvasLayer"]
+[node name="Main" type="Node"]
 script = ExtResource("1_ppl4y")
 
-[node name="PanelContainer" type="PanelContainer" parent="."]
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
 
-[node name="Panel" type="Panel" parent="PanelContainer"]
+[node name="UI" type="PanelContainer" parent="CanvasLayer"]
+unique_name_in_owner = true
+offset_right = 291.0
+offset_bottom = 207.0
+
+[node name="Panel" type="Panel" parent="CanvasLayer/UI"]
 layout_mode = 2
 
-[node name="MarginContainer" type="MarginContainer" parent="PanelContainer"]
+[node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/UI"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="LoginUI" type="VBoxContainer" parent="PanelContainer/MarginContainer"]
+[node name="LoginUI" type="VBoxContainer" parent="CanvasLayer/UI/MarginContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 5
 
-[node name="Label" type="Label" parent="PanelContainer/MarginContainer/LoginUI"]
+[node name="Label" type="Label" parent="CanvasLayer/UI/MarginContainer/LoginUI"]
 layout_mode = 2
 text = "Login"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer/MarginContainer/LoginUI"]
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/UI/MarginContainer/LoginUI"]
 layout_mode = 2
 
-[node name="GridContainer" type="GridContainer" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer"]
+[node name="GridContainer" type="GridContainer" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer"]
 layout_mode = 2
 theme_override_constants/h_separation = 10
 theme_override_constants/v_separation = 5
 columns = 2
 
-[node name="Label" type="Label" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="Label" type="Label" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 layout_mode = 2
 text = "Login Credential Type:"
 
-[node name="LoginTypeOptionBtn" type="OptionButton" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="LoginTypeOptionBtn" type="OptionButton" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label2" type="Label" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
-auto_translate_mode = 1
+[node name="Label2" type="Label" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 layout_mode = 2
 text = "External Credential Type:"
 
-[node name="ExternalTypeOptionBtn" type="OptionButton" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="ExternalTypeOptionBtn" type="OptionButton" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
-auto_translate_mode = 1
 layout_mode = 2
 
-[node name="Label3" type="Label" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="Label3" type="Label" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 layout_mode = 2
 text = "ID:"
 
-[node name="IdLineEdit" type="LineEdit" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="IdLineEdit" type="LineEdit" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label4" type="Label" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="Label4" type="Label" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 layout_mode = 2
 text = "Token:"
 
-[node name="TokenLineEdit" type="LineEdit" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="TokenLineEdit" type="LineEdit" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Control" type="Control" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="Control" type="Control" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 layout_mode = 2
 
-[node name="LoginBtn" type="Button" parent="PanelContainer/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
+[node name="LoginBtn" type="Button" parent="CanvasLayer/UI/MarginContainer/LoginUI/HBoxContainer/GridContainer"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Login"
+
+[node name="LobbyUI" type="VBoxContainer" parent="CanvasLayer/UI/MarginContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Label" type="Label" parent="CanvasLayer/UI/MarginContainer/LobbyUI"]
+layout_mode = 2
+text = "Lobbies"
+
+[node name="LobbiesItemList" type="ItemList" parent="CanvasLayer/UI/MarginContainer/LobbyUI"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(370, 150)
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CanvasLayer/UI/MarginContainer/LobbyUI"]
+layout_mode = 2
+alignment = 2
+
+[node name="LobbyNameLineEdit" type="LineEdit" parent="CanvasLayer/UI/MarginContainer/LobbyUI/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Lobby name to create"
+
+[node name="CreateBtn" type="Button" parent="CanvasLayer/UI/MarginContainer/LobbyUI/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Create"
+
+[node name="Seperator" type="Control" parent="CanvasLayer/UI/MarginContainer/LobbyUI/HBoxContainer"]
+custom_minimum_size = Vector2(7.2, 0)
+layout_mode = 2
+
+[node name="RefreshBtn" type="Button" parent="CanvasLayer/UI/MarginContainer/LobbyUI/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Refresh"
+
+[node name="JoinBtn" type="Button" parent="CanvasLayer/UI/MarginContainer/LobbyUI/HBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join"
+
+[node name="Players" type="MultiplayerSpawner" parent="."]
+unique_name_in_owner = true
+_spawnable_scenes = PackedStringArray("res://scenes/main/player.tscn")
+spawn_path = NodePath(".")
+spawn_limit = 5
+script = ExtResource("2_lq3tg")
