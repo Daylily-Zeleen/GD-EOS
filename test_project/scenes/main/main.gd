@@ -24,7 +24,7 @@ var _product_user_id: EOSProductUserId
 var _entered_lobby_id: String
 
 
-func _init() -> void:
+func _ready() -> void:
 	# Initialize EOS
 	var init_options := EOSInitializeOptions.new()
 	init_options.product_name = _get_config(&"product_name")
@@ -50,9 +50,7 @@ func _init() -> void:
 	create_options.flags = EOSPlatform.PF_DISABLE_OVERLAY
 	EOSPlatform.platform_create(create_options)
 
-
-func _ready() -> void:
-	# Try to set windows position
+	# Try to set windows position for debug.
 	for i in range(2):
 		if not OS.has_feature("instance_%d" % i):
 			continue
@@ -85,50 +83,68 @@ func _exit_tree() -> void:
 func _on_login_btn_pressed() -> void:
 	login_btn.disabled = true
 
-	# Auth login
-	var auth_login_credentials := EOSAuth_Credentials.new()
-	auth_login_credentials.type = login_type_option_btn.get_selected_metadata()
-	auth_login_credentials.external_type = external_type_option_btn.get_selected_metadata()
-	auth_login_credentials.id = id_line_edit.text
-	auth_login_credentials.token = token_line_edit.text
-
-	var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0)
-	if auth_login_result.result_code != EOS.Success:
-		printerr("== Login Fail: ", EOS.result_to_string(auth_login_result.result_code))
-		login_btn.disabled = false
-		return
-
-	_epic_account_id = auth_login_result.local_user_id
-
-	# Copy id token
-	var copy_token_result := EOSAuth.copy_id_token(_epic_account_id)
-	if copy_token_result.result_code != EOS.Success:
-		printerr("== Copy token failed: ", EOS.result_to_string(copy_token_result.result_code))
-		await _auth_logout_async()
-		return
-
-	var connect_login_credentials := EOSConnect_Credentials.new()
-	connect_login_credentials.type = EOS.ECT_EPIC_ID_TOKEN
-	connect_login_credentials.token = copy_token_result.id_token.json_web_token
-
+	var connect_credentials := EOSConnect_Credentials.new()
 	var user_login_info := EOSConnect_UserLoginInfo.new()
+	match external_type_option_btn.get_selected_metadata():
+		EOS.ECT_EPIC:
+			# Auth login
+			var auth_login_credentials := EOSAuth_Credentials.new()
+			auth_login_credentials.type = login_type_option_btn.get_selected_metadata()
+			auth_login_credentials.external_type = EOS.ECT_EPIC
+			auth_login_credentials.id = id_line_edit.text
+			auth_login_credentials.token = token_line_edit.text
+
+			var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0)
+			if auth_login_result.result_code != EOS.Success:
+				printerr("== Login Fail: ", EOS.result_to_string(auth_login_result.result_code))
+				login_btn.disabled = false
+				return
+
+			_epic_account_id = auth_login_result.local_user_id
+
+			# Copy id token
+			var copy_token_result := EOSAuth.copy_id_token(_epic_account_id)
+			if copy_token_result.result_code != EOS.Success:
+				printerr("== Copy token failed: ", EOS.result_to_string(copy_token_result.result_code))
+				await _auth_logout_async()
+				return
+
+			# Setup connect credentials
+			connect_credentials.type = EOS.ECT_EPIC_ID_TOKEN
+			connect_credentials.token = copy_token_result.id_token.json_web_token
+		EOS.ECT_DEVICEID_ACCESS_TOKEN:
+			# Create Device ID
+			var cdidr: EOS.Result = await EOSConnect.create_device_id(OS.get_name() + ":" + OS.get_model_name())
+			if not cdidr in [EOS.Success, EOS.DuplicateNotAllowed]:
+				printerr("=== Create device id failed: ", EOS.result_to_string(cdidr))
+				return
+			# Setup connect credentials
+			connect_credentials.type = EOS.ECT_DEVICEID_ACCESS_TOKEN
+			
+			# Setup display name
+			var display_name := OS.get_unique_id()
+			if display_name.length() > EOSConnect.CONNECT_USERLOGININFO_DISPLAYNAME_MAX_LENGTH:
+				display_name = display_name.substr(0, EOSConnect.CONNECT_USERLOGININFO_DISPLAYNAME_MAX_LENGTH)
+			user_login_info.display_name = display_name
+		_:
+			printerr("Unsuppoert external credential type: ", external_type_option_btn.get_selected_metadata())
 
 	# Connect login
-	var connect_login_result: EOSConnect_LoginCallbackInfo = await EOSConnect.login(connect_login_credentials, user_login_info)
+	var connect_login_result: EOSConnect_LoginCallbackInfo = await EOSConnect.login(connect_credentials, user_login_info)
 	if connect_login_result.result_code == EOS.InvalidUser:
 		print("This epic account has not Product User id, creating for it.")
 		# This token has not product user id, so, create it.
 		var create_result: EOSConnect_CreateUserCallbackInfo = await EOSConnect.create_user(connect_login_result.continuance_token)
 		if create_result.result_code != EOS.Success:
 			printerr("=== Create User failed: ", EOS.result_to_string(create_result.result_code))
-			await _auth_logout_async()
+			login_btn.disabled = false
 			return
 		else:
 			_product_user_id = create_result.local_user_id
 			print("Create User success, product user id: ", _product_user_id)
 	elif connect_login_result.result_code != EOS.Success:
 		printerr("== Connect login failed: ", EOS.result_to_string(connect_login_result.result_code))
-		await _auth_logout_async()
+		login_btn.disabled = false
 		return
 	else:
 		_product_user_id = connect_login_result.local_user_id
