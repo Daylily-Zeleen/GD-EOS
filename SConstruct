@@ -46,7 +46,6 @@ gather_sources_recursively(os.path.join(base_dir, "gen", "src"))
 
 platform = env["platform"]
 
-env.Append(CPPDEFINES=["NOT_NEED_ENUM_CALSS"])
 
 if env.get("is_msvc", False):
     env.Append(CXXFLAGS=["/bigobj"])
