@@ -94,8 +94,8 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
    1. Set "External Credential Type" to "EPIC":
         i. Set "Login Credential Type" to "AccountPortal", keep "Id" and "Token" empty, click "Login" button an jump to external browser to request authentification.
         ii. Set "Login Credential Type" to "Developer"，you need to login your Epic Accounts with token in **DevAuthTool** which in the "Tools" folder of EOS SDK.
-            - Set "Id" to the address of **DevAuthTool**，如 `localhost:8081`
-            - Set "Token" to the token of your account which is defined in **DevAuthTool**.
+        - Set "Id" to the address of **DevAuthTool**，for example: `localhost:8081`
+        - Set "Token" to the token of your account which is defined in **DevAuthTool**.
    2. Set "External Credential Type" to "DEVICESSID_ACCESS_TOKEN":
         It will create a token which relate your device.
 5. After login, user "Create" button to create a lobby in one instance, then click "Refresh" button to get lobby list, select a lobby and join it by "Join" button.

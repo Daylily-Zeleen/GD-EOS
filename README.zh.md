@@ -94,8 +94,8 @@
    1. External Credential Type 使用 EPIC:
         i. Login Credential Type 使用 AccountPortal 方式进行登陆，不需要填写 Id 与 Token，直接登陆将跳转网页端请求登陆。
         ii. Login Credential Type 使用 Developer 进行登陆，你需要使用 EOS SDK 的 Tools 文件夹中的 DevAuthTool 登陆你的账号并添加Token。
-            - Id 为 DevAuthTool 启动时绑定的本地址与端口，如 `localhost:8081`
-            - Token 为你为你的账号设置的 Token。
+        - Id 为 DevAuthTool 启动时绑定的本地址与端口，如 `localhost:8081`
+        - Token 为你为你的账号设置的 Token。
    2. External Credential Type 使用 DEVICESSID_ACCESS_TOKEN:
         将创建基于设备的Token并登陆。
 5. 其中一个实例使用 Create 按钮创建大厅，另一个实例使用 Refresh 按钮刷新大厅列表，并使用 Join 按钮加入大厅。
