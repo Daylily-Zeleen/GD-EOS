@@ -221,7 +221,7 @@ jobs:
                   Remove-Item ${{ github.workspace }}/artifact/${{ github.event.repository.name }}/addons/gd-eos/bin/windows/* -Include *.exp,*.lib,*.ilk -Force
 
             - name: Upload artifact
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v3
               with:
                   name: ${{ github.event.repository.name }}-${{ github.sha }}
                   path: |
