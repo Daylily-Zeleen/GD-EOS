@@ -127,7 +127,7 @@ jobs:
 
         steps:
             - name: Set up Python
-              uses: actions/setup-python@v4
+              uses: actions/setup-python@v5
               with:
                   python-version: "3.x"
 
@@ -139,19 +139,19 @@ jobs:
                   scons --version
 
             - name: Checkout project
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
               with:
                   submodules: false
 
             - name: Checkout godot-cpp
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
               with:
                   repository: godotengine/godot-cpp
                   path: godot-cpp
                   submodules: recursive
 
             - name: Checkout private EOS SDK repo
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
               with:
                   token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
                   repository: Daylily-Zeleen/eos-sdk
@@ -182,7 +182,7 @@ jobs:
                 link-to-sdk: true
 
             - name: Setup build cache
-              uses: actions/cache@v3
+              uses: actions/cache@v4
               with:
                   path: ${{ github.workspace }}/.scons-cache/
                   key: ${{ matrix.identifier }}
@@ -221,7 +221,7 @@ jobs:
                   Remove-Item ${{ github.workspace }}/artifact/${{ github.event.repository.name }}/addons/gd-eos/bin/windows/* -Include *.exp,*.lib,*.ilk -Force
 
             - name: Upload artifact
-              uses: actions/upload-artifact@v3
+              uses: actions/upload-artifact@v4
               with:
                   name: ${{ github.event.repository.name }}-${{ github.sha }}
                   path: |
