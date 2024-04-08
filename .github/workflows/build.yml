@@ -50,7 +50,7 @@ jobs:
                     - identifier: windows-x64-release
                       name: 🏁 Windows x64 Release
                       runner: windows-latest
-                      target: template_debug
+                      target: template_release
                       dev_build: no
                       platform: windows
                       arch: x86_64
@@ -64,7 +64,7 @@ jobs:
                     - identifier: windows-x86-release
                       name: 🏁 Windows x86 Release
                       runner: windows-latest
-                      target: template_debug
+                      target: template_release
                       dev_build: no
                       platform: windows
                       arch: x86_32
@@ -246,7 +246,7 @@ jobs:
             - name: Upload artifact
               uses: actions/upload-artifact@v3
               with:
-                  name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-${{ github.sha }}
+                  name: ${{ github.event.repository.name }}-all-platforms-${{ env.BUILD_VERSION }}-${{ github.sha }}
                   path: |
                       ${{ github.workspace }}/artifact/
                   retention-days: 14
