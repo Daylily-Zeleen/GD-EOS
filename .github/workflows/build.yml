@@ -143,6 +143,16 @@ jobs:
               with:
                   submodules: false
 
+            - name: Setup version
+              if: ${{ matrix.platform != 'windows' }}
+              run: |
+                python version.py >> $GITHUB_ENV
+
+            - name: Setup version (Windows)
+              if: ${{ matrix.platform == 'windows' }}
+              run: |
+                python version.py >> $env:GITHUB_ENV
+
             - name: Checkout godot-cpp
               uses: actions/checkout@v4
               with:
@@ -181,10 +191,6 @@ jobs:
                 ndk-version: r23c
                 link-to-sdk: true
 
-            - name: Setup version
-              run: |
-                python version.py >> $GITHUB_ENV
-
             - name: Setup build cache
               uses: actions/cache@v4
               with:
@@ -207,7 +213,7 @@ jobs:
             - name: Copy extra files to addon folder
               shell: sh
               run: |
-                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/test_project/addons/gd-eos/'
+                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/demo/addons/gd-eos/'
 
             - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
               shell: sh

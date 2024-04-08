@@ -1,7 +1,7 @@
 # Godot logs
 logs/
 
-test_project/android
+demo/android
 
 .env
 vc140.pdb
@@ -24,7 +24,6 @@ backup/
 .vscode/
 _media/
 bin/
-# test_project/
 # thirdparty/eos-sdk/
 
 gd_eos/gen/

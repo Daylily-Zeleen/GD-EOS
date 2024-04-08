@@ -2,7 +2,7 @@
 
 [点击查中文说明](README.zh.md)
 
-![image](test_project/logo.png)
+![image](demo/logo.png)
 
 **Epic Online Services** for Godot. Use as **C++ SDK** or compile as **GDScript SDK**.
 
@@ -85,7 +85,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 4. Now, you can use all functions of EOS, please refer [Epic Online Services' document](https://dev.epicgames.com/docs) for more details.
 
-## How to run `test_project`
+## How to run `demo`
 
 1. Enable required features for you product in developer portal. For convenience, you can enable all features of your client policy, or use the redefine policy "Peer2Peer".
 2. Set your product parameters to the root node of "main.tscn" scene.
@@ -120,7 +120,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         ```
 
     More detail of compile commands, please refer to godot-cpp's compile system.
-5. Last, you can get the compiled addon which is localed at "test_project/addons/gd-eos/".
+5. Last, you can get the compiled addon which is localed at "demo/addons/gd-eos/".
 
 ## **Cautious**
 

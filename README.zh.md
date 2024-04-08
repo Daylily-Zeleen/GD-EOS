@@ -2,7 +2,7 @@
 
 [Click here to refer English Readme](README.md).
 
-![image](test_project/logo.png)
+![image](demo/logo.png)
 
 适用于Godot的**Epic Online Services**。可作为**C++ SDK**或者编译后作为**GDScript SDK**。
 
@@ -85,7 +85,7 @@
 
 4. 随后即可正常使用EOS的功能，具体使用请参考[Epic在线服务的文档](https://dev.epicgames.com/docs/zh-Hans)。
 
-## 如何运行`test_project`项目
+## 如何运行`demo`项目
 
 1. 你需要在 Epic 开发者门户对你的产品开启必要的客户端策略特性，为方便起见，你可以开启所有的特性，或者使用预设 Peer2Peer 策略。
 2. 在main场景的根节点中为你的产品设置相应的参数。
@@ -120,7 +120,7 @@
         ```
 
     关于更多编译命令的细节，请参考 godot-cpp 的编译系统。
-5. 在编译完成后，你将在 "test_project/addons/gd-eos/"获得该插件。
+5. 在编译完成后，你将在 "demo/addons/gd-eos/"获得该插件。
 
 ## **注意**
 
