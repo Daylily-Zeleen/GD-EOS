@@ -1,0 +1,32 @@
+[configuration]
+
+entry_symbol = "gdeos_library_init"
+compatibility_minimum = 4.2
+
+[libraries]
+linux.x86_64.debug = "bin/linux/libgdeos.linux.template_debug.dev.x86_64.so"
+linux.x86_64.release = "bin/linux/libgdeos.linux.template_release.x86_64.so"
+windows.x86_64.debug = "bin/windows/libgdeos.windows.template_debug.dev.x86_64.dll"
+windows.x86_64.release = "bin/windows/libgdeos.windows.template_release.x86_64.dll"
+windows.x86_32.debug = "bin/windows/libgdeos.windows.template_debug.dev.x86_32.dll"
+windows.x86_32.release = "bin/windows/libgdeos.windows.template_release.x86_32.dll"
+macos.debug = "bin/macos/libgdeos.macos.template_debug.framework"
+macos.release = "bin/macos/libgdeos.macos.template_release.framework"
+android.debug.arm64 = "bin/android/libgdeos.android.template_debug.arm64.so"
+android.release.arm64 = "bin/android/libgdeos.android.template_release.arm64.so"
+android.debug.x86_64 = "bin/android/libgdeos.android.template_debug.x86_64.so"
+android.release.x86_64 = "bin/android/libgdeos.android.template_release.x86_64.so"
+android.debug.arm32 = "bin/android/libgdeos.android.template_debug.arm32.so"
+android.release.arm32 = "bin/android/libgdeos.android.template_release.arm32.so"
+android.debug.x86_32 = "bin/android/libgdeos.android.template_debug.x86_32.so"
+android.release.x86_32 = "bin/android/libgdeos.android.template_release.x86_32.so"
+
+[dependencies]
+windows.debug.x86_64 = ["bin/windows/EOSSDK-Win64-Shipping.dll", "bin/windows/x64/xaudio2_9redist.dll"]
+windows.release.x86_64 = ["bin/windows/EOSSDK-Win64-Shipping.dll", "bin/windows/x64/xaudio2_9redist.dll"]
+windows.debug.x86_32 = ["bin/windows/EOSSDK-Win32-Shipping.dll", "bin/windows/x86/xaudio2_9redist.dll"]
+windows.release.x86_32 = ["bin/windows/EOSSDK-Win32-Shipping.dll", "bin/windows/x86/xaudio2_9redist.dll"]
+macos.debug = ["bin/macos/libEOSSDK-Mac-Shipping.dylib"]
+macos.release = ["bin/macos/libEOSSDK-Mac-Shipping.dylib"]
+linux.debug.x86_64 = ["bin/linux/libEOSSDK-Linux-Shipping.so"]
+linux.release.x86_64 = ["bin/linux/libEOSSDK-Linux-Shipping.so"]
