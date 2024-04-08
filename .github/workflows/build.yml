@@ -181,6 +181,10 @@ jobs:
                 ndk-version: r23c
                 link-to-sdk: true
 
+            - name: Setup version
+              run: |
+                python version.py >> $GITHUB_ENV
+
             - name: Setup build cache
               uses: actions/cache@v4
               with:
@@ -205,25 +209,39 @@ jobs:
               run: |
                   cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/test_project/addons/gd-eos/'
 
-            - name: Create artifact folder
+            - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+              shell: sh
+              run: |
+                  mkdir -p '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}/artifact/${{ github.event.repository.name }}/'
+
+            - name: Create artifact folder for all in one.
               shell: sh
               run: |
                   mkdir -p '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
 
+            - name: Copy addons folder to artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+              shell: sh
+              run: |
+                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}/artifact/${{ github.event.repository.name }}/'
+
             - name: Copy addons folder to artifact folder
               shell: sh
               run: |
-                  cp -n -r '${{ github.workspace }}/test_project/addons' '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
+                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
 
-            - name: (Windows) Delete compilation files
-              if: ${{ matrix.platform == 'windows' }}
-              run: |
-                  Remove-Item ${{ github.workspace }}/artifact/${{ github.event.repository.name }}/addons/gd-eos/bin/windows/* -Include *.exp,*.lib,*.ilk -Force
+            - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+              uses: actions/upload-artifact@v3
+              with:
+                  name: ${{ github.event.repository.name }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ env.BUILD_VERSION }}-${{ github.sha }}
+                  path: |
+                      ${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}/artifact/
+                  retention-days: 14
 
             - name: Upload artifact
               uses: actions/upload-artifact@v3
               with:
-                  name: ${{ github.event.repository.name }}-${{ github.sha }}
+                  name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-${{ github.sha }}
                   path: |
                       ${{ github.workspace }}/artifact/
                   retention-days: 14
+                  if-no-files-found: error
