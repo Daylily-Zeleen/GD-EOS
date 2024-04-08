@@ -1,8 +1,10 @@
 # GD-EOS
 
+**This branch is created for submitting to Asset Library. The description in this file is not correctly.**
+
 [点击查中文说明](README.zh.md)
 
-![image](demo/logo.png)
+![image](logo.png)
 
 **Epic Online Services** for Godot. Use as **C++ SDK** or compile as **GDScript SDK**.
 

@@ -1,8 +1,10 @@
 # GD-EOS
 
+**该分支仅为了 Asset Library 提交资源使用。该自述文件信息对应的是main分支。**
+
 [Click here to refer English Readme](README.md).
 
-![image](demo/logo.png)
+![image](logo.png)
 
 适用于Godot的**Epic Online Services**。可作为**C++ SDK**或者编译后作为**GDScript SDK**。
 
