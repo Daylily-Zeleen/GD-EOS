@@ -2,6 +2,7 @@
 import os
 import sys
 import shutil
+import version
 
 import gd_eos.eos_code_generator as eos_code_generator
 
@@ -17,6 +18,7 @@ output_bin_folder = "bin/"
 eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 base_dir = "gd_eos/"
 
+extension_file = "demo/addons/gd-eos/gdeos.gdextension"
 
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++
@@ -136,6 +138,20 @@ def on_complete(target, source, env):
 
     elif platform == "macos":
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
+
+    # 更新.gdextension中的版本信息
+    f = open(extension_file, "r", encoding="utf8")
+    lines = f.readlines()
+    f.close()
+
+    for i in range(len(lines)):
+        if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
+            lines[i] = f'version = "{version.version}"\n'
+            break
+
+    f = open(extension_file, "w", encoding="utf8")
+    f.writelines(lines)
+    f.close()
 
 
 # Disable scons cache for source files
