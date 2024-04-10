@@ -691,7 +691,9 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
     return h_lines + register_lines
 
 
-def _make_notify_code(add_notify_method: str, method_info: dict, options_type: str, r_menber_lines: list[str], r_setup_lines: list[str], r_remove_lines: list[str]):
+def _make_notify_code(
+    handle_class: str, add_notify_method: str, method_info: dict, options_type: str, r_menber_lines: list[str], r_setup_lines: list[str], r_remove_lines: list[str]
+):
     callback_type: str = ""
     for a in method_info["args"]:
         if __is_callback_type(_decay_eos_type(a["type"])):
@@ -715,7 +717,9 @@ def _make_notify_code(add_notify_method: str, method_info: dict, options_type: s
     r_setup_lines.append(f"\t\t{options_type} options;")
     r_setup_lines.append(f"\t\toptions.ApiVersion = {__get_api_latest_macro(options_type)};")
     r_setup_lines.append(f"\t\tif (m_handle) {{ {id_identifier} = {add_notify_method}(m_handle, &options, this, {cb}); }}")
-    r_setup_lines.append(f'\t\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ ERR_PRINT("EOS: Setup notify \\"{signal_name}\\" failed"); }}')
+    r_setup_lines.append(
+        f'\t\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ WARN_PRINT("EOS: Setup signal \\"{handle_class}.{signal_name}\\" failed, this signal is not working."); }}'
+    )
     r_setup_lines.append("\t}")
     r_remove_lines.append(f"\tif ({id_identifier} != EOS_INVALID_NOTIFICATIONID) {remove_method}(m_handle, {id_identifier});")
 
@@ -789,7 +793,7 @@ def _gen_handle(
                     valid_field_count += 1
 
                 if valid_field_count == 1 and "ApiVersion" in options_fields:
-                    _make_notify_code(method, method_infos[method], decayed_options_type, notifies_menber_lines, setup_nofities_lines, remove_nofities_lines)
+                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_menber_lines, setup_nofities_lines, remove_nofities_lines)
 
                     for m in method_infos:
                         if m == method:
@@ -2522,6 +2526,15 @@ def _gen_method(
                 r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
                 r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
                 r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
+                r_define_lines.append(f"\t}}")
+            elif handle_identifier.startswith("playerdatastorage") or handle_identifier.startswith("titlestorage"):
+                # PlayerDataStorage 与 TitleStorage 需要文件加密密钥
+                r_define_lines.append(f"\tif ({options_prepare_identifier}.EncryptionKey) {{")
+                r_define_lines.append(f"\t\tauto {handle_identifier} = {m}(platform_handle);")
+                r_define_lines.append(f"\t\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
+                r_define_lines.append(f"\t\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
+                r_define_lines.append(f"\t}} else {{")
+                r_define_lines.append(f'\t\tWARN_PRINT("Create Platform without encryption_key, The singleton \\"{_convert_handle_class_name(interface)}\\" is invalid.");')
                 r_define_lines.append(f"\t}}")
             else:
                 r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
