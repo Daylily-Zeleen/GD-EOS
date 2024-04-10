@@ -2538,8 +2538,8 @@ def _gen_method(
                 r_define_lines.append(f"\t}}")
             else:
                 r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
-                r_define_lines.append(f"\tERR_FAIL_COND_V({handle_identifier} == nullptr, EOS_EResult::EOS_UnexpectedError);")
-                r_define_lines.append(f"\t{_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier});")
+                r_define_lines.append(f"\tif ({handle_identifier}) {{ {_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier}); }}")
+                r_define_lines.append(f'\telse {{ WARN_PRINT("Can\'t get \\"{_convert_handle_class_name(interface).removeprefix("EOS")}\\" interface, \\"{_convert_handle_class_name(interface)}\\" singleton is invalid, maybe due to platform\'s limitation."); }}')
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
         r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
