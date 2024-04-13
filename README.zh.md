@@ -110,7 +110,7 @@
     - For debug build:
 
         ``` shell
-            scons platform=windows target=template_debug dev_build=yes
+            scons platform=windows target=template_debug debug_symbols=yes
         ```
 
     - For release build:
@@ -120,7 +120,12 @@
         ```
 
     关于更多编译命令的细节，请参考 godot-cpp 的编译系统。
+    **如果你使用了其他将改变库名编译选项，注意修改"demo/addons/gd-eos/gdeos.gdextension"中相应的库名。**
 5. 在编译完成后，你将在 "demo/addons/gd-eos/"获得该插件。
+
+## **已知注意事项**
+
+1. 如果你要使用覆层(仅Windows可用)，要注意渲染器的设置。
 
 ## **注意**
 

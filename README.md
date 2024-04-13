@@ -110,7 +110,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
     - For debug build:
 
         ``` shell
-            scons platform=windows target=template_debug dev_build=yes
+            scons platform=windows target=template_debug debug_symbols=yes
         ```
 
     - For release build:
@@ -120,7 +120,12 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         ```
 
     More detail of compile commands, please refer to godot-cpp's compile system.
+    **If you change the output library name by using compile options, please modify "demo/addons/gd-eos/gdeos.gdextension" to fit your library name.**
 5. Last, you can get the compiled addon which is localed at "demo/addons/gd-eos/".
+
+## **Known issues**
+
+1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
 
 ## **Cautious**
 
