@@ -81,7 +81,7 @@ elif env["platform"] == "android":
     elif env["arch"] == "arm32":
         eos_android_arch = "armeabi-v7a"
 
-    env.Append(LIBPATH=[eos_sdk_folder + "Bin/Android/static-stdc++/libs/" + eos_android_arch + "/"])
+    env.Append(LIBPATH=[eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"])
     env.Append(LIBS=["EOSSDK"])
 
 
@@ -115,6 +115,11 @@ def on_complete(target, source, env):
             f"{output_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
             f"{plugin_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
         )
+    elif platform == "android":
+        copy_file(
+            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
+            f"{plugin_bin_folder}/{platform}/{arch}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
+        )
     else:
         copy_file(
             f"{output_bin_folder}/{platform}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
@@ -138,6 +143,9 @@ def on_complete(target, source, env):
 
     elif platform == "macos":
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
+
+    elif platform == "android":
+        copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/andorid/{arch}/libEOSSDK.so")
 
     # 更新.gdextension中的版本信息
     f = open(extension_file, "r", encoding="utf8")
