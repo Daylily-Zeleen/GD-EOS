@@ -49,7 +49,7 @@ void EOSExportPlugin::_export_begin(const PackedStringArray &features, bool is_d
             }
         }
         ERR_FAIL_COND_MSG(arch.is_empty(), "EOS Exporting: Unknown architechture, can't add shared object.");
-        add_shared_object(binary_base_dir.path_join("android").path_join(arch).path_join("libEOSSDK.so"), {}, "/");
+        add_shared_object(binary_base_dir.path_join("android").path_join(arch).path_join("libEOSSDK.so"), Array::make(arch), "/");
     }
 }
 
