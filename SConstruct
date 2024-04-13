@@ -2,7 +2,7 @@
 import os
 import sys
 import shutil
-import version
+import build_version
 
 import gd_eos.eos_code_generator as eos_code_generator
 
@@ -154,7 +154,7 @@ def on_complete(target, source, env):
 
     for i in range(len(lines)):
         if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
-            lines[i] = f'version = "{version.version}"\n'
+            lines[i] = f'version = "{build_version.version}"\n'
             break
 
     f = open(extension_file, "w", encoding="utf8")

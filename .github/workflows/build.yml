@@ -130,12 +130,12 @@ jobs:
             - name: Setup version
               if: ${{ matrix.platform != 'windows' }}
               run: |
-                python version.py >> $GITHUB_ENV
+                python build_version.py >> $GITHUB_ENV
 
             - name: Setup version (Windows)
               if: ${{ matrix.platform == 'windows' }}
               run: |
-                python version.py >> $env:GITHUB_ENV
+                python build_version.py >> $env:GITHUB_ENV
 
             - name: Checkout godot-cpp
               uses: actions/checkout@v4
