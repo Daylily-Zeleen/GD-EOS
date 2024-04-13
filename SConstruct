@@ -100,7 +100,7 @@ else:
 arch = env["arch"]
 compile_target = env["target"]
 suffix = env.get("suffix", "")
-
+shared_lib_suffix = env['SHLIBSUFFIX']
 
 def copy_file(from_path, to_path):
     if not os.path.exists(os.path.dirname(to_path)):
@@ -117,13 +117,13 @@ def on_complete(target, source, env):
         )
     elif platform == "android":
         copy_file(
-            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
-            f"{plugin_bin_folder}/{platform}/{arch}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
+            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
+            f"{plugin_bin_folder}/{platform}/{arch}/{lib_name}{suffix}{shared_lib_suffix}",
         )
     else:
         copy_file(
-            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
-            f"{plugin_bin_folder}/{platform}/{lib_name}{suffix}{env['SHLIBSUFFIX']}",
+            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
+            f"{plugin_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
         )
 
     # 拷贝依赖

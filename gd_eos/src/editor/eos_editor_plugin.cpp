@@ -9,6 +9,7 @@ String EOSExportPlugin::_get_name() const {
 }
 
 void EOSExportPlugin::_export_begin(const PackedStringArray &features, bool is_debug, const String &path, uint32_t flags) {
+    return;
     const String binary_base_dir = "res://addons/gd-eos/bin/";
 
     if (features.has("windows")) {
