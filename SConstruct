@@ -145,7 +145,7 @@ def on_complete(target, source, env):
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
 
     elif platform == "android":
-        copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/andorid/{arch}/libEOSSDK.so")
+        copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{arch}/libEOSSDK.so")
 
     # 更新.gdextension中的版本信息
     f = open(extension_file, "r", encoding="utf8")

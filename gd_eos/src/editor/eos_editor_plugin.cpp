@@ -31,6 +31,25 @@ void EOSExportPlugin::_export_begin(const PackedStringArray &features, bool is_d
         add_shared_object(binary_base_dir.path_join("linux").path_join("libEOSSDK-Linux-Shipping.so"), {}, "/");
     } else if (features.has("macos")) {
         add_shared_object(binary_base_dir.path_join("macos").path_join("libEOSSDK-Mac-Shipping.dylib"), {}, "/");
+    } else if (features.has("android")) {
+        String arch;
+        for (const String &feature : features) {
+            if (feature == "arm32") {
+                ERR_CONTINUE_MSG(!arch.is_empty(), "Exporting features have multiple architechture tags!");
+                arch = feature;
+            } else if (feature == "arm64") {
+                ERR_CONTINUE_MSG(!arch.is_empty(), "Exporting features have multiple architechture tags!");
+                arch = feature;
+            } else if (feature == "x86_32") {
+                ERR_CONTINUE_MSG(!arch.is_empty(), "Exporting features have multiple architechture tags!");
+                arch = feature;
+            } else if (feature == "x86_64") {
+                ERR_CONTINUE_MSG(!arch.is_empty(), "Exporting features have multiple architechture tags!");
+                arch = feature;
+            }
+        }
+        ERR_FAIL_COND_MSG(arch.is_empty(), "EOS Exporting: Unknown architechture, can't add shared object.");
+        add_shared_object(binary_base_dir.path_join("android").path_join(arch).path_join("libEOSSDK.so"), {}, "/");
     }
 }
 
