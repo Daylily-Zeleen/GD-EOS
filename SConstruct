@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
-import sys
 import shutil
+
 import build_version
 
 import gd_eos.eos_code_generator as eos_code_generator
@@ -28,11 +28,17 @@ extension_file = "demo/addons/gd-eos/gdeos.gdextension"
 # - CPPDEFINES are for pre-processor defines
 # - LINKFLAGS are for linking flags
 
-# Add source files
-env.Append(CPPPATH=[eos_sdk_folder + "Include/", os.path.join(base_dir, "include"), os.path.join(base_dir, "gen", "include")])
-sources = Glob(os.path.join(base_dir, "src", "*.cpp"))
+# 头文件搜索路径
+env.Append(
+    CPPPATH=[
+        os.path.join(eos_sdk_folder, "Include"),
+        os.path.join(base_dir, "include"),
+        os.path.join(base_dir, "gen", "include"),
+    ]
+)
 
 
+# 递归获取源文件
 def gather_sources_recursively(base_dir: str) -> None:
     global sources
     for f in os.listdir(base_dir):
@@ -42,27 +48,29 @@ def gather_sources_recursively(base_dir: str) -> None:
             gather_sources_recursively(dir)
 
 
+sources = Glob(os.path.join(base_dir, "src", "*.cpp"))
 gather_sources_recursively(os.path.join(base_dir, "src"))
 gather_sources_recursively(os.path.join(base_dir, "gen", "src"))
 
 
-platform = env["platform"]
-
-
 if env.get("is_msvc", False):
     env.Append(CXXFLAGS=["/bigobj"])
-env.Append(LIBPATH=[eos_sdk_folder + "Lib/"])
-env.Append(LIBPATH=[eos_sdk_folder + "Bin/"])
 
+
+# 添加依赖库
+env.Append(LIBPATH=[eos_sdk_folder + "Bin/"])
 if env["platform"] == "windows":
     # TODO: dont ignore this warning
     # this disables LINK : error LNK1218: warning treated as error;
     # so that it can build in github action with scons cache
     env.Append(LINKFLAGS=["/ignore:4099"])
+
+    env.Append(LIBPATH=[eos_sdk_folder + "Lib/"])
     if "64" in env["arch"]:
         env.Append(LIBS=["EOSSDK-Win64-Shipping"])
     else:
         env.Append(LIBS=["EOSSDK-Win32-Shipping"])
+
 
 elif env["platform"] == "linux":
     env.Append(LIBS=["EOSSDK-Linux-Shipping"])
@@ -85,7 +93,7 @@ elif env["platform"] == "android":
     env.Append(LIBS=["EOSSDK"])
 
 
-# 输出路径
+# 输出
 if env["platform"] == "macos":
     library = env.SharedLibrary(
         f"{output_bin_folder}/macos/{lib_name}.{env['platform']}.{env['target']}.framework/{lib_name}.{env['platform']}.{env['target']}",
@@ -97,15 +105,33 @@ else:
         source=sources,
     )
 
+
+platform = env["platform"]
 arch = env["arch"]
 compile_target = env["target"]
 suffix = env.get("suffix", "")
-shared_lib_suffix = env['SHLIBSUFFIX']
+shared_lib_suffix = env["SHLIBSUFFIX"]
+
 
 def copy_file(from_path, to_path):
     if not os.path.exists(os.path.dirname(to_path)):
         os.makedirs(os.path.dirname(to_path))
     shutil.copyfile(from_path, to_path)
+
+
+def update_extension_version():
+    f = open(extension_file, "r", encoding="utf8")
+    lines = f.readlines()
+    f.close()
+
+    for i in range(len(lines)):
+        if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
+            lines[i] = f'version = "{build_version.version}"\n'
+            break
+
+    f = open(extension_file, "w", encoding="utf8")
+    f.writelines(lines)
+    f.close()
 
 
 def on_complete(target, source, env):
@@ -114,11 +140,6 @@ def on_complete(target, source, env):
         copy_file(
             f"{output_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
             f"{plugin_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
-        )
-    elif platform == "android":
-        copy_file(
-            f"{output_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
-            f"{plugin_bin_folder}/{platform}/{arch}/{lib_name}{suffix}{shared_lib_suffix}",
         )
     else:
         copy_file(
@@ -144,22 +165,11 @@ def on_complete(target, source, env):
     elif platform == "macos":
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
 
-    elif platform == "android":
-        copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{arch}/libEOSSDK.so")
+    # elif platform == "android":
+    #     copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{arch}/libEOSSDK.so")
 
     # 更新.gdextension中的版本信息
-    f = open(extension_file, "r", encoding="utf8")
-    lines = f.readlines()
-    f.close()
-
-    for i in range(len(lines)):
-        if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
-            lines[i] = f'version = "{build_version.version}"\n'
-            break
-
-    f = open(extension_file, "w", encoding="utf8")
-    f.writelines(lines)
-    f.close()
+    update_extension_version()
 
 
 # Disable scons cache for source files
