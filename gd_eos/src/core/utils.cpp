@@ -90,7 +90,13 @@ void *get_platform_specific_options() {
         windowsRTCOptions.XAudio29DllPath = VARIANT_TO_CHARSTRING(OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll"));
     }
     return &windowsRTCOptions;
-#elif defined(__ANDROID__)
+#else
+    return nullptr;
+#endif
+}
+
+void *get_system_initialize_options() {
+#if defined(__ANDROID__)
     static EOS_Android_InitializeOptions androidInitializeOptions;
     memset(&androidInitializeOptions, 0, sizeof(androidInitializeOptions));
     String internal_dir{};

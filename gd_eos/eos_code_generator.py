@@ -2539,7 +2539,9 @@ def _gen_method(
             else:
                 r_define_lines.append(f"\tauto {handle_identifier} = {m}(platform_handle);")
                 r_define_lines.append(f"\tif ({handle_identifier}) {{ {_convert_handle_class_name(interface)}::get_singleton()->set_handle({handle_identifier}); }}")
-                r_define_lines.append(f'\telse {{ WARN_PRINT("Can\'t get \\"{_convert_handle_class_name(interface).removeprefix("EOS")}\\" interface, \\"{_convert_handle_class_name(interface)}\\" singleton is invalid, maybe due to platform\'s limitation."); }}')
+                r_define_lines.append(
+                    f'\telse {{ WARN_PRINT("Can\'t get \\"{_convert_handle_class_name(interface).removeprefix("EOS")}\\" interface, \\"{_convert_handle_class_name(interface)}\\" singleton is invalid, maybe due to platform\'s limitation."); }}'
+                )
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
         r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
@@ -3371,12 +3373,13 @@ def _find_count_field(field: str, fields: list[str]) -> str:
 
 def _is_todo_field(type: str, field: str) -> bool:
     # TODO：暂未实现的字段
-    map = {
-        "void*": [
-            "SystemInitializeOptions",
-        ],
-    }
+    # type: [field1, field2, ...]
+    map = {    }
     return type in map and field in map[type]
+
+
+def _is_system_initialize_options_filed(field: str, type: str) -> bool:
+    return field == "SystemInitializeOptions" and type == "void*"
 
 
 def _is_platform_specific_options_field(field: str) -> bool:
@@ -3472,6 +3475,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_system_initialize_options_filed(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3566,6 +3571,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_system_initialize_options_filed(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3642,6 +3649,8 @@ def _gen_struct(
             continue
         if _is_platform_specific_options_field(field):
             continue
+        if _is_system_initialize_options_filed(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3703,6 +3712,9 @@ def _gen_struct(
                 exit(1)
 
             if _is_platform_specific_options_field(field):
+                print("ERROR:", field)
+                exit(1)
+            if _is_system_initialize_options_filed(field, field_type):
                 print("ERROR:", field)
                 exit(1)
             elif _is_nullable_float_pointer_field(field_type, field):
@@ -3803,6 +3815,8 @@ def _gen_struct(
                         r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
                     elif _is_platform_specific_options_field(field):
                         r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
+                    elif _is_system_initialize_options_filed(field, field_type):
+                        r_structs_cpp.append(f"\tp_data.{field} = get_system_initialize_options();")
                     elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
                         r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {snake_field_name});")
                     elif _is_requested_channel_ptr_field(field_type, field):

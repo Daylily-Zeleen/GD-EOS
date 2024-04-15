@@ -1018,4 +1018,6 @@ void setup_eos_project_settings();
 
 void *get_platform_specific_options();
 
+void *get_system_initialize_options();
+
 } //namespace godot::eos
