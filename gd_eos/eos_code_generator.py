@@ -6,9 +6,9 @@ import os, sys
 
 sdk_inclide_dir = "thirdparty/eos-sdk/SDK/Include"
 
-_gen_dir = "gd_eos/gen/"
-gen_include_dir = os.path.join(_gen_dir, "include")
-gen_src_dir = os.path.join(_gen_dir, "src")
+gen_dir = "gd_eos/gen/"
+gen_include_dir = os.path.join(gen_dir, "include")
+gen_src_dir = os.path.join(gen_dir, "src")
 
 # 解析结果
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
@@ -442,7 +442,7 @@ def gen_files(file_base_name: str, infos: dict):
             if interface_low == "rtc_data":
                 # 1.6.2 新增
                 # TODO: 考虑移除改宏，是否生成依赖于用户使用的SDK版本
-                interface_handle_cpp_lines.append(f"#ifdef _EOS_VERSION_GREATER_THAN_1_6_1")
+                interface_handle_cpp_lines.append(f"#if _EOS_VERSION_GREATER_THAN_1_6_1")
             interface_handle_cpp_lines.append(f"#ifndef {_disabled_macro}")
             interface_handle_cpp_lines.append(f"#include <interfaces/eos_{interface_low}_interface.h>")
             interface_handle_cpp_lines.append(f"#endif // {_disabled_macro}")
@@ -872,7 +872,7 @@ def _gen_handle(
             r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
 
             # 特殊处理 RTCData
-            r_cpp_lines.append(f"#ifdef _EOS_VERSION_GREATER_THAN_1_6_1")
+            r_cpp_lines.append(f"#if _EOS_VERSION_GREATER_THAN_1_6_1")
             r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCData")}')
             r_cpp_lines.append(f"\tif (m_handle) {{")
             r_cpp_lines.append(f"\t\tauto rtc_data_handle = EOS_RTC_GetDataInterface(m_handle);")
