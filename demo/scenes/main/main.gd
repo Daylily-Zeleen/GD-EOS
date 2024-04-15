@@ -47,7 +47,10 @@ func _ready() -> void:
 	create_options.client_credentials.client_id = _get_config(&"client_id")
 	create_options.client_credentials.client_secret = _get_config(&"client_secret")
 	create_options.encryption_key = _get_config(&"encryption_key")
-	create_options.flags = EOSPlatform.PF_DISABLE_OVERLAY
+	if OS.get_name() == "Windows":
+		create_options.flags |= EOSPlatform.PF_WINDOWS_ENABLE_OVERLAY_OPENGL  # EOSPlatform.PF_DISABLE_OVERLAY
+	else:
+		create_options.flags = EOSPlatform.PF_DISABLE_OVERLAY
 	EOSPlatform.platform_create(create_options)
 
 	# Try to set windows position for debug.
@@ -94,7 +97,9 @@ func _on_login_btn_pressed() -> void:
 			auth_login_credentials.id = id_line_edit.text
 			auth_login_credentials.token = token_line_edit.text
 
-			var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0)
+			var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(
+				auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0
+			)
 			if auth_login_result.result_code != EOS.Success:
 				printerr("== Login Fail: ", EOS.result_to_string(auth_login_result.result_code))
 				login_btn.disabled = false
@@ -120,7 +125,7 @@ func _on_login_btn_pressed() -> void:
 				return
 			# Setup connect credentials
 			connect_credentials.type = EOS.ECT_DEVICEID_ACCESS_TOKEN
-			
+
 			# Setup display name
 			var display_name := OS.get_unique_id()
 			if display_name.length() > EOSConnect.CONNECT_USERLOGININFO_DISPLAYNAME_MAX_LENGTH:
