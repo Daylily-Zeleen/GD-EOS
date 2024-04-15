@@ -35,7 +35,6 @@ namespace godot::eos::internal {
 
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
 
-#define VARIANT_TO_CHARSTRING(str) ((String)str).utf8()
 #ifdef _MSC_VER // Check if using Microsoft Visual Studio
 #define STRNCPY_S(dest, destsz, src, count) strncpy_s(dest, destsz, src, count)
 #else

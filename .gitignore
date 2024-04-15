@@ -30,3 +30,5 @@ gd_eos/gen/
 
 # mingw
 *.o
+
+build/

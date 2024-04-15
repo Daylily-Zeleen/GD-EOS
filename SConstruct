@@ -7,6 +7,7 @@ import build_version
 import gd_eos.eos_code_generator as eos_code_generator
 
 # Generate
+# shutil.rmtree(eos_code_generator.gen_dir)
 eos_code_generator.generator_eos_interfaces()
 
 env = SConscript("godot-cpp/SConstruct")
