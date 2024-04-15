@@ -20,6 +20,7 @@
 
 - EOS-SDK-32273396-v1.16.2
 - EOS-SDK-27379709-v1.16.1
+- EOS-SDK-Android-27379709-v1.16.1(高版本的 Android SDK 未测试通过)
 
 ## 如何开始
 
@@ -126,11 +127,91 @@
 ## **已知注意事项**
 
 1. 如果你要使用覆层(仅Windows可用)，要注意渲染器的设置。
+2. 关于安卓导出: 目前仅使用 EOS Android SDK 1.16.1 测试通过，如果要进行安卓导出，注意下载的SDK版本应该对应。
+
+## 安卓导出
+
+1. 从[Epic开发者门户](https://dev.epicgames.com/portal)下载 EOS Android SDK 1.16.1，解压并将其中的`SDK`文件夹置于`thirdparty/eos-sdk`目录下，并进行安卓编译：
+
+   ```shell
+   scons platform=android target=tempalte_debug ANDROID_HOME="path/to/your/android/sdk"
+   scons platform=android target=tempalte_release ANDROID_HOME="path/to/your/android/sdk"
+   ```
+
+    并将编译好的插件拷贝到你的工程中。
+2. 根据[Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html)，在`res://android/build`生成你的安卓项目。
+3. 遵循[Epic在线服务的文档](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project)配置你的安卓工程。
+   1. 将 EOS Android SDK 中的 `SDK/Bin/Android/static-stdc++/aar/eos-sdk.aar` 以 `implementation` 形式作为依赖添加到你的项目中。
+   2. 将 EOS Android SDK 需要的其他依赖添加到 `build.gradle` 中.
+    最终你的`build.gradle`文件`dependencies`小节将像这样:
+
+        ```gradle
+        dependencies {
+            // Other dependencies...
+
+            // EOS dependencies...
+            implementation files('path\\to\\static-stdc++\\aar\\eos-sdk.aar')
+            implementation 'androidx.appcompat:appcompat:1.0.0'
+            implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+            implementation 'androidx.security:security-crypto:1.0.0'
+            implementation 'androidx.browser:browser:1.0.0'
+        }
+        ```
+
+   3. 将你的应用在Epic开发者门户上的 ClientId 添加到配置中:
+       1. 遵循Epic的文档添加到`string.xml`中。
+       2. **或者**添加到`build.gradle`的`android`中的`defaultConfig`小节：
+
+            ```gradle
+            android {
+                ... other code
+
+                defaultConfig {
+                    ... other code
+                
+                    // This is needed by EOS Android SDK
+                    String ClientId = "PUT YOUR EOS CLIENT ID HERE"
+                    resValue("string", "eos_login_protocol_scheme", "eos." + ClientId.toLowerCase())
+                }
+            }
+            ```
+
+   4. 根据 EOS Android SDK 的要求，在 `config.gradle` 中将 `minSdk` 改为`23`或以上。
+   5. 修改`src/com/godot/game/GodotGame.java`:
+      1. 加载`EOSSDK`库。
+      2. 使用初始化`EOSSDK`。
+        最终该文件将如下所示：
+
+        ```java
+        package com.godot.game;
+
+        import com.epicgames.mobile.eossdk.EOSSDK;     // added
+        import org.godotengine.godot.GodotActivity;
+
+        import android.os.Bundle;
+
+        public class GodotApp extends GodotActivity {
+            static {                                   // added
+                System.loadLibrary("EOSSDK");          // added
+            }                                          // added
+        
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+                EOSSDK.init(getApplicationContext());  // added
+
+                setTheme(R.style.GodotAppMainTheme);
+                super.onCreate(savedInstanceState);
+                }
+            }
+        ```
+
+4. 在你的Godot工程中添加Android导出预设，确保在`Gradle构建`中开启`Use Gradle Build`，并将`最小SDK`同步为你在`config.gradle`中设置的`minSdk`。在`权限`中开启必要的权限:
+`ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` 以及 `INTERNET`，并填写其他必要信息。
+1. 现在，你应该能够正常进行安卓导出。
 
 ## **注意**
 
-该仓库缺乏测试，请不要用于你的发布项目中。
-尤其是安卓构建，它可能完全不起作用。
+该仓库仍未文档，接口命名可能在后续版本中发生更改。
 
 ## TODO
 
