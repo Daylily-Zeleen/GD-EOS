@@ -2723,13 +2723,15 @@ def _get_enum_owned_interface(ori_enum_type: str) -> str:
     print("ERROR UNSUPPORT ENUM !:", ori_enum_type)
     exit(1)
 
+def _is_reserved_field(field: str, type:str) -> bool:
+    return field == "Reserved" and type == "void*"
 
 def is_deprecated_field(field: str) -> bool:
     return (
         field.endswith("_DEPRECATED")
         or field
         in [
-            "Reserved",  # SDK要求保留
+            # "Reserved",  # SDK要求保留
             "SystemSpecificOptions",  # 内部处理
         ]
         or field
@@ -3477,6 +3479,8 @@ def _gen_struct(
             continue
         if _is_system_initialize_options_filed(field, type):
             continue
+        if _is_reserved_field(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3573,6 +3577,8 @@ def _gen_struct(
             continue
         if _is_system_initialize_options_filed(field, type):
             continue
+        if _is_reserved_field(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3651,6 +3657,8 @@ def _gen_struct(
             continue
         if _is_system_initialize_options_filed(field, type):
             continue
+        if _is_reserved_field(field, type):
+            continue
         if _is_client_data_field(type, field):
             continue  # 暴露的结构体不再含有 ClientData 字段
 
@@ -3714,7 +3722,10 @@ def _gen_struct(
             if _is_platform_specific_options_field(field):
                 print("ERROR:", field)
                 exit(1)
-            if _is_system_initialize_options_filed(field, field_type):
+            elif _is_system_initialize_options_filed(field, field_type):
+                print("ERROR:", field)
+                exit(1)
+            elif _is_reserved_field(field, field_type):
                 print("ERROR:", field)
                 exit(1)
             elif _is_nullable_float_pointer_field(field_type, field):
@@ -3761,6 +3772,8 @@ def _gen_struct(
         r_structs_cpp.append("}")
     if addtional_methods_requirements["set_to"]:
         r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
+        # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
+        
         for field in fields.keys():
             field_type = fields[field]
             snake_field_name = to_snake_case(field)
@@ -3797,6 +3810,8 @@ def _gen_struct(
                     elif _is_socket_id_type(_decay_eos_type(field_type), field):
                         r_structs_cpp.append(f"\t{snake_field_name}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
                         r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
+                    elif _is_reserved_field(field, field_type):
+                        r_structs_cpp.append(f"\tp_data.{field} = nullptr;")
                     elif _is_str_type(field_type, field):
                         if field.startswith("SocketName"):
                             print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
