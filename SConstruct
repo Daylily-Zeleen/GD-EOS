@@ -89,8 +89,11 @@ elif env["platform"] == "android":
     elif env["arch"] == "arm32":
         eos_android_arch = "armeabi-v7a"
 
-    env.Append(LIBPATH=[eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"])
-    env.Append(LIBS=["EOSSDK"])
+    # 1.16.1 需要链接对应的 so
+    lib_dir = eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"
+    if os.path.exists(lib_dir):
+        env.Append(LIBPATH=[eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"])
+        env.Append(LIBS=["EOSSDK"])
 
 
 # 输出
@@ -166,7 +169,7 @@ def on_complete(target, source, env):
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
 
     # elif platform == "android":
-    #     copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{arch}/libEOSSDK.so")
+    #     copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/libEOSSDK.so")
 
     # 更新.gdextension中的版本信息
     update_extension_version()
