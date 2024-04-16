@@ -20,6 +20,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 - EOS-SDK-32273396-v1.16.2
 - EOS-SDK-27379709-v1.16.1
+- EOS-SDK-Android-27379709-v1.16.1
 
 ## How to start
 
@@ -110,7 +111,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
     - For debug build:
 
         ``` shell
-            scons platform=windows target=template_debug dev_build=yes
+            scons platform=windows target=template_debug debug_symbols=yes
         ```
 
     - For release build:
@@ -120,12 +121,96 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         ```
 
     More detail of compile commands, please refer to godot-cpp's compile system.
+    **If you change the output library name by using compile options, please modify "demo/addons/gd-eos/gdeos.gdextension" to fit your library name.**
 5. Last, you can get the compiled addon which is localed at "demo/addons/gd-eos/".
+
+## **Known issues**
+
+1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
+2. About Android exporting: only testing with EOS Android SDK 1.16.1.
+
+## Exporting for Android
+
+1. Download "EOS Android SDK 1.16.1" from [Epic Developer Portal](https://dev.epicgames.com/portal), unzip it and put its `SDK` folder under the `thirdparty/eos-sdk` directory, then compile this plugin:
+
+    ```shell
+    scons platform=android target=tempalte_debug ANDROID_HOME="path/to/your/android/sdk"
+    scons platform=android target=tempalte_release ANDROID_HOME="path/to/your/android/sdk"
+    ```
+
+    After compiling, copy the plugin to your Godot Project.
+2. Follow the tutorial [Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html), generate an android project at `res://android/build`.
+3. Configurate your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
+   1. Add `SDK/Bin/Android/static-stdc++/aar/eos-sdk.aar`, assign its configuration as `implementation`, as dependency to your andoird project.
+   2. Add other dependencies which requeired by "EOS Andoird SDK".
+        At last, the `dependencies` section in `build.gradle` file will like this:
+
+        ```gradle
+        dependencies {
+            // Other dependencies...
+
+            // EOS dependencies...
+            implementation files('path\\to\\static-stdc++\\aar\\eos-sdk.aar')
+            implementation 'androidx.appcompat:appcompat:1.0.0'
+            implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+            implementation 'androidx.security:security-crypto:1.0.0'
+            implementation 'androidx.browser:browser:1.0.0'
+        }
+        ```
+
+   3. Add your "ClientId" of your Product to android configuration:
+       1. Follow the Epic Document, add it to `string.xml`.
+       2. **Or** add it to the sub section `defaultConfig` of the sections `android` in `build.gradle` file:
+
+            ```gradle
+            android {
+                ... other code
+
+                defaultConfig {
+                    ... other code
+                
+                    // This is needed by EOS Android SDK
+                    String ClientId = "PUT YOUR EOS CLIENT ID HERE"
+                    resValue("string", "eos_login_protocol_scheme", "eos." + ClientId.toLowerCase())
+                }
+            }
+            ```
+
+   4. According to the requirement of "EOS Android SDK", update the `minSdk` to `23`.
+   5. Modify `src/com/godot/game/GodotGame.java`:
+      1. Load `EOSSDK` library.
+      2. Initialize `EOSSDK`.
+        At last, it will like this:
+
+        ```java
+        package com.godot.game;
+
+        import com.epicgames.mobile.eossdk.EOSSDK;     // added
+        import org.godotengine.godot.GodotActivity;
+
+        import android.os.Bundle;
+
+        public class GodotApp extends GodotActivity {
+            static {                                   // added
+                System.loadLibrary("EOSSDK");          // added
+            }                                          // added
+        
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+                EOSSDK.init(getApplicationContext());  // added
+
+                setTheme(R.style.GodotAppMainTheme);
+                super.onCreate(savedInstanceState);
+                }
+            }
+        ```
+
+4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other infomations if needs.
+5. You can export Android APK if there have not problem.
 
 ## **Cautious**
 
-This repo is lack of testing. Don't use this for your release project.
-Expacially andriod build, it may not work at all.
+This repo is lack of testing. The name of Apis may be changed in later version.
 
 ## TODO
 
