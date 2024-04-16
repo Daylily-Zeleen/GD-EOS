@@ -207,11 +207,11 @@
 
 4. 在你的Godot工程中添加Android导出预设，确保在`Gradle构建`中开启`Use Gradle Build`，并将`最小SDK`同步为你在`config.gradle`中设置的`minSdk`。在`权限`中开启必要的权限:
 `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` 以及 `INTERNET`，并填写其他必要信息。
-1. 现在，你应该能够正常进行安卓导出。
+5. 现在，你应该能够正常进行安卓导出。
 
 ## **注意**
 
-该仓库仍未文档，接口命名可能在后续版本中发生更改。
+该仓库仍未稳定，接口命名可能在后续版本中发生改变。
 
 ## TODO
 
