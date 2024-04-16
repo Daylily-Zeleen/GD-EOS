@@ -205,7 +205,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             }
         ```
 
-4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` 以及 `INTERNET`. Fill other infomations if needs.
+4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other infomations if needs.
 5. You can export Android APK if there have not problem.
 
 ## **Cautious**
