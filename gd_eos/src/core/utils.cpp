@@ -45,22 +45,36 @@ void setup_eos_project_settings() {
 
 void *get_platform_specific_options() {
 #if defined(_WIN32) || defined(_WIN64)
-    static EOS_Windows_RTCOptions windowsRTCOptions;
-    memset(&windowsRTCOptions, 0, sizeof(windowsRTCOptions));
-    windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
+    static struct Wrapper {
+        EOS_Windows_RTCOptions windowsRTCOptions{};
+
+        void set_XAudio29DllPath(const String &p_XAudio29DllPath) {
+            XAudio29DllPath = {};
+            windowsRTCOptions.XAudio29DllPath = nullptr;
+            if (!p_XAudio29DllPath.is_empty()) {
+                XAudio29DllPath = p_XAudio29DllPath.utf8();
+                windowsRTCOptions.XAudio29DllPath = XAudio29DllPath.get_data();
+            }
+        }
+
+    private:
+        CharString XAudio29DllPath{};
+    } wrapper{};
+
+    wrapper.windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
+    String xAudio29DllPath;
     if (OS::get_singleton()->has_feature("editor")) {
         String bin_path = "res://addons/gd_eos/bin/";
 #if defined(_WIN32)
-        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x86").path_join("xaudio2_9redist.dll")).utf8();
+        xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x86").path_join("xaudio2_9redist.dll"));
 #else // defined(_WIN64)
-        CharString xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x64").path_join("xaudio2_9redist.dll")).utf8();
+        xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x64").path_join("xaudio2_9redist.dll"));
 #endif
-        windowsRTCOptions.XAudio29DllPath = xAudio29DllPath.get_data();
     } else {
-        String bin_path = OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll");
-        windowsRTCOptions.XAudio29DllPath = bin_path.is_empty() ? nullptr : bin_path.get_data();
+        xAudio29DllPath = OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll");
     }
-    return &windowsRTCOptions;
+    wrapper.set_XAudio29DllPath(xAudio29DllPath);
+    return &wrapper.windowsRTCOptions;
 #else
     return nullptr;
 #endif
@@ -68,7 +82,29 @@ void *get_platform_specific_options() {
 
 void *get_system_initialize_options() {
 #if defined(__ANDROID__)
-    static EOS_Android_InitializeOptions androidInitializeOptions;
+    static struct Wrapper {
+        EOS_Android_InitializeOptions androidInitializeOptions{};
+        void set_InternalDirectory(const String &p_internal_directory) {
+            androidInitializeOptions.OptionalInternalDirectory = nullptr;
+            InternalDirectory = {};
+            if (!p_internal_directory.is_empty()) {
+                InternalDirectory = p_internal_directory.utf8();
+                androidInitializeOptions.OptionalInternalDirectory = InternalDirectory.get_data();
+            }
+        }
+        void set_ExternalDirectory(const String &p_external_directory) {
+            androidInitializeOptions.OptionalExternalDirectory = nullptr;
+            ExternalDirectory = {};
+            if (!p_external_directory.is_empty()) {
+                ExternalDirectory = p_external_directory.utf8();
+                androidInitializeOptions.OptionalExternalDirectory = ExternalDirectory.get_data();
+            }
+        }
+
+    private:
+        CharString InternalDirectory{};
+        CharString ExternalDirectory{};
+    } wrapper{};
 
     String internal_dir{};
     String external_dir{};
@@ -79,7 +115,7 @@ void *get_system_initialize_options() {
         internal_var = ProjectSettings::get_singleton()->get_setting_with_override(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY);
     }
     if (ProjectSettings::get_singleton()->has_setting(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY)) {
-        Variant external_var = ProjectSettings::get_singleton()->get_setting_with_override(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY);
+        external_var = ProjectSettings::get_singleton()->get_setting_with_override(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY);
     }
 
     if (internal_var.get_type() == Variant::STRING) {
@@ -122,11 +158,11 @@ void *get_system_initialize_options() {
         internal_dir = ProjectSettings::get_singleton()->globalize_path(OS::get_singleton()->get_user_data_dir());
     }
 
-    androidInitializeOptions.ApiVersion = EOS_ANDROID_INITIALIZEOPTIONS_API_LATEST;
-    androidInitializeOptions.Reserved = nullptr;
-    androidInitializeOptions.OptionalInternalDirectory = internal_dir.is_empty() ? nullptr : internal_dir.utf8().get_data();
-    androidInitializeOptions.OptionalExternalDirectory = external_dir.is_empty() ? nullptr : external_dir.utf8().get_data();
-    return &androidInitializeOptions;
+    wrapper.androidInitializeOptions.ApiVersion = EOS_ANDROID_INITIALIZEOPTIONS_API_LATEST;
+    wrapper.androidInitializeOptions.Reserved = nullptr;
+    wrapper.set_InternalDirectory(internal_dir);
+    wrapper.set_ExternalDirectory(external_dir);
+    return &wrapper.androidInitializeOptions;
 #else
     return nullptr;
 #endif
