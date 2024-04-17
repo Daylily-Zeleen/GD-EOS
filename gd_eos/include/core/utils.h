@@ -253,7 +253,10 @@ template <>
 CharString to_godot_type(const cstr_t p_from) { return { p_from }; }
 template <>
 cstr_t to_eos_type<const CharString &, cstr_t>(const CharString &p_from) {
-    return p_from.size() == 1 ? nullptr : (char *)p_from.ptr();
+    if (p_from.size() == 0 || p_from.get(0) == 0) {
+        return nullptr;
+    }
+    return (char *)p_from.ptr();
 }
 template <>
 cstr_t to_eos_type<CharString, cstr_t>(CharString p_from) {

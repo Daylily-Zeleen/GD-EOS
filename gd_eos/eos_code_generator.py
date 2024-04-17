@@ -2004,7 +2004,7 @@ def __expend_input_struct(
         elif _is_str_type(field_type, field):
             r_declare_args.append(f"const String &p_{snake_field}")
             r_prepare_lines.append(f"\tCharString utf8_{snake_field} = p_{snake_field}.utf8();")
-            r_prepare_lines.append(f"\t{options_field} = to_eos_type<const char *, decltype({options_field})>(utf8_{snake_field});")
+            r_prepare_lines.append(f"\t{options_field} = to_eos_type<const CharString &, decltype({options_field})>(utf8_{snake_field});")
         elif _is_str_arr_type(field_type, field):
             r_declare_args.append(f"const PackedStringArray &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
