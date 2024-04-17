@@ -179,7 +179,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             ```
 
    4. According to the requirement of "EOS Android SDK", update the `minSdk` to `23`.
-   5. Modify `src/com/godot/game/GodotGame.java`:
+   5. Modify `src/com/godot/game/GodotApp.java`:
       1. Load `EOSSDK` library.
       2. Initialize `EOSSDK`.
         At last, it will like this:

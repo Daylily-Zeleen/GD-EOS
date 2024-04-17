@@ -179,7 +179,7 @@
             ```
 
    4. 根据 EOS Android SDK 的要求，在 `config.gradle` 中将 `minSdk` 改为`23`或以上。
-   5. 修改`src/com/godot/game/GodotGame.java`:
+   5. 修改`src/com/godot/game/GodotApp.java`:
       1. 加载`EOSSDK`库。
       2. 使用初始化`EOSSDK`。
         最终该文件将如下所示：
