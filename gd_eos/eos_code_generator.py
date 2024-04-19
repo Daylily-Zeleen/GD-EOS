@@ -2158,6 +2158,7 @@ def __make_packed_result(
             initialize_vlaue = "0"
             if args[i + 1]["name"].startswith("InOut"):
                 initialize_vlaue = f"{__get_str_result_max_length_macro(method_name)} + 1"
+
             r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]}{{ {initialize_vlaue} }};')
 
             r_call_args.append(f"&{arg_name}[0]")
@@ -2466,6 +2467,11 @@ def _gen_method(
             declare_args.append(f"const {remap_type(decayed_type, name)} &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"p_{snake_name}.is_valid()? p_{snake_name}->get_handle() : nullptr")
+        elif name.endswith("StringBufferSizeBytes"):
+            # xxxGetFilname 的字符串 buffer 长度不是使用 InOut 来传入缓冲区大小并传出缓冲区被使用的大小，
+            # 而是使用 Out 进行传出 + xxxStringBufferSizeBytes 来传入缓冲区大小
+            prepare_lines.append(f"\t{type} {name} = {__get_str_result_max_length_macro(method_name)} + 1;")
+            call_args.append(name)
         else:
             # 普通参数
             declare_args.append(f"gd_arg_t<{remap_type(type, name)}> p_{snake_name}")
