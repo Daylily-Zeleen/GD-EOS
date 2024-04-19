@@ -3623,6 +3623,29 @@ def _gen_struct_v2(
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remaped_type} {snake_field_name}{{}};")
 
+    # 对某些类型进行特殊处理
+    if struct_type == "EOS_PlayerDataStorage_WriteFileDataCallbackInfo":
+        # GDExtension 的数组与 godot 之间不是引用传递，无法以out参数将data_buffer传递给回调,
+        # 因此为回调信息添加一个 out_data_buffer 字段作为输出- 2024.4.20
+        member_lines.append(f"\tPackedByteArray out_data_buffer{{}};")
+        setget_declare_lines.append(f"\t_DECLARE_SETGET(out_data_buffer)")
+        setget_define_lines.append(f"_DEFINE_SETGET({typename}, out_data_buffer)")
+        bind_lines.append(f"\t_BIND_PROP(out_data_buffer)")
+
+    if struct_type in ["EOS_Lobby_AttributeData", "EOS_Sessions_AttributeData"]:
+        # 为这两个类提供make方法
+        setget_declare_lines.append("")
+        setget_declare_lines.append(f"\tstatic Ref<{typename}> make(const String& p_key, const Variant& p_value);")
+        setget_define_lines.append("")
+        setget_define_lines.append(f"Ref<{typename}> {typename}::make(const String& p_key, const Variant& p_value) {{")
+        setget_define_lines.append(f"\tRef<{typename}> ret; ret.instantiate();")
+        setget_define_lines.append("\tret->set_key(p_key);")
+        setget_define_lines.append("\tret->set_value(p_value);")
+        setget_define_lines.append("\treturn ret;")
+        setget_define_lines.append("}")
+        bind_lines.append("")
+        bind_lines.append(f'\tClassDB::bind_static_method(get_class_static(), D_METHOD("make", "key", "value"), &{typename}::make);')
+
     # h
     lines: list[str] = [""]
     lines.append(f"class {typename}: public EOSDataClass {{")
@@ -3910,6 +3933,8 @@ def _gen_struct_v2(
 
         for line in optional_cpp_lines:
             r_structs_cpp.insert(insert_idx, line)
+
+
     return lines
 
 

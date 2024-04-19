@@ -46,14 +46,17 @@ EOS_PlayerDataStorage_EWriteResult write_file_data_callback(const EOSCallbackInf
     ERR_FAIL_COND_V(!file_transfer_data->operation_callback.is_valid(), EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest);
 
     auto data = GDCallbackInfoTy::from_eos(*p_data);
-    PackedByteArray out_data_buffer;
-    Variant res = file_transfer_data->operation_callback.call(data, out_data_buffer);
+    Variant res = file_transfer_data->operation_callback.call(data);
     ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 4, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest, "Write file data callback shoul return a Value of PlayerDataStorage.WriteResult.");
 
     EOS_PlayerDataStorage_EWriteResult write_result = (EOS_PlayerDataStorage_EWriteResult)(res.operator int32_t());
     if (write_result == EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest || write_result == EOS_PlayerDataStorage_EWriteResult::EOS_WR_CancelRequest) {
         return write_result;
     }
+
+    PackedByteArray out_data_buffer = data->get_out_data_buffer();
+    ERR_FAIL_COND_V_MSG(out_data_buffer.size() > p_data->DataBufferLengthBytes, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest, "The out data buffer is too large.");
+    ERR_FAIL_COND_V_MSG(out_data_buffer.size() <= 0 && write_result == EOS_PlayerDataStorage_EWriteResult::EOS_WR_ContinueWriting, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest, "The out data buffer is empty.");
 
     ERR_FAIL_COND_V(out_data_buffer.size() > p_data->DataBufferLengthBytes, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest);
     memcpy(r_data_buffer, out_data_buffer.ptr(), out_data_buffer.size());
