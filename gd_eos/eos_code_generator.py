@@ -1717,6 +1717,13 @@ def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
     ret = ret.removesuffix("_callback")
     if "AddNotify" in method_name:
         ret = ret.removeprefix("on_")
+    elif callback_type in [
+        # 对传输完成信号名进行特殊处理
+        "EOS_PlayerDataStorage_OnWriteFileCompleteCallback",
+        "EOS_PlayerDataStorage_OnReadFileCompleteCallback",
+        "EOS_TitleStorage_OnReadFileCompleteCallback",
+    ]:
+        ret = ret.removeprefix("on_") + "d"
     return ret
 
 
@@ -2723,8 +2730,10 @@ def _get_enum_owned_interface(ori_enum_type: str) -> str:
     print("ERROR UNSUPPORT ENUM !:", ori_enum_type)
     exit(1)
 
-def _is_reserved_field(field: str, type:str) -> bool:
+
+def _is_reserved_field(field: str, type: str) -> bool:
     return field == "Reserved" and type == "void*"
+
 
 def is_deprecated_field(field: str) -> bool:
     return (
@@ -3376,7 +3385,7 @@ def _find_count_field(field: str, fields: list[str]) -> str:
 def _is_todo_field(type: str, field: str) -> bool:
     # TODO：暂未实现的字段
     # type: [field1, field2, ...]
-    map = {    }
+    map = {}
     return type in map and field in map[type]
 
 
@@ -3773,7 +3782,7 @@ def _gen_struct(
     if addtional_methods_requirements["set_to"]:
         r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
         # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
-        
+
         for field in fields.keys():
             field_type = fields[field]
             snake_field_name = to_snake_case(field)
