@@ -615,8 +615,8 @@ inline String eos_union_account_id_to_string(const EOSUnion &p_union, EOS_EMetri
 }
 
 template <typename FromGD, typename ToUnion, typename UnionTy, std::enable_if_t<!std::is_same_v<std::decay_t<UnionTy>, EOS_EMetricsAccountIdType>> *_dummy = nullptr>
-void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy &p_union_type, CharString &r_str_cache) {
-    variant_to_eos_union(p_from, p_union, p_union_type, r_str_cache);
+void to_eos_data_union(const FromGD &p_from, ToUnion &p_union, UnionTy &r_union_type, CharString &r_str_cache) {
+    variant_to_eos_union(p_from, p_union, r_union_type, r_str_cache);
 }
 
 template <typename ToUnion>
@@ -684,12 +684,15 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     gd_field = (decltype(gd_field))eos_field
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
     static_assert(false, "不该发生")
-#define _FROM_EOS_FIELD_UNION(gd_field, eos_field)                                                      \
+
+#define _FROM_EOS_FIELD_VARIANT_UNION(gd_field, eos_field) \
+    gd_field = to_godot_data_union(eos_field, eos_field##Type);
+
+#define _FROM_EOS_FIELD_METRICS_ACCOUNT_ID_UNION(gd_field, eos_field)                                   \
     if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<decltype(eos_field##Type)>>) { \
         gd_field = to_godot_data_union(eos_field, eos_field##Type);                                     \
         gd_field##_type = eos_field##Type;                                                              \
     } else {                                                                                            \
-        gd_field = to_godot_data_union(eos_field, eos_field##Type);                                     \
     }
 
 #define _TO_EOS_FIELD(eos_field, gd_field) \
@@ -763,14 +766,15 @@ inline void _conver_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Local
     eos_field = (void *)gd_field
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
     eos_field = to_eos_requested_channel(gd_field)
-#define _TO_EOS_FIELD_UNION(eos_field, gd_field)                                                        \
-    CharString cache_##gd_field;                                                                        \
-    if constexpr (std::is_same_v<EOS_EMetricsAccountIdType, std::decay_t<decltype(eos_field##Type)>>) { \
-        to_eos_data_union(gd_field, eos_field, gd_field##_type, cache_##gd_field);                      \
-        eos_field##Type = gd_field##_type;                                                              \
-    } else {                                                                                            \
-        to_eos_data_union(gd_field, eos_field, eos_field##Type, cache_##gd_field);                      \
-    }
+
+#define _TO_EOS_FIELD_VARIANT_UNION(eos_field, gd_field) \
+    CharString cache_##gd_field;                         \
+    to_eos_data_union(gd_field, eos_field, eos_field##Type, cache_##gd_field);
+
+#define _TO_EOS_FIELD_METRICS_ACCOUNT_ID_UNION(eos_field, gd_field)            \
+    CharString cache_##gd_field;                                               \
+    to_eos_data_union(gd_field, eos_field, gd_field##_type, cache_##gd_field); \
+    eos_field##Type = gd_field##_type;
 
 // 绑定
 #define _MAKE_PROP_INFO(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
