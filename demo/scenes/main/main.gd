@@ -188,7 +188,7 @@ func _create_lobby_async() -> void:
 
 	_entered_lobby_id = create_result.lobby_id
 
-	# Initialize lobby info, we use "started" to sreach lobbies.
+	# Initialize lobby info, we use "STARTE" to sreach lobbies.
 	var ulmr := EOSLobby.update_lobby_modification(_product_user_id, _entered_lobby_id)
 	if ulmr.result_code != EOS.Success:
 		printerr("== Update lobby modification failed: ", EOS.result_to_string(ulmr.result_code))
@@ -197,7 +197,7 @@ func _create_lobby_async() -> void:
 	var lobby_modification := ulmr.lobby_modification
 
 	var parameter := EOSLobby_AttributeData.new()
-	parameter.key = "started"
+	parameter.key = "STARTE"
 	parameter.value = false
 	var add_attribute_result = lobby_modification.add_attribute(parameter, EOSLobby.LAT_PUBLIC)
 	if add_attribute_result != EOS.Success:
@@ -224,7 +224,7 @@ func _refresh_lobbies_list_async() -> void:
 	var lobby_search: EOSLobbySearch = clsr.lobby_search
 	# Ignore strated lobbies.
 	var parameter := EOSLobby_AttributeData.new()
-	parameter.key = "started"
+	parameter.key = "STARTE"
 	parameter.value = false
 	lobby_search.set_parameter(parameter, EOS.CO_EQUAL)
 

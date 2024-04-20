@@ -128,7 +128,8 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
 2. About Android exporting: only testing with "EOS Android SDK 1.16.1".
-3. Some Apis in `1.16.1` will lead to crash by the bug of SDK itself:
+3. `XxxAttributeData.Key` will be converted to upper case when transfering to remote peer, you should not use lower charactors in your key.
+4. Some Apis in `1.16.1` will lead to crash by the bug of SDK itself:
    1. `EOSUserInfoInterface.copy_best_display_name()` -> `EOS_UserInfo_CopyBestDisplayName()`
 
 ## Exporting for Android

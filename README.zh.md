@@ -128,7 +128,8 @@
 
 1. 如果你要使用覆层(仅Windows可用)，要注意渲染器的设置。
 2. 关于安卓导出: 目前仅使用 "EOS Android SDK 1.16.1" 测试通过，如果要进行安卓导出，注意下载的SDK版本应该对应。
-3. 某些`1.16.1`版本的接口会由于SDK本身的bug导致程序奔溃:
+3. `XxxAttributeData` 的 `Key` 字段传输到远端时会被转为大写，因此你不应该使用小写字符作为键。
+4. 某些`1.16.1`版本的接口会由于SDK本身的bug导致程序奔溃:
    1. `EOSUserInfoInterface.copy_best_display_name()` -> `EOS_UserInfo_CopyBestDisplayName()`
 
 ## 安卓导出
