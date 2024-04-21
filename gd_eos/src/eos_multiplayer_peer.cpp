@@ -83,6 +83,9 @@ void EOSMultiplayerPeer::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_all_peers"), &EOSMultiplayerPeer::get_all_peers);
     ClassDB::bind_method(D_METHOD("get_peer_user_id", "peer_id"), &EOSMultiplayerPeer::get_peer_user_id);
 
+    ClassDB::bind_method(D_METHOD("find_user_id", "peer_unique_id"), &EOSMultiplayerPeer::find_user_id);
+    ClassDB::bind_method(D_METHOD("find_unique_id", "product_user_id"), &EOSMultiplayerPeer::find_unique_id);
+
     ClassDB::bind_method(D_METHOD("is_auto_accepting_connection_requests"), &EOSMultiplayerPeer::is_auto_accepting_connection_requests);
     ClassDB::bind_method(D_METHOD("set_auto_accept_connection_requests", "enable"), &EOSMultiplayerPeer::set_auto_accept_connection_requests);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "auto_accepting_connection_requests"), "set_auto_accept_connection_requests", "is_auto_accepting_connection_requests");
@@ -296,6 +299,19 @@ Ref<EOSProductUserId> EOSMultiplayerPeer::get_peer_user_id(uint32_t peer_id) {
     return ret;
 }
 
+/**
+ * @brief 查找用户id，与get_peer_user_id相似，但查找范围包含本地的peer
+ *
+ * @param p_peer_unique_id
+ * @return Ref<EOSProductUserId>
+ */
+Ref<EOSProductUserId> EOSMultiplayerPeer::find_user_id(uint32_t p_peer_unique_id) {
+    if (p_peer_unique_id == unique_id) {
+        return local_user_id_wrapped;
+    }
+    return get_peer_user_id(p_peer_unique_id);
+}
+
 /****************************************
  * get_peer_id
  * Parameters:
@@ -311,13 +327,28 @@ uint32_t EOSMultiplayerPeer::_get_peer_id(EOS_ProductUserId remote_user_id) {
     }
     return 0;
 }
+
 uint32_t EOSMultiplayerPeer::get_peer_id(const Ref<EOSProductUserId> &remote_user_id) {
     ERR_FAIL_NULL_V(remote_user_id, 0);
     return _get_peer_id(remote_user_id->get_handle());
 }
 
+/**
+ * @brief 查找Peer的unique id，与get_peer_id类似，但查找范围包括本地的peer.
+ *
+ * @param p_product_user_id
+ * @return uint32_t
+ */
+uint32_t EOSMultiplayerPeer::find_unique_id(const Ref<EOSProductUserId> &p_product_user_id) {
+    ERR_FAIL_NULL_V(p_product_user_id, 0);
+    if (p_product_user_id->get_handle() == local_user_id) {
+        return unique_id;
+    }
+    return _get_peer_id(p_product_user_id->get_handle());
+}
+
 /****************************************
- * get_peer_id
+ * has_peer
  * Parameters:
  *   peer_id - The peer id of the peer to find.
  * Description: Returns whether or not this multiplayer instance has the given

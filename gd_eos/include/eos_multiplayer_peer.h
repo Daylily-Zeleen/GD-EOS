@@ -269,6 +269,8 @@ public:
     TypedArray<EOSProductUserId> get_all_connection_requests();
     Ref<EOSProductUserId> get_peer_user_id(uint32_t peer_id);
     uint32_t get_peer_id(const Ref<EOSProductUserId> &remote_user_id);
+    Ref<EOSProductUserId> find_user_id(uint32_t p_peer_unique_id);
+    uint32_t find_unique_id(const Ref<EOSProductUserId> &p_product_user_id);
     bool has_peer(uint32_t peer_id);
     bool has_user_id(const Ref<EOSProductUserId> &remote_user_id);
     Dictionary get_all_peers();
