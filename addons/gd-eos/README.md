@@ -127,7 +127,10 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 ## **Known issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
-2. About Android exporting: only testing with EOS Android SDK 1.16.1.
+2. About Android exporting: only testing with "EOS Android SDK 1.16.1".
+3. `XxxAttributeData.Key` will be converted to upper case when transfering to remote peer, you should not use lower charactors in your key.
+4. Some Apis in `1.16.1` will lead to crash by the bug of SDK itself:
+   1. `EOSUserInfoInterface.copy_best_display_name()` -> `EOS_UserInfo_CopyBestDisplayName()`
 
 ## Exporting for Android
 
@@ -177,7 +180,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             ```
 
    4. According to the requirement of "EOS Android SDK", update the `minSdk` to `23`.
-   5. Modify `src/com/godot/game/GodotGame.java`:
+   5. Modify `src/com/godot/game/GodotApp.java`:
       1. Load `EOSSDK` library.
       2. Initialize `EOSSDK`.
         At last, it will like this:
