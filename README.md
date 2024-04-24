@@ -93,7 +93,10 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 3. Prepare two Epic accounts; or use one Epic Account and use two login way at the same time which describe below.
 4. Run project with two instances to login:
    1. Set "External Credential Type" to "EPIC":
-        i. Set "Login Credential Type" to "AccountPortal", keep "Id" and "Token" empty, click "Login" button an jump to external browser to request authentification.
+        i. Set "Login Credential Type" to "AccountPortal"：
+            1. You should ensure your EPIC Account is added to your organization member, and hava a approprite role.
+            2. The permissions of your application in Epic Account Services should enable "Basic Profile", "Online Presence", "Friend", **but "Country" should keep disabled**.
+            Keep "Id" and "Token" empty, click "Login" button an jump to external browser to request authentification.
         ii. Set "Login Credential Type" to "Developer"，you need to login your Epic Accounts with token in **DevAuthTool** which in the "Tools" folder of EOS SDK.
         - Set "Id" to the address of **DevAuthTool**，for example: `localhost:8081`
         - Set "Token" to the token of your account which is defined in **DevAuthTool**.

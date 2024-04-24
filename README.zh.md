@@ -93,7 +93,10 @@
 3. 准备两个 Epic 账号；或者使用一个 Epic 账号并同时使用下述的两种登陆方式。
 4. 运行项目，启动两个实例，进行登陆。
    1. External Credential Type 使用 EPIC:
-        i. Login Credential Type 使用 AccountPortal 方式进行登陆，不需要填写 Id 与 Token，直接登陆将跳转网页端请求登陆。
+        i. Login Credential Type 使用 AccountPortal 方式进行登陆:
+            1. 要登陆的epic账号需要添加到你的开发者门户的组织里并赋予了一个合适的角色。
+            2. EPIC账号服务开启的许可需要有"Basic Profile", "Online Presence", "Friend", **注意"Country"必须保持禁用**。
+            不需要填写 Id 与 Token，直接登陆将跳转网页端请求登陆。
         ii. Login Credential Type 使用 Developer 进行登陆，你需要使用 EOS SDK 的 Tools 文件夹中的 DevAuthTool 登陆你的账号并添加Token。
         - Id 为 DevAuthTool 启动时绑定的本地址与端口，如 `localhost:8081`
         - Token 为你为你的账号设置的 Token。
