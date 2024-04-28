@@ -252,9 +252,7 @@ Error EOSMultiplayerPeer::add_mesh_peer(const Ref<EOSProductUserId> &remote_user
     packet.set_sender_peer_id(unique_id);
     packet.prepare();
 
-    _send_to(remote_user_id->get_handle(), packet);
-
-    return OK;
+    return _send_to(remote_user_id->get_handle(), packet);
 }
 
 /****************************************
