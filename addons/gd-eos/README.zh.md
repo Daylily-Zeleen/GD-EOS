@@ -16,11 +16,16 @@
 
 这个项目花费了我大量时间和经历，如果该项目对你有用的话，请考虑为我[充电](https://afdian.net/a/Daylily-Zeleen)。
 
-## 可行的 EOS C SDK 版本
+## 测试过的 EOS SDK 版本
 
-- EOS-SDK-32273396-v1.16.2
-- EOS-SDK-27379709-v1.16.1
-- EOS-SDK-Android-27379709-v1.16.1(高版本的 Android SDK 未测试通过)
+- EOS-SDK-Android-32303053-v1.16.3
+- EOS-SDK-32303053-v1.16.3
+
+> 过时的
+>
+> - EOS-SDK-32273396-v1.16.2
+> - EOS-SDK-27379709-v1.16.1
+> - EOS-SDK-Android-27379709-v1.16.1
 
 ## 如何开始
 
@@ -93,7 +98,10 @@
 3. 准备两个 Epic 账号；或者使用一个 Epic 账号并同时使用下述的两种登陆方式。
 4. 运行项目，启动两个实例，进行登陆。
    1. External Credential Type 使用 EPIC:
-        i. Login Credential Type 使用 AccountPortal 方式进行登陆，不需要填写 Id 与 Token，直接登陆将跳转网页端请求登陆。
+        i. Login Credential Type 使用 AccountPortal 方式进行登陆:
+            1. 要登陆的epic账号需要添加到你的开发者门户的组织里并赋予了一个合适的角色。
+            2. EPIC账号服务开启的许可需要有"Basic Profile", "Online Presence", "Friend", **注意"Country"必须保持禁用**。
+            不需要填写 Id 与 Token，直接登陆将跳转网页端请求登陆。
         ii. Login Credential Type 使用 Developer 进行登陆，你需要使用 EOS SDK 的 Tools 文件夹中的 DevAuthTool 登陆你的账号并添加Token。
         - Id 为 DevAuthTool 启动时绑定的本地址与端口，如 `localhost:8081`
         - Token 为你为你的账号设置的 Token。
@@ -127,14 +135,13 @@
 ## **已知注意事项**
 
 1. 如果你要使用覆层(仅Windows可用)，要注意渲染器的设置。
-2. 关于安卓导出: 目前仅使用 "EOS Android SDK 1.16.1" 测试通过，如果要进行安卓导出，注意下载的SDK版本应该对应。
+2. 关于安卓导出，如果你使用预编译的二进制库，你需要在开发者门户上下载`EOS-SDK-Android-32303053-v1.16.3`(注意版本号)，以获取其中的aar包(再次说明，我没有二次分发的权利)。
 3. `XxxAttributeData` 的 `Key` 字段传输到远端时会被转为大写，因此你不应该使用小写字符作为键。
-4. 某些`1.16.1`版本的接口会由于SDK本身的bug导致程序奔溃:
-   1. `EOSUserInfoInterface.copy_best_display_name()` -> `EOS_UserInfo_CopyBestDisplayName()`
+4. 不建议使用1.16.1及以下的SDK（1.16.2修复了大量的bug）。
 
 ## 安卓导出
 
-1. 从[Epic开发者门户](https://dev.epicgames.com/portal)下载 EOS Android SDK 1.16.1，解压并将其中的`SDK`文件夹置于`thirdparty/eos-sdk`目录下，并进行安卓编译：
+1. 从[Epic开发者门户](https://dev.epicgames.com/portal)下载 EOS Android SDK 1.16.3（或1.16.2，但是建议不使用低版本），解压并将其中的`SDK`文件夹置于`thirdparty/eos-sdk`目录下，并进行安卓编译：
 
    ```shell
    scons platform=android target=tempalte_debug ANDROID_HOME="path/to/your/android/sdk"
@@ -144,7 +151,7 @@
     并将编译好的插件拷贝到你的工程中。
 2. 根据[Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html)，在`res://android/build`生成你的安卓项目。
 3. 遵循[Epic在线服务的文档](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project)配置你的安卓工程。
-   1. 将 EOS Android SDK 中的 `SDK/Bin/Android/static-stdc++/aar/eos-sdk.aar` 以 `implementation` 形式作为依赖添加到你的项目中。
+   1. 将 EOS Android SDK 中的 `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar` 以 `implementation` 形式作为依赖添加到你的项目中。
    2. 将 EOS Android SDK 需要的其他依赖添加到 `build.gradle` 中.
     最终你的`build.gradle`文件`dependencies`小节将像这样:
 
@@ -153,11 +160,11 @@
             // Other dependencies...
 
             // EOS dependencies...
-            implementation files('path\\to\\static-stdc++\\aar\\eos-sdk.aar')
-            implementation 'androidx.appcompat:appcompat:1.0.0'
-            implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+            implementation files('path\\to\\static-stdc++\\aar\\eossdk-StaticSTDC-release.aar')
+            implementation 'androidx.appcompat:appcompat:1.5.1'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
             implementation 'androidx.security:security-crypto:1.0.0'
-            implementation 'androidx.browser:browser:1.0.0'
+            implementation 'androidx.browser:browser:1.4.0'
         }
         ```
 
@@ -200,7 +207,7 @@
         
             @Override
             public void onCreate(Bundle savedInstanceState) {
-                EOSSDK.init(getApplicationContext());  // added
+                EOSSDK.init(getActivity());             // added
 
                 setTheme(R.style.GodotAppMainTheme);
                 super.onCreate(savedInstanceState);
