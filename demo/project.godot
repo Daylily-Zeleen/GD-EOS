@@ -12,12 +12,12 @@ config_version=5
 
 config/name="GD-EOS"
 run/main_scene="res://scenes/main/main.tscn"
-config/features=PackedStringArray("4.3")
+config/features=PackedStringArray("4.2")
 config/icon="res://logo.png"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdscript_formatter/plugin.cfg")
+enabled=PackedStringArray("")
 
 [rendering]
 
