@@ -18,9 +18,14 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## Valid EOS SDK Version
 
-- EOS-SDK-32273396-v1.16.2
-- EOS-SDK-27379709-v1.16.1
-- EOS-SDK-Android-27379709-v1.16.1
+- EOS-SDK-Android-32303053-v1.16.3
+- EOS-SDK-32303053-v1.16.3
+
+> Outdated
+>
+> - EOS-SDK-32273396-v1.16.2
+> - EOS-SDK-27379709-v1.16.1
+> - EOS-SDK-Android-27379709-v1.16.1
 
 ## How to start
 
@@ -130,14 +135,13 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 ## **Known issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
-2. About Android exporting: only testing with "EOS Android SDK 1.16.1".
+2. About Android exporting, if you use precompiled binary library, you need to download `EOS-SDK-Android-32303053-v1.16.3`(pay attention to the version) from epic developer portal for getting "aar" file (again, I have not right to dispatch SDK).
 3. `XxxAttributeData.Key` will be converted to upper case when transfering to remote peer, you should not use lower charactors in your key.
-4. Some Apis in `1.16.1` will lead to crash by the bug of SDK itself:
-   1. `EOSUserInfoInterface.copy_best_display_name()` -> `EOS_UserInfo_CopyBestDisplayName()`
+4. It is not recommended to use `1.16.1` or previous version, because `1.16.2` fixed many bugs.
 
 ## Exporting for Android
 
-1. Download "EOS Android SDK 1.16.1" from [Epic Developer Portal](https://dev.epicgames.com/portal), unzip it and put its `SDK` folder under the `thirdparty/eos-sdk` directory, then compile this plugin:
+1. Download "EOS Android SDK 1.16.3(or 1.16.2, but not recommend)" from [Epic Developer Portal](https://dev.epicgames.com/portal), unzip it and put its `SDK` folder under the `thirdparty/eos-sdk` directory, then compile this plugin:
 
     ```shell
     scons platform=android target=tempalte_debug ANDROID_HOME="path/to/your/android/sdk"
@@ -147,7 +151,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
     After compiling, copy the plugin to your Godot Project.
 2. Follow the tutorial [Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html), generate an android project at `res://android/build`.
 3. Configurate your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
-   1. Add `SDK/Bin/Android/static-stdc++/aar/eos-sdk.aar`, assign its configuration as `implementation`, as dependency to your andoird project.
+   1. Add `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar`, assign its configuration as `implementation`, as dependency to your andoird project.
    2. Add other dependencies which requeired by "EOS Andoird SDK".
         At last, the `dependencies` section in `build.gradle` file will like this:
 
@@ -156,11 +160,11 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             // Other dependencies...
 
             // EOS dependencies...
-            implementation files('path\\to\\static-stdc++\\aar\\eos-sdk.aar')
-            implementation 'androidx.appcompat:appcompat:1.0.0'
-            implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
+            implementation files('path\\to\\static-stdc++\\aar\\eossdk-StaticSTDC-release.aar')
+            implementation 'androidx.appcompat:appcompat:1.5.1'
+            implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
             implementation 'androidx.security:security-crypto:1.0.0'
-            implementation 'androidx.browser:browser:1.0.0'
+            implementation 'androidx.browser:browser:1.4.0'
         }
         ```
 
@@ -203,7 +207,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         
             @Override
             public void onCreate(Bundle savedInstanceState) {
-                EOSSDK.init(getApplicationContext());  // added
+                EOSSDK.init(getActivity());             // added
 
                 setTheme(R.style.GodotAppMainTheme);
                 super.onCreate(savedInstanceState);
