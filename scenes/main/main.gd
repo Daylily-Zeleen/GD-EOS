@@ -47,7 +47,10 @@ func _ready() -> void:
 	create_options.client_credentials.client_id = _get_config(&"client_id")
 	create_options.client_credentials.client_secret = _get_config(&"client_secret")
 	create_options.encryption_key = _get_config(&"encryption_key")
-	create_options.flags = EOSPlatform.PF_DISABLE_OVERLAY
+	if OS.get_name() == "Windows":
+		create_options.flags |= EOSPlatform.PF_DISABLE_OVERLAY
+	else:
+		create_options.flags = EOSPlatform.PF_DISABLE_OVERLAY
 	EOSPlatform.platform_create(create_options)
 
 	# Try to set windows position for debug.
@@ -72,7 +75,9 @@ func _ready() -> void:
 	%CreateBtn.pressed.connect(_create_lobby_async)
 	%RefreshBtn.pressed.connect(_refresh_lobbies_list_async)
 	%JoinBtn.pressed.connect(_join_lobbies_async)
+	%ExitBtn.pressed.connect(get_tree().quit)
 
+	EOSP2P.set_relay_control(EOSP2P.RC_ForceRelays)
 
 func _exit_tree() -> void:
 	if _entered_lobby_id and EOSLobby.copy_lobby_details(_entered_lobby_id, _product_user_id).lobby_details.get_lobby_owner() == _product_user_id:
@@ -94,7 +99,9 @@ func _on_login_btn_pressed() -> void:
 			auth_login_credentials.id = id_line_edit.text
 			auth_login_credentials.token = token_line_edit.text
 
-			var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0)
+			var auth_login_result: EOSAuth_LoginCallbackInfo = await EOSAuth.login(
+				auth_login_credentials, EOSAuth.AS_BasicProfile | EOSAuth.AS_FriendsList | EOSAuth.AS_Presence, 0
+			)
 			if auth_login_result.result_code != EOS.Success:
 				printerr("== Login Fail: ", EOS.result_to_string(auth_login_result.result_code))
 				login_btn.disabled = false
@@ -120,7 +127,7 @@ func _on_login_btn_pressed() -> void:
 				return
 			# Setup connect credentials
 			connect_credentials.type = EOS.ECT_DEVICEID_ACCESS_TOKEN
-			
+
 			# Setup display name
 			var display_name := OS.get_unique_id()
 			if display_name.length() > EOSConnect.CONNECT_USERLOGININFO_DISPLAYNAME_MAX_LENGTH:
@@ -183,7 +190,7 @@ func _create_lobby_async() -> void:
 
 	_entered_lobby_id = create_result.lobby_id
 
-	# Initialize lobby info, we use "started" to sreach lobbies.
+	# Initialize lobby info, we use "STARTE" to sreach lobbies.
 	var ulmr := EOSLobby.update_lobby_modification(_product_user_id, _entered_lobby_id)
 	if ulmr.result_code != EOS.Success:
 		printerr("== Update lobby modification failed: ", EOS.result_to_string(ulmr.result_code))
@@ -192,7 +199,7 @@ func _create_lobby_async() -> void:
 	var lobby_modification := ulmr.lobby_modification
 
 	var parameter := EOSLobby_AttributeData.new()
-	parameter.key = "started"
+	parameter.key = "STARTE"
 	parameter.value = false
 	var add_attribute_result = lobby_modification.add_attribute(parameter, EOSLobby.LAT_PUBLIC)
 	if add_attribute_result != EOS.Success:
@@ -219,7 +226,7 @@ func _refresh_lobbies_list_async() -> void:
 	var lobby_search: EOSLobbySearch = clsr.lobby_search
 	# Ignore strated lobbies.
 	var parameter := EOSLobby_AttributeData.new()
-	parameter.key = "started"
+	parameter.key = "STARTE"
 	parameter.value = false
 	lobby_search.set_parameter(parameter, EOS.CO_EQUAL)
 

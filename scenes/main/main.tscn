@@ -125,6 +125,16 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Join"
 
+[node name="ExitBtn" type="Button" parent="CanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -8.0
+offset_bottom = 8.0
+grow_horizontal = 0
+text = "exit"
+
 [node name="Players" type="MultiplayerSpawner" parent="."]
 unique_name_in_owner = true
 _spawnable_scenes = PackedStringArray("res://scenes/main/player.tscn")
