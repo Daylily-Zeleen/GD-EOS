@@ -7,3 +7,6 @@ export_presets.cfg
 
 *.env
 *.import
+
+addons/gdscript_formatter
+addons/adb_wifi_connector
