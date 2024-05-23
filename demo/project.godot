@@ -15,6 +15,10 @@ run/main_scene="res://scenes/main/main.tscn"
 config/features=PackedStringArray("4.2")
 config/icon="res://logo.png"
 
+[display]
+
+window/stretch/mode="canvas_items"
+
 [editor_plugins]
 
 enabled=PackedStringArray("")
