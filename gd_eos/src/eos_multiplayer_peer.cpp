@@ -60,8 +60,8 @@ PropertyInfo EOSMultiPlayerConnectionInfo::make_property_info(const String &p_pr
 
 // =============
 
-EOS_ProductUserId EOSMultiplayerPeer::local_user_id = nullptr;
-Ref<EOSProductUserId> EOSMultiplayerPeer::local_user_id_wrapped = nullptr;
+EOS_ProductUserId EOSMultiplayerPeer::local_user_id{ nullptr };
+Ref<EOSProductUserId> EOSMultiplayerPeer::local_user_id_wrapped;
 
 void EOSMultiplayerPeer::_bind_methods() {
     ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local_user_id"), &EOSMultiplayerPeer::get_local_user_id_wrapped);

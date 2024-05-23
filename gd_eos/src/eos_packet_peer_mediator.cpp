@@ -254,6 +254,8 @@ void EOSPacketPeerMediator::_terminate() {
         main_loop->disconnect("process_frame", callable_mp(this, &EOSPacketPeerMediator::_on_process_frame));
     }
 
+    EOSMultiplayerPeer::set_local_user_id({});
+
     //Unregister callbacks
     auto p2p_interface_handle = EOSP2P::get_singleton()->get_handle();
     EOS_P2P_RemoveNotifyPeerConnectionEstablished(p2p_interface_handle, connection_established_callback_id);
@@ -407,7 +409,6 @@ void EOSPacketPeerMediator::_on_connect_interface_login_statues_changed(const Re
     if (p_callback_info->get_current_status() == EOS_ELoginStatus::EOS_LS_LoggedIn) {
         return;
     }
-    EOSMultiplayerPeer::set_local_user_id({});
     _terminate();
 }
 
