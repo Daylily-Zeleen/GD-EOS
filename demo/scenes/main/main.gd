@@ -75,6 +75,7 @@ func _ready() -> void:
 	%CreateBtn.pressed.connect(_create_lobby_async)
 	%RefreshBtn.pressed.connect(_refresh_lobbies_list_async)
 	%JoinBtn.pressed.connect(_join_lobbies_async)
+	%ExitBtn.pressed.connect(get_tree().quit)
 
 	EOSP2P.set_relay_control(EOSP2P.RC_ForceRelays)
 
