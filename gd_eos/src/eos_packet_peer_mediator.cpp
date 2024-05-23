@@ -250,8 +250,9 @@ void EOSPacketPeerMediator::_terminate() {
     if (!initialized)
         return;
 
-    MainLoop *main_loop = Engine::get_singleton()->get_main_loop();
-    main_loop->disconnect("process_frame", callable_mp(this, &EOSPacketPeerMediator::_on_process_frame));
+    if (MainLoop *main_loop = Engine::get_singleton()->get_main_loop()) {
+        main_loop->disconnect("process_frame", callable_mp(this, &EOSPacketPeerMediator::_on_process_frame));
+    }
 
     //Unregister callbacks
     auto p2p_interface_handle = EOSP2P::get_singleton()->get_handle();
