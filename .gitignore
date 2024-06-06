@@ -32,3 +32,4 @@ gd_eos/gen/
 *.o
 
 build/
+.android_build_tmp/

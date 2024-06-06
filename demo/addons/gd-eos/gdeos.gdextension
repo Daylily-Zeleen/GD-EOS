@@ -43,4 +43,3 @@ macos.release = {"bin/macos/libEOSSDK-Mac-Shipping.dylib": ""}
 
 linux.debug.x86_64 = {"bin/linux/libEOSSDK-Linux-Shipping.so": ""}
 linux.release.x86_64 = {"bin/linux/libEOSSDK-Linux-Shipping.so": ""}
-

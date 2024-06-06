@@ -7,7 +7,6 @@ import build_version
 import gd_eos.eos_code_generator as eos_code_generator
 
 # Generate
-# shutil.rmtree(eos_code_generator.gen_dir)
 eos_code_generator.generator_eos_interfaces()
 
 env = SConscript("godot-cpp/SConstruct")
@@ -20,6 +19,9 @@ eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 base_dir = "gd_eos/"
 
 extension_file = "demo/addons/gd-eos/gdeos.gdextension"
+
+eos_aar_dir = eos_sdk_folder + f"Bin/Android/static-stdc++/aar/"
+android_build_tmp_dir = "./.android_build_tmp/"
 
 # For reference:
 # - CCFLAGS are compilation flags shared between C and C++
@@ -90,12 +92,37 @@ elif env["platform"] == "android":
     elif env["arch"] == "arm32":
         eos_android_arch = "armeabi-v7a"
 
-    # 1.16.1 需要链接对应的 so
-    lib_dir = eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"
-    if os.path.exists(lib_dir):
-        env.Append(LIBPATH=[eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/"])
-        env.Append(LIBS=["EOSSDK"])
+    import zipfile
 
+    # 查找 aar, 以兼容新旧版本的不同命名
+    aar_file = ""
+    for f in os.listdir(eos_aar_dir):
+        if f.lower().endswith("aar"):
+            aar_file = f
+            break
+
+    if aar_file == "":
+        print("Can't find EOSSDK's static stdc arr file.")
+        exit(1)
+
+    # 生成暂时目录
+    if not os.path.exists(android_build_tmp_dir):
+        os.mkdir(android_build_tmp_dir)
+
+    # 复制为 .zip
+    copied_file = os.path.join(android_build_tmp_dir, "tmp.zip")
+    shutil.copyfile(os.path.join(eos_aar_dir, aar_file), copied_file)
+
+    # 提取 libs
+    zip = zipfile.ZipFile(copied_file)
+    for f in zip.namelist():
+        if f.startswith("jni"):
+            zip.extract(f, android_build_tmp_dir)
+    zip.close()
+
+    lib_dir = os.path.join(android_build_tmp_dir, "jni", eos_android_arch)
+    env.Append(LIBPATH=[lib_dir])
+    env.Append(LIBS=["EOSSDK"])
 
 # 输出
 if env["platform"] == "macos":
@@ -169,8 +196,10 @@ def on_complete(target, source, env):
     elif platform == "macos":
         copy_file(eos_sdk_folder + "Bin/libEOSSDK-Mac-Shipping.dylib", plugin_bin_folder + "/macos/libEOSSDK-Mac-Shipping.dylib")
 
-    # elif platform == "android":
-    #     copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/libEOSSDK.so")
+    elif platform == "android":
+        if os.path.exists(android_build_tmp_dir):
+            shutil.rmtree(android_build_tmp_dir)
+    #     copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{eos_android_arch}/libEOSSDK.so")
 
     # 更新.gdextension中的版本信息
     update_extension_version()
