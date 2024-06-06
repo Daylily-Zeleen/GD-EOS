@@ -1,6 +1,6 @@
 [infomation]
 name = "GD-EOS"
-version = "v0.1.6"
+version = "v0.1.7"
 decription = "A Epic Online Services plugin for Godot"
 author = "忘忧の (Daylily Zeleen)"
 email = "daylily-zeleen@foxmail.com"
@@ -43,4 +43,3 @@ macos.release = {"bin/macos/libEOSSDK-Mac-Shipping.dylib": ""}
 
 linux.debug.x86_64 = {"bin/linux/libEOSSDK-Linux-Shipping.so": ""}
 linux.release.x86_64 = {"bin/linux/libEOSSDK-Linux-Shipping.so": ""}
-
