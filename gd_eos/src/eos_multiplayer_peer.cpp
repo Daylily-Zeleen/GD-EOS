@@ -126,7 +126,7 @@ Error EOSMultiplayerPeer::create_server(const String &socket_id) {
     active_mode = MODE_SERVER;
     connection_status = CONNECTION_CONNECTED;
     polling = true;
-    set_refuse_new_connections(false);
+    _set_refuse_new_connections(false);
 
     //Create a socket where we will be listening for connections
     socket = EOSSocket(socket_id);
@@ -160,7 +160,7 @@ Error EOSMultiplayerPeer::create_client(const String &socket_id, const Ref<EOSPr
     ERR_FAIL_COND_V_MSG(remote_user_id.is_null() || remote_user_id->get_handle() == nullptr, ERR_INVALID_PARAMETER, "Failed to create client. The remote user id is invalid.");
 
     polling = true;
-    set_refuse_new_connections(false);
+    _set_refuse_new_connections(false);
 
     //Create the socket we are trying to connect to
     socket = EOSSocket(socket_id);
@@ -872,7 +872,7 @@ void EOSMultiplayerPeer::_close() {
     connection_status = CONNECTION_DISCONNECTED;
     pending_connection_requests.clear();
     unique_id = 0;
-    set_refuse_new_connections(false);
+    _set_refuse_new_connections(false);
 
     if (peers.is_empty()) { //Go ahead and unregister if there were no peers connected
         EOSPacketPeerMediator::get_singleton()->unregister_peer(this);
@@ -1229,7 +1229,7 @@ void EOSMultiplayerPeer::connection_request_callback(const ConnectionRequestData
  * Description: Destructor. Closes the multiplayer instance if it is still active.
  ****************************************/
 EOSMultiplayerPeer::~EOSMultiplayerPeer() {
-    if (active_mode != MODE_NONE) {
+    if (_is_active()) {
         _close();
     }
 }
