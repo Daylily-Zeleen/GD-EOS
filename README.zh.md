@@ -14,7 +14,7 @@
 
 ## 赞助
 
-这个项目花费了我大量时间和经历，如果该项目对你有用的话，请考虑为我[充电](https://afdian.net/a/Daylily-Zeleen)。
+这个项目花费了我大量时间和经历，如果该项目对你有用的话，请考虑为我[充电](https://afdian.com/a/Daylily-Zeleen)。
 
 ## 测试过的 EOS SDK 版本
 

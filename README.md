@@ -14,7 +14,7 @@
 
 ## Support Me
 
-This project is cost a lot of time and effort, if it can help you, please [buy me a coffee](https://afdian.net/a/Daylily-Zeleen).
+This project is cost a lot of time and effort, if it can help you, please [buy me a coffee](https://afdian.com/a/Daylily-Zeleen).
 
 ## Valid EOS SDK Version
 
