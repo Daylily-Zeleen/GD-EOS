@@ -18,6 +18,7 @@
 
 ## 测试过的 EOS SDK 版本
 
+- EOS-SDK-36651368-v1.16.4
 - EOS-SDK-Android-32303053-v1.16.3
 - EOS-SDK-32303053-v1.16.3
 
