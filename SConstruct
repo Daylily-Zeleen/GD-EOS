@@ -170,12 +170,12 @@ def on_complete(target, source, env):
     if platform == "macos":
         copy_file(
             f"{output_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
-            f"{plugin_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}",
+            f"{plugin_bin_folder}/macos/{lib_name}.{platform}.{compile_target}.framework/{lib_name}.{platform}.{compile_target}".replace(".dev.", "."),
         )
     else:
         copy_file(
             f"{output_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
-            f"{plugin_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}",
+            f"{plugin_bin_folder}/{platform}/{lib_name}{suffix}{shared_lib_suffix}".replace(".dev.", "."),
         )
 
     # 拷贝依赖
