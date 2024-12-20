@@ -114,7 +114,7 @@
 
 1. 将该仓库克隆到本地（包含子模块 godot-cpp）。
 2. 从Epic开发者门户下载EOS的C SDK，并将其置于目录"thirdparty/eos-sdk"下（因为我没有重新分发的权利）.
-3. [配置你的开发环境](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). 换句话说，你需要`python3`, `scons`, 以及一个合适的c++编译器。如果你需要为Android编译，你还需要NDK。
+3. [配置你的开发环境](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). 换句话说，你需要`python3.9(或以上)`, `scons`, 以及一个合适的c++编译器。如果你需要为Android编译，你还需要NDK。
 4. 在命令中导航到该项目根目录下，并允许下方命令:
     - For debug build:
 

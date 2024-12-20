@@ -114,7 +114,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 1. Clone this repo with submodule (godot-cpp).
 2. Download EOS C SDK from Epic Developer Portal, and place is at "thirdparty/eos-sdk". (Because I have not right to redistribute it).
-3. [Setup your enviroment](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). In orther words, you need `python3`, `scons`, and an appropriate c++ compiler. Additionally, you need ndk to compile for android.
+3. [Setup your enviroment](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). In orther words, you need `python3.9(or later version)`, `scons`, and an appropriate c++ compiler. Additionally, you need ndk to compile for android.
 4. Navigate to this project root, and run commands below:
     - For debug build:
 

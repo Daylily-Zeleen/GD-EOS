@@ -11,7 +11,7 @@ gen_include_dir = os.path.join(gen_dir, "include")
 gen_src_dir = os.path.join(gen_dir, "src")
 
 # 解析结果
-struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
+struct2additional_method_requirements: dict[str, dict[str, bool]] = {} # dict[str, dict[str, bool]] 
 expended_as_args_structs: list[str] = []  # 需要被展开为参数形式的结构体
 
 interfaces: dict[str, dict] = {
@@ -948,24 +948,23 @@ def _gen_handle(
     ret.append(f"")
 
     # _to_string
-    match handle_name:
-        case "EOS_ProductUserId" | "EOS_EpicAccountId":
-            r_cpp_lines.append(f"String {klass}::_to_string() const {{")
-            r_cpp_lines.append(f'\tString str{{"Invalid"}};')
-            r_cpp_lines.append(f"\tif (m_handle) {{")
-            r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
-            r_cpp_lines.append(f"\t\tint32_t InOutBufferLength{{ {handle_name.upper()}_MAX_LENGTH + 1 }};")
-            r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
-            r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
-            r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
-            r_cpp_lines.append(f"\t\t}} else {{")
-            r_cpp_lines.append(f"\t\t\tstr = &OutBuffer[0];")
-            r_cpp_lines.append(f"\t\t}}")
-            r_cpp_lines.append(f"\t}}")
-            r_cpp_lines.append(f'\treturn vformat("[{klass}:%s]", str);')
-            r_cpp_lines.append(f"}}")
-        case _:
-            r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[{klass}:%d]", get_instance_id()); }}')
+    if handle_name in ["EOS_ProductUserId", "EOS_EpicAccountId"]:
+        r_cpp_lines.append(f"String {klass}::_to_string() const {{")
+        r_cpp_lines.append(f'\tString str{{"Invalid"}};')
+        r_cpp_lines.append(f"\tif (m_handle) {{")
+        r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
+        r_cpp_lines.append(f"\t\tint32_t InOutBufferLength{{ {handle_name.upper()}_MAX_LENGTH + 1 }};")
+        r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
+        r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
+        r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
+        r_cpp_lines.append(f"\t\t}} else {{")
+        r_cpp_lines.append(f"\t\t\tstr = &OutBuffer[0];")
+        r_cpp_lines.append(f"\t\t}}")
+        r_cpp_lines.append(f"\t}}")
+        r_cpp_lines.append(f'\treturn vformat("[{klass}:%s]", str);')
+        r_cpp_lines.append(f"}}")
+    else:
+        r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[{klass}:%d]", get_instance_id()); }}')
     r_cpp_lines.append("")
 
     # bind
@@ -2371,33 +2370,33 @@ def _gen_method(
 
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
-            if (i + 1) < len(info["args"]) and __is_callback_type(_decay_eos_type(info["args"][i + 1]["type"])):
-                match _decay_eos_type(info["args"][i + 1]["type"]):
-                    case "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
-                        write_cb = f'{options_input_identifier}->get_{to_snake_case("WriteFileDataCallback")}()'
-                        progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
-                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+            next_decayed_type = _decay_eos_type(info["args"][i + 1]["type"])
+            if (i + 1) < len(info["args"]) and __is_callback_type(next_decayed_type):
+                if next_decayed_type == "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
+                    write_cb = f'{options_input_identifier}->get_{to_snake_case("WriteFileDataCallback")}()'
+                    progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
+                    completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
-                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {write_cb}, {progress_cb}, {completion_cb});")
-                        call_args.append(f"transfer_data")
-                        for_file_transfer = True
-                    case "EOS_PlayerDataStorage_OnReadFileCompleteCallback" | "EOS_TitleStorage_OnReadFileCompleteCallback":
-                        read_cb = f'{options_input_identifier}->get_{to_snake_case("ReadFileDataCallback")}()'
-                        progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
-                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+                    prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                    prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {write_cb}, {progress_cb}, {completion_cb});")
+                    call_args.append(f"transfer_data")
+                    for_file_transfer = True
+                elif next_decayed_type in ["EOS_PlayerDataStorage_OnReadFileCompleteCallback", "EOS_TitleStorage_OnReadFileCompleteCallback"]:
+                    read_cb = f'{options_input_identifier}->get_{to_snake_case("ReadFileDataCallback")}()'
+                    progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
+                    completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
 
-                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {read_cb}, {progress_cb}, {completion_cb});")
-                        call_args.append(f"transfer_data")
-                        for_file_transfer = True
-                    case "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
-                        prepare_lines.append("\tstatic auto ClientData = _CallbackClientData(this, {});")
-                        prepare_lines.append("\tClientData.handle_wrapper = this;")
-                        prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
-                        call_args.append("&ClientData")
-                    case _:
-                        call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
+                    prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                    prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {read_cb}, {progress_cb}, {completion_cb});")
+                    call_args.append(f"transfer_data")
+                    for_file_transfer = True
+                elif next_decayed_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
+                    prepare_lines.append("\tstatic auto ClientData = _CallbackClientData(this, {});")
+                    prepare_lines.append("\tClientData.handle_wrapper = this;")
+                    prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
+                    call_args.append("&ClientData")
+                else:
+                    call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
             else:
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
 
@@ -3789,139 +3788,137 @@ def _gen_struct_v2(
             if _is_todo_field(fields[field], field):
                 continue
 
-            match field_type:
-                case "EOS_AllocateMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = &internal::_memallocate;")
-                case "EOS_ReallocateMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = &internal::_memreallocate;")
-                case "EOS_ReleaseMemoryFunc":
-                    r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
-                case _:
-                    if __is_api_version_field(field_type, field):
-                        r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
-                    elif _is_audio_frames_type(field_type, field):
-                        r_structs_cpp.append(f"\t_packedint32_to_autio_frames({snake_field_name}, _shadow_{snake_field_name});")
-                        r_structs_cpp.append(f"\tp_data.{field} = _shadow_{snake_field_name}.ptr();")
-                        r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
-                    elif _is_struct_ptr(fields[field]):
-                        r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
-                    elif _is_socket_id_type(_decay_eos_type(field_type), field):
-                        r_structs_cpp.append(f"\t{snake_field_name}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
-                        r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
-                    elif _is_reserved_field(field, field_type):
-                        r_structs_cpp.append(f"\tp_data.{field} = nullptr;")
-                    elif _is_str_type(field_type, field):
-                        if field.startswith("SocketName"):
-                            print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
-                            exit(1)
-                        else:
-                            r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
-                    elif _is_str_arr_type(field_type, field):
-                        count_filed: str = _find_count_field(field, fields.keys())
-                        if __get_str_arr_element_type(field_type) == "const char*":
-                            # C字符串数组直接使用LocalVector<CharString>的指针
-                            r_structs_cpp.append(f"\tp_data.{field} = (decltype(p_data.{field})){snake_field_name}.ptr();")
-                            r_structs_cpp.append(f"\tp_data.{count_filed} = {snake_field_name}.size();")
-                        else:
-                            r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{count_filed});")
-                    elif _is_nullable_float_pointer_field(field_type, field):
-                        r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
-                    elif _is_platform_specific_options_field(field):
-                        r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
-                    elif _is_system_initialize_options_filed(field, field_type):
-                        r_structs_cpp.append(f"\tp_data.{field} = get_system_initialize_options();")
-                    elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {snake_field_name});")
-                    elif _is_requested_channel_ptr_field(field_type, field):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {snake_field_name});")
-                    elif field_type.startswith("Union"):
-                        if _is_variant_union_type(field_type, field):
-                            r_structs_cpp.append(f"\t_TO_EOS_FIELD_VARIANT_UNION(p_data.{field}, {snake_field_name});")
-                        else:
-                            r_structs_cpp.append(f"\t_TO_EOS_FIELD_METRICS_ACCOUNT_ID_UNION(p_data.{field}, {snake_field_name});")
-                    elif _is_handle_arr_type(field_type, ""):
-                        r_structs_cpp.append(
-                            f"\t_TO_EOS_FIELD_HANDLER_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
-                        )
-                    elif _is_handle_type(_decay_eos_type(field_type), field):
-                        gd_type = _convert_handle_class_name(_decay_eos_type(field_type))
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
-                    elif _is_client_data_field(field_type, field):
-                        # 没有需要设置ClientData的结构体
-                        print("ERR:", struct_type)
+            if field_type == "EOS_AllocateMemoryFunc":
+                r_structs_cpp.append(f"\tp_data.AllocateMemoryFunction = &internal::_memallocate;")
+            elif field_type == "EOS_ReallocateMemoryFunc":
+                r_structs_cpp.append(f"\tp_data.ReallocateMemoryFunction = &internal::_memreallocate;")
+            elif field_type == "EOS_ReleaseMemoryFunc":
+                r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
+            else:
+                if __is_api_version_field(field_type, field):
+                    r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
+                elif _is_audio_frames_type(field_type, field):
+                    r_structs_cpp.append(f"\t_packedint32_to_autio_frames({snake_field_name}, _shadow_{snake_field_name});")
+                    r_structs_cpp.append(f"\tp_data.{field} = _shadow_{snake_field_name}.ptr();")
+                    r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
+                elif _is_struct_ptr(fields[field]):
+                    r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
+                elif _is_socket_id_type(_decay_eos_type(field_type), field):
+                    r_structs_cpp.append(f"\t{snake_field_name}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
+                    r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
+                elif _is_reserved_field(field, field_type):
+                    r_structs_cpp.append(f"\tp_data.{field} = nullptr;")
+                elif _is_str_type(field_type, field):
+                    if field.startswith("SocketName"):
+                        print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
                         exit(1)
-                    elif _is_internal_struct_arr_field(field_type, field):
-                        r_structs_cpp.append(
-                            f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
-                        )
-                    elif _is_internal_struct_field(field_type, field) or _is_integreate_platform_init_option(field_type, field):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
-                    elif _is_arr_field(field_type, field):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
-                    elif _is_enum_flags_type(field_type):
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_FLAGS(p_data.{field}, {snake_field_name});")
-                    elif __is_callback_type(_decay_eos_type(field_type)):
-                        cb_arg = _get_callback_infos(_decay_eos_type(field_type))["args"][0]
-                        eos_cb_type = _decay_eos_type(cb_arg["type"])
-                        gd_cb_type = remap_type(eos_cb_type).removeprefix("Ref<").removesuffix(">")
-                        signal_name = __convert_to_signal_name(_decay_eos_type(field_type), "")
-
-                        const_str_line: str = f'constexpr char {signal_name}[] = "{signal_name}";'
-                        if not const_str_line in optional_cpp_lines and not const_str_line in r_structs_cpp:
-                            optional_cpp_lines.append(const_str_line)
-
-                        r_structs_cpp.append("#ifdef _WIN32")
-                        if field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                            r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data, void *r_data_buffer, uint32_t *r_data_written){{')
-                        else:
-                            r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data){{')
-                        match field_type:
-                            case "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                            case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                                r_structs_cpp.append(
-                                    f"\t\t\treturn godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data, r_data_buffer, r_data_written);"
-                                )
-                            case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                            case "EOS_TitleStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(
-                                    f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);"
-                                )
-                            case "EOS_TitleStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                            case _:
-                                print("ERROR: ", field_type)
-                                exit(1)
-                        r_structs_cpp.append("\t\t};")
-                        r_structs_cpp.append("#else")
-                        match field_type:
-                            case "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(
-                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                                )
-                            case "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                                r_structs_cpp.append(
-                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                                )
-                            case "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(
-                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                                )
-                            case "EOS_TitleStorage_OnReadFileDataCallback":
-                                r_structs_cpp.append(
-                                    f"\tp_data.{field} = ({field_type})&godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                                )
-                            case "EOS_TitleStorage_OnFileTransferProgressCallback":
-                                r_structs_cpp.append(
-                                    f"\tp_data.{field} = (EOS_TitleStorage_OnFileTransferProgressCallback)&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                                )
-                            case _:
-                                print("ERROR: ", field_type)
-                                exit(1)
-                        r_structs_cpp.append("#endif")
                     else:
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
+                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
+                elif _is_str_arr_type(field_type, field):
+                    count_filed: str = _find_count_field(field, fields.keys())
+                    if __get_str_arr_element_type(field_type) == "const char*":
+                        # C字符串数组直接使用LocalVector<CharString>的指针
+                        r_structs_cpp.append(f"\tp_data.{field} = (decltype(p_data.{field})){snake_field_name}.ptr();")
+                        r_structs_cpp.append(f"\tp_data.{count_filed} = {snake_field_name}.size();")
+                    else:
+                        r_structs_cpp.append(f"\t_TO_EOS_STR_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{count_filed});")
+                elif _is_nullable_float_pointer_field(field_type, field):
+                    r_structs_cpp.append(f"\tp_data.{field} = ({snake_field_name} <= 0.0)? nullptr: (double*)(&{snake_field_name});")
+                elif _is_platform_specific_options_field(field):
+                    r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
+                elif _is_system_initialize_options_filed(field, field_type):
+                    r_structs_cpp.append(f"\tp_data.{field} = get_system_initialize_options();")
+                elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {snake_field_name});")
+                elif _is_requested_channel_ptr_field(field_type, field):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {snake_field_name});")
+                elif field_type.startswith("Union"):
+                    if _is_variant_union_type(field_type, field):
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_VARIANT_UNION(p_data.{field}, {snake_field_name});")
+                    else:
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_METRICS_ACCOUNT_ID_UNION(p_data.{field}, {snake_field_name});")
+                elif _is_handle_arr_type(field_type, ""):
+                    r_structs_cpp.append(
+                        f"\t_TO_EOS_FIELD_HANDLER_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
+                    )
+                elif _is_handle_type(_decay_eos_type(field_type), field):
+                    gd_type = _convert_handle_class_name(_decay_eos_type(field_type))
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
+                elif _is_client_data_field(field_type, field):
+                    # 没有需要设置ClientData的结构体
+                    print("ERR:", struct_type)
+                    exit(1)
+                elif _is_internal_struct_arr_field(field_type, field):
+                    r_structs_cpp.append(
+                        f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
+                    )
+                elif _is_internal_struct_field(field_type, field) or _is_integreate_platform_init_option(field_type, field):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
+                elif _is_arr_field(field_type, field):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
+                elif _is_enum_flags_type(field_type):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_FLAGS(p_data.{field}, {snake_field_name});")
+                elif __is_callback_type(_decay_eos_type(field_type)):
+                    cb_arg = _get_callback_infos(_decay_eos_type(field_type))["args"][0]
+                    eos_cb_type = _decay_eos_type(cb_arg["type"])
+                    gd_cb_type = remap_type(eos_cb_type).removeprefix("Ref<").removesuffix(">")
+                    signal_name = __convert_to_signal_name(_decay_eos_type(field_type), "")
+
+                    const_str_line: str = f'constexpr char {signal_name}[] = "{signal_name}";'
+                    if not const_str_line in optional_cpp_lines and not const_str_line in r_structs_cpp:
+                        optional_cpp_lines.append(const_str_line)
+
+                    r_structs_cpp.append("#ifdef _WIN32")
+                    if field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data, void *r_data_buffer, uint32_t *r_data_written){{')
+                    else:
+                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data){{')
+                    if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\t\t\treturn godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data, r_data_buffer, r_data_written);"
+                        )
+                    elif field_type ==  "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_TitleStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);"
+                        )
+                    elif field_type ==  "EOS_TitleStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    else:
+                        print("ERROR: ", field_type)
+                        exit(1)
+                    r_structs_cpp.append("\t\t};")
+                    r_structs_cpp.append("#else")
+
+                    if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                        )
+                    elif field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                        )
+                    elif field_type == "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                        )
+                    elif field_type == "EOS_TitleStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                        )
+                    elif field_type == "EOS_TitleStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(
+                            f"\tp_data.{field} = (EOS_TitleStorage_OnFileTransferProgressCallback)&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
+                        )
+                    else:
+                        print("ERROR: ", field_type)
+                        exit(1)
+                    r_structs_cpp.append("#endif")
+                else:
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
         r_structs_cpp.append("}")
 
         insert_idx = 0
