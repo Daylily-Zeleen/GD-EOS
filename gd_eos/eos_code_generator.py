@@ -1103,10 +1103,7 @@ def _cheat_as_handle_constant(constant_name: str) -> str:
         "EOS_PAGEQUERY_MAXCOUNT_MAXIMUM",
         "EOS_INITIALIZEOPTIONS_PRODUCTNAME_MAX_LENGTH",
         "EOS_INITIALIZEOPTIONS_PRODUCTVERSION_MAX_LENGTH",
-        "EOS_OPT_Unknown",
-        "EOS_OPT_Epic",
-        "EOS_OPT_Steam",
-    ]:
+    ] or constant_name.startswith("EOS_OPT_"):
         return "EOS"
     return ""
 
