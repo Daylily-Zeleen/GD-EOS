@@ -1,3 +1,3 @@
-version = "v0.1.8-dev"
+version = "v0.2.0"
 
 print("BUILD_VERSION=" + version)

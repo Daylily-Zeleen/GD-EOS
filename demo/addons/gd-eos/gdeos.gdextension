@@ -1,6 +1,6 @@
 [infomation]
 name = "GD-EOS"
-version = "v0.1.8-dev"
+version = "v0.0.0"
 decription = "A Epic Online Services plugin for Godot"
 author = "忘忧の (Daylily Zeleen)"
 email = "daylily-zeleen@foxmail.com"
