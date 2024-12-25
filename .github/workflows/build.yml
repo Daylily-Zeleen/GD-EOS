@@ -196,10 +196,10 @@ jobs:
               run: |
                   scons target='${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
 
-            - name: Copy extra files to addon folder
-              shell: sh
-              run: |
-                  cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/demo/addons/gd-eos/'
+            # - name: Copy extra files to addon folder
+            #   shell: sh
+            #   run: |
+            #       cp -n '${{ github.workspace }}/README.md' '${{ github.workspace }}/README.zh.md' '${{ github.workspace }}/LICENSE' '${{ github.workspace }}/demo/addons/gd-eos/'
 
             - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
               shell: sh
