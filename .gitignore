@@ -33,3 +33,5 @@ gd_eos/gen/
 
 build/
 .android_build_tmp/
+
+*.log
