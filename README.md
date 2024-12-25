@@ -2,7 +2,7 @@
 
 [点击查中文说明](README.zh.md)
 
-![image](demo/addons/gd-eos/.doc/logo.png)
+![image](demo/addons/gd-eos/doc/logo.png)
 
 **Epic Online Services** for Godot. Use as **C++ SDK** or compile as **GDScript SDK**.
 
