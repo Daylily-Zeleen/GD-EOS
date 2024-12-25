@@ -2,7 +2,7 @@
 
 [Click here to refer English Readme](README.md).
 
-![image](demo/logo.png)
+![image](demo/addons/gd-eos/.doc/logo.png)
 
 适用于Godot的**Epic Online Services**。可作为**C++ SDK**或者编译后作为**GDScript SDK**。
 
@@ -29,6 +29,8 @@
 > - EOS-SDK-Android-27379709-v1.16.1
 
 ## 如何开始
+
+**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
 
 1. 获取`GD-EOS`插件:
    - 在Release页面下载预编译的插件。
@@ -94,6 +96,8 @@
 
 ## 如何运行`demo`项目
 
+**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
+
 1. 你需要在 Epic 开发者门户对你的产品开启必要的客户端策略特性，为方便起见，你可以开启所有的特性，或者使用预设 Peer2Peer 策略。
 2. 在main场景的根节点中为你的产品设置相应的参数。
 3. 准备两个 Epic 账号；或者使用一个 Epic 账号并同时使用下述的两种登陆方式。
@@ -112,6 +116,8 @@
 6. 此时两个实例已经可以正常联机。
 
 ## 如何编译
+
+**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
 
 1. 将该仓库克隆到本地（包含子模块 godot-cpp）。
 2. 从Epic开发者门户下载EOS的C SDK，并将其置于目录"thirdparty/eos-sdk"下（因为我没有重新分发的权利）.
@@ -141,6 +147,8 @@
 4. 不建议使用1.16.1及以下的SDK（1.16.2修复了大量的bug）。
 
 ## 安卓导出
+
+**视频教程：https://www.bilibili.com/video/BV19M4m1D7dH/** （安卓导出）
 
 1. 从[Epic开发者门户](https://dev.epicgames.com/portal)下载 EOS Android SDK 1.16.3（或1.16.2，但是建议不使用低版本），解压并将其中的`SDK`文件夹置于`thirdparty/eos-sdk`目录下，并进行安卓编译：
 
@@ -218,7 +226,7 @@
 
 4. 在你的Godot工程中添加Android导出预设，确保在`Gradle构建`中开启`Use Gradle Build`，并将`最小SDK`同步为你在`config.gradle`中设置的`minSdk`。在`权限`中开启必要的权限:
 `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` 以及 `INTERNET`，并填写其他必要信息。
-5. 现在，你应该能够正常进行安卓导出。
+1. 现在，你应该能够正常进行安卓导出。
 
 ## **注意**
 
