@@ -19,10 +19,6 @@ config/icon="res://icon.png"
 
 window/stretch/mode="canvas_items"
 
-[editor_plugins]
-
-enabled=PackedStringArray("")
-
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
