@@ -1,3 +1,5 @@
+#ifdef false // 不需要使用插件导出依赖库
+
 #pragma once
 #if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 
@@ -31,3 +33,5 @@ public:
 } //namespace godot::eos::editor
 
 #endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+
+#endif

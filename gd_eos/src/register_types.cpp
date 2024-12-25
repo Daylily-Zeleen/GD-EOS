@@ -17,9 +17,11 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 #if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         godot::eos::setup_eos_project_settings();
+#ifdef false
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSExportPlugin);
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSEditorPlugin);
         EditorPlugins::add_by_type<godot::eos::editor::EOSEditorPlugin>();
+#endif
     }
 #endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 
@@ -49,7 +51,7 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 }
 
 void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
-#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+#if (defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)) && false
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         EditorPlugins::remove_by_type<godot::eos::editor::EOSEditorPlugin>();
     }

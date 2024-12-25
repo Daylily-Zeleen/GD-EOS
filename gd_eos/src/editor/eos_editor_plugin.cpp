@@ -1,3 +1,5 @@
+#ifdef false // 不需要使用插件导出依赖库
+
 #if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 #include <editor/eos_editor_plugin.h>
 
@@ -75,3 +77,5 @@ void EOSEditorPlugin::_notification(int p_what) {
 } //namespace godot::eos::editor
 
 #endif //defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+
+#endif
