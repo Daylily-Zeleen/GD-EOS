@@ -19,6 +19,7 @@ eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 base_dir = "gd_eos/"
 
 extension_file = "demo/addons/gd-eos/gdeos.gdextension"
+plugin_folder = "./demo/addons/gd-eos/"
 
 eos_aar_dir = eos_sdk_folder + f"Bin/Android/static-stdc++/aar/"
 android_build_tmp_dir = "./.android_build_tmp/"
@@ -203,6 +204,32 @@ def on_complete(target, source, env):
 
     # 更新.gdextension中的版本信息
     update_extension_version()
+
+    copied_readme_file_path = os.path.join(plugin_folder, "README.md")
+    copied_readme_zh_file_path = os.path.join(plugin_folder, "README.zh.md")
+
+    copy_file("README.md", copied_readme_file_path)
+    copy_file("README.zh.md", copied_readme_zh_file_path)
+    copy_file("LICENSE", os.path.join(plugin_folder, "LICENSE"))
+
+    # 替换 readme 中图片的路径
+    for fp in [copied_readme_file_path, copied_readme_zh_file_path]:
+        f = open(fp, "r", encoding="utf8")
+        lines = f.readlines()
+        f.close()
+
+        for i in range(len(lines)):
+            if lines[i].count("(demo/addons/gd-eos/") > 0:
+                lines[i] = lines[i].replace("(demo/addons/gd-eos/", "(")
+
+        f = open(fp, "w", encoding="utf8")
+        f.writelines(lines)
+        f.close()
+
+    # 更新.gdextension中的版本信息
+    f = open(extension_file, "r", encoding="utf8")
+    lines = f.readlines()
+    f.close()
 
 
 # Disable scons cache for source files
