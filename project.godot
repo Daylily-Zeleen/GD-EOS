@@ -12,16 +12,12 @@ config_version=5
 
 config/name="GD-EOS"
 run/main_scene="res://scenes/main/main.tscn"
-config/features=PackedStringArray("4.2")
-config/icon="res://logo.png"
+config/features=PackedStringArray("4.3")
+config/icon="res://icon.png"
 
 [display]
 
 window/stretch/mode="canvas_items"
-
-[editor_plugins]
-
-enabled=PackedStringArray("")
 
 [rendering]
 
