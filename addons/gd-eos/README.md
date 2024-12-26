@@ -2,7 +2,7 @@
 
 [点击查中文说明](README.zh.md)
 
-![image](demo/logo.png)
+![image](doc/logo.png)
 
 **Epic Online Services** for Godot. Use as **C++ SDK** or compile as **GDScript SDK**.
 
@@ -14,10 +14,11 @@
 
 ## Support Me
 
-This project is cost a lot of time and effort, if it can help you, please [buy me a coffee](https://afdian.net/a/Daylily-Zeleen).
+This project is cost a lot of time and effort, if it can help you, please [buy me a coffee](https://afdian.com/a/Daylily-Zeleen).
 
 ## Valid EOS SDK Version
 
+- EOS-SDK-36651368-v1.16.4
 - EOS-SDK-Android-32303053-v1.16.3
 - EOS-SDK-32303053-v1.16.3
 
@@ -28,6 +29,8 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 > - EOS-SDK-Android-27379709-v1.16.1
 
 ## How to start
+
+**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
 
 1. Get `GD-EOS` plugin:
    - Download pre-compiled plugin from release page.
@@ -93,6 +96,8 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## How to run `demo`
 
+**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
+
 1. Enable required features for you product in developer portal. For convenience, you can enable all features of your client policy, or use the redefine policy "Peer2Peer".
 2. Set your product parameters to the root node of "main.tscn" scene.
 3. Prepare two Epic accounts; or use one Epic Account and use two login way at the same time which describe below.
@@ -112,9 +117,11 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## How to compile
 
+**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
+
 1. Clone this repo with submodule (godot-cpp).
 2. Download EOS C SDK from Epic Developer Portal, and place is at "thirdparty/eos-sdk". (Because I have not right to redistribute it).
-3. [Setup your enviroment](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). In orther words, you need `python3`, `scons`, and an appropriate c++ compiler. Additionally, you need ndk to compile for android.
+3. [Setup your enviroment](https://docs.godotengine.org/en/latest/contributing/development/compiling/index.html#building-for-target-platforms). In orther words, you need `python3.9(or later version)`, `scons`, and an appropriate c++ compiler. Additionally, you need ndk to compile for android.
 4. Navigate to this project root, and run commands below:
     - For debug build:
 
@@ -140,6 +147,8 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 4. It is not recommended to use `1.16.1` or previous version, because `1.16.2` fixed many bugs.
 
 ## Exporting for Android
+
+**Video Tutorial：https://youtu.be/Sh08JCT1lhg** (Exporting for Android)
 
 1. Download "EOS Android SDK 1.16.3(or 1.16.2, but not recommend)" from [Epic Developer Portal](https://dev.epicgames.com/portal), unzip it and put its `SDK` folder under the `thirdparty/eos-sdk` directory, then compile this plugin:
 

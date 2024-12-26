@@ -12,6 +12,7 @@ export_presets.cfg
 .cache/
 .vscode/
 bin/
+!addons/gd-eos/bin/
 demo/
 gd_eos/
 __pycache__/
