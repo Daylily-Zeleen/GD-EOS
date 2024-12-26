@@ -7,3 +7,16 @@ export_presets.cfg
 
 *.env
 *.import
+
+# master branch's dev files
+.cache/
+.vscode/
+bin/
+demo/
+gd_eos/
+__pycache__/
+thirdparty/
+*.dblite
+compile_commands.json
+*.log
+*.pdb
