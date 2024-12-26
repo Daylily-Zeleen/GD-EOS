@@ -24,6 +24,8 @@ backup/
 .vscode/
 _media/
 bin/
+.godot/
+gd_eos
 # thirdparty/eos-sdk/
 
 gd_eos/gen/

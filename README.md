@@ -104,7 +104,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 4. Run project with two instances to login:
    1. Set "External Credential Type" to "EPIC":
         1. Set "Login Credential Type" to "AccountPortal"：
-            - You should ensure your EPIC Account is added to your organization member, and hava a approprite role.
+            - You should ensure your EPIC Account is added to your organization member, and have a appropriate role.
             - The permissions of your application in Epic Account Services should enable "Basic Profile", "Online Presence", "Friend", **but "Country" should keep disabled**.
             Keep "Id" and "Token" empty, click "Login" button an jump to external browser to request authentification.
         2. Set "Login Credential Type" to "Developer"，you need to login your Epic Accounts with token in **DevAuthTool** which in the "Tools" folder of EOS SDK.
@@ -224,7 +224,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             }
         ```
 
-4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other infomations if needs.
+4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other information if needs.
 5. You can export Android APK if there have not problem.
 
 ## **Cautious**
@@ -233,7 +233,7 @@ This repo is lack of testing. The name of Apis may be changed in later version.
 
 ## TODO
 
-1. Detect deprecated menbers instead of heard codeing.
+1. Detect deprecated members instead of hard coding.
 2. Generate typed callback apis for c++ user.
 3. Add ios build.
 
