@@ -3286,6 +3286,39 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             continue
 
 
+def _get_doc(lines: list[str], idx: int) -> list[str]:
+    ret :list[str] = []
+    while idx >= 0:
+        line :str = lines[idx].lstrip("\t")
+        valid = False
+        for prefix in [" */", "//", "/**", " *"]:
+            if line.startswith(prefix):
+                line = line.lstrip(prefix).rstrip().rstrip("*/")
+                valid = True
+                break
+        if valid:
+            if len(line.strip()) > 0:
+                ret.append(line)
+            idx -= 1
+        else:
+            break
+
+    while len(ret) > 0:
+        if len(ret[0].strip()) <= 0:
+            ret.pop(0)
+        else:
+            break
+
+    while len(ret) > 0:
+        if len(ret[len(ret) - 1].strip()) <= 0:
+            ret.pop(len(ret) - 1)
+        else:
+            break
+
+    ret.reverse()
+    return ret
+
+
 def _decay_eos_type(t: str) -> str:
     ret = t.lstrip("const").lstrip(" ").rstrip("*").rstrip("&").rstrip("*").rstrip("&").lstrip(" ").rstrip(" ")
     return ret
