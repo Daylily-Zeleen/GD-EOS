@@ -1503,7 +1503,7 @@ def _is_enum_type(type: str) -> bool:
 
 
 def _convert_result_type(method_name: str) -> str:
-    return method_name.split("_", 1)[1] + "Result"
+    return "EOS" + method_name.split("_", 1)[1] + "Result"
 
 
 def _gen_packed_result_type(
