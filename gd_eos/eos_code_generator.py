@@ -25,12 +25,14 @@ interfaces: dict[str, dict] = {
 structs: dict[str, dict[str, str]] = {}
 handles: dict[str, dict] = {
     "EOS": {
+        "doc": "",
         "methods": {},
         "callbacks": {"EOS_LogMessageFunc": {"return": "", "args": [{"type": "const EOS_LogMessage*", "name": "Message"}]}},
         "enums": {},
         "constants": {},
     },
     "EOS_HAntiCheatCommon": {
+        "doc": "",
         "methods": {},
         "callbacks": {},
         "enums": {},
@@ -386,8 +388,9 @@ def gen_files(file_base_name: str, infos: dict):
     for e in infos["enums"]:
         enums[e] = infos["enums"][e]
     for h in infos["handles"]:
-        for e in infos["handles"][h]["enums"]:
-            enums[e] = infos["handles"][h]["enums"][e]
+        handle_enums = infos["handles"][h]["enums"]
+        for e in handle_enums:
+            enums[e] = handle_enums[e]
     if len(enums):
         enums_inl: str = gen_enums(macro_suffix, interface_handle, enums)
         f = open(enums_inline_file, "w")
@@ -524,22 +527,24 @@ def gen_files(file_base_name: str, infos: dict):
     f.close()
 
 
-def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[str]]) -> str:
+def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
     lines = ["#pragma once"]
     lines.append("")
 
     # Bind enum value macro
-    for enum_type in enum_info:
+    for enum_type in enums:
         if _is_need_skip_enum_type(enum_type):
             continue
         lines.append(f"#define _BIND_ENUM_{enum_type}()\\")
         if _is_enum_flags_type(enum_type):
-            for e in enum_info[enum_type]:
+            for e_info in enums[enum_type]["members"]:
+                e = e_info["name"]
                 if _is_need_skip_enum_value(enum_type, e):
                     continue
                 lines.append(f'\t_BIND_ENUM_BITFIELD_FLAG({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
         else:
-            for e in enum_info[enum_type]:
+            for e_info in enums[enum_type]["members"]:
+                e = e_info["name"]
                 if _is_need_skip_enum_value(enum_type, e):
                     continue
                 lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
@@ -548,7 +553,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
 
     # Bind macro
     lines.append(f"#define _BIND_ENUMS_{macro_suffix}()\\")
-    for enum_type in enum_info:
+    for enum_type in enums:
         if _is_need_skip_enum_type(enum_type):
             continue
         lines.append(f"\t_BIND_ENUM_{enum_type}()\\")
@@ -557,7 +562,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
 
     # Using macro
     lines.append(f"#define _USING_ENUMS_{macro_suffix}()\\")
-    for enum_type in enum_info:
+    for enum_type in enums:
         if _is_need_skip_enum_type(enum_type):
             continue
         lines.append(f"\tusing {_convert_enum_type(enum_type)} = {enum_type};\\")
@@ -566,7 +571,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enum_info: dict[str, list[st
 
     # Variant cast macro
     lines.append(f"#define _CAST_ENUMS_{macro_suffix}()\\")
-    for enum_type in enum_info:
+    for enum_type in enums:
         if _is_need_skip_enum_type(enum_type):
             continue
         if _is_enum_flags_type(enum_type):
@@ -611,7 +616,7 @@ def gen_structs(
             continue
         if _is_need_skip_struct(struct_type):
             continue
-        lines += _gen_struct_v2(struct_type, struct_infos[struct_type], r_cpp_lines)
+        lines += _gen_struct_v2(struct_type, struct_infos[struct_type]["fields"], r_cpp_lines)
 
     lines.append(f"")
     r_cpp_lines.append("} // namespace godot::eos")
@@ -691,7 +696,7 @@ def gen_handles(interface_handle_class: str, additional_include_lines: list[str]
 
 
 def _make_notify_code(
-    handle_class: str, add_notify_method: str, method_info: dict, options_type: str, r_menber_lines: list[str], r_setup_lines: list[str], r_remove_lines: list[str]
+    handle_class: str, add_notify_method: str, method_info: dict, options_type: str, r_member_lines: list[str], r_setup_lines: list[str], r_remove_lines: list[str]
 ):
     callback_type: str = ""
     for a in method_info["args"]:
@@ -711,7 +716,7 @@ def _make_notify_code(
         print("ERROR")
         exit(1)
 
-    r_menber_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
+    r_member_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
     r_setup_lines.append("\t{")
     r_setup_lines.append(f"\t\t{options_type} options;")
     r_setup_lines.append(f"\t\toptions.ApiVersion = {__get_api_latest_macro(options_type)};")
@@ -755,7 +760,7 @@ def _gen_handle(
 
     method_bind_lines: list[str] = []
 
-    notifies_menber_lines: list[str] = []
+    notifies_member_lines: list[str] = []
     setup_nofities_lines: list[str] = []
     remove_nofities_lines: list[str] = []
 
@@ -792,7 +797,7 @@ def _gen_handle(
                     valid_field_count += 1
 
                 if valid_field_count == 1 and "ApiVersion" in options_fields:
-                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_menber_lines, setup_nofities_lines, remove_nofities_lines)
+                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_member_lines, setup_nofities_lines, remove_nofities_lines)
 
                     for m in method_infos:
                         if m == method:
@@ -828,8 +833,9 @@ def _gen_handle(
     # Hack: Godot 不能绑定字符串常量，作为方法进行绑定
     has_string_constants = False
     for constant in infos["constants"]:
-        if _is_string_constant(infos["constants"][constant]):
-            method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {infos["constants"][constant]}; }}')
+        const_value = infos["constants"][constant]["value"]
+        if _is_string_constant(const_value):
+            method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}')
             has_string_constants = True
     if has_string_constants:
         method_define_lines.append("")
@@ -896,8 +902,8 @@ def _gen_handle(
     if not is_base_handle_type:
         ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
         ret.append(f"")
-    if len(notifies_menber_lines):
-        ret += notifies_menber_lines
+    if len(notifies_member_lines):
+        ret += notifies_member_lines
         ret.append("")
     if need_singleton:
         ret.append(f"\tstatic {klass} *singleton;")
@@ -985,7 +991,7 @@ def _gen_handle(
         r_cpp_lines.append(f"\t_BIND_ENUMS_{macro_suffix}()")
     # 常量
     for constant in infos["constants"]:
-        if _is_string_constant(infos["constants"][constant]):
+        if _is_string_constant(infos["constants"][constant]["value"]):
             r_cpp_lines.append(
                 f'\tClassDB::bind_static_method(get_class_static(), D_METHOD("{_convert_constant_as_method_name(constant)}"), &{klass}::{_convert_constant_as_method_name(constant)});'
             )
@@ -1288,7 +1294,7 @@ def parse_all_file():
         for m in methods:
             cheat_handle_type = _cheat_as_handle_method(m)
             if not len(cheat_handle_type):
-                print("WARN: has not owned handle type:", m)
+                print("WARN: has not owned handle method:", m)
                 continue
             if not cheat_handle_type in handles:
                 print(handles.keys())
@@ -1306,7 +1312,7 @@ def parse_all_file():
         for e in enums:
             cheat_handle_type = _cheat_as_handle_enum(e)
             if not len(cheat_handle_type):
-                print("WARN: has not owned handle type:", e)
+                print("WARN: has not owned handle enum type:", e)
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKONWN handle type:", cheat_handle_type)
@@ -1337,7 +1343,7 @@ def parse_all_file():
         for cb in callbacks:
             cheat_handle_type = _cheat_as_handle_callback(cb)
             if not len(cheat_handle_type):
-                print("WARN: has not owned handle type:", cb)
+                print("WARN: has not owned handle callback type:", cb)
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKONWN handle type:", cheat_handle_type)
@@ -1539,7 +1545,7 @@ def _gen_packed_result_type(
     if get_type_name_only:
         return typename
 
-    menbers_lines: list[str] = []
+    members_lines: list[str] = []
     setget_lines: list[str] = []
     bind_lines: list[str] = []
     i = 0
@@ -1555,28 +1561,28 @@ def _gen_packed_result_type(
         elif _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
             handle_class = _convert_handle_class_name(decayed_type)
-            menbers_lines.append(f"\tRef<RefCounted> {snake_name};")
+            members_lines.append(f"\tRef<RefCounted> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_TYPED({snake_name}, Ref<class {handle_class}>)")
             r_cpp_lines.append(f"_DEFINE_SETGET_TYPED({typename}, {snake_name}, Ref<{handle_class}>)")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {handle_class})")
         elif __is_struct_type(decayed_type):
-            menbers_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
+            members_lines.append(f"\tRef<{__convert_to_struct_class(decayed_type)}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
         elif _is_anticheat_client_handle_type(decayed_type):
-            menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name}{{ nullptr }};")
+            members_lines.append(f"\t{remap_type(decayed_type)} {snake_name}{{ nullptr }};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
         elif _is_enum_type(decayed_type):
             enum_owner: str = _get_enum_owned_interface(decayed_type)
-            menbers_lines.append(f"\t{decayed_type} {snake_name};")
+            members_lines.append(f"\t{decayed_type} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_ENUM({snake_name}, {enum_owner}, {_convert_enum_type( decayed_type)})")
         elif _is_socket_id_type(decayed_type, arg_name):
-            menbers_lines.append(f"\tString {snake_name};")
+            members_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
@@ -1588,7 +1594,7 @@ def _gen_packed_result_type(
             exit(1)
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
-            menbers_lines.append(f"\tString {snake_name};")
+            members_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
@@ -1596,13 +1602,13 @@ def _gen_packed_result_type(
         elif arg_type == "void*" and (i + 1) <= len(out_args) and out_args[i + 1]["type"].endswith("int32_t*"):
             if out_args[i + 1]["name"] != "OutBytesWritten":
                 print("WARN:", method_name)
-            menbers_lines.append(f"\tPackedByteArray {snake_name};")
+            members_lines.append(f"\tPackedByteArray {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
             i += 1
         elif decayed_type == "EOS_Bool":
-            menbers_lines.append(f"\tbool {snake_name};")
+            members_lines.append(f"\tbool {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_BOOL({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET_BOOL({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
@@ -1617,12 +1623,12 @@ def _gen_packed_result_type(
             print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
             exit(1)
         elif _is_enum_flags_type(arg_type):
-            menbers_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
+            members_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET_FLAGS({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_BITFIELD({snake_name})")
         else:
-            menbers_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
+            members_lines.append(f"\t{remap_type(decayed_type)} {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
@@ -1637,7 +1643,7 @@ def _gen_packed_result_type(
         r_h_lines.append(f"\tEOS_EResult result_code{{ EOS_EResult::EOS_InvalidParameters }};")
     else:
         print("ERROR unsupport to gen packed result:", method_name)
-    r_h_lines += menbers_lines
+    r_h_lines += members_lines
     r_h_lines.append("")
     r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
@@ -1694,14 +1700,15 @@ def __is_api_version_field(type: str, name: str) -> bool:
 
 
 def __get_struct_fields(type: str) -> dict[str, str]:
-    return structs[_decay_eos_type(type)]
+    return structs[_decay_eos_type(type)]["fields"]
 
 
 def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
     if len(method_name) <= 0:
         for infos in handles.values():
-            for m in infos["methods"]:
-                for a in infos["methods"][m]["args"]:
+            methods = infos["methods"] 
+            for m in methods:
+                for a in methods[m]["args"]:
                     if _decay_eos_type(a["type"]) == callback_type:
                         if len(method_name):
                             print("ERROR: ", callback_type, method_name)
@@ -1735,9 +1742,10 @@ def _gen_callback(
 ) -> str:
     infos: dict = {}
     for handle_infos in handles.values():
-        for cb_ty in handle_infos["callbacks"]:
+        callbacks = handle_infos["callbacks"]
+        for cb_ty in callbacks:
             if cb_ty == _decay_eos_type(callback_type):
-                infos = handle_infos["callbacks"][callback_type]
+                infos = callbacks[callback_type]
                 break
         if len(infos):
             break
@@ -1780,7 +1788,7 @@ def _gen_callback(
             if is_deprecated_field(field):
                 continue
 
-            field_type = fields[field]
+            field_type = fields[field]["type"]
             # 检出count字段
             if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
                 count_fields.append(_find_count_field(field, fields.keys()))
@@ -1803,7 +1811,7 @@ def _gen_callback(
             ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
 
         for field in fields:
-            field_type: str = fields[field]
+            field_type: str = fields[field]["type"]
             if __is_api_version_field(field_type, field):
                 continue
 
@@ -1952,7 +1960,7 @@ def __expend_input_struct(
         if is_deprecated_field(field):
             continue
 
-        field_type = fields[field]
+        field_type = fields[field]["type"]
         # 检出count字段
         if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
             count_fields.append(_find_count_field(field, fields.keys()))
@@ -1964,7 +1972,7 @@ def __expend_input_struct(
                     variant_union_type_fileds.append(f)
     ##
     for field in fields:
-        field_type: str = fields[field]
+        field_type: str = fields[field]["type"]
         decay_field_type: str = _decay_eos_type(field_type)
         snake_field: str = to_snake_case(field)
 
@@ -2607,41 +2615,67 @@ def _gen_method(
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_inclide_dir, "eos_result.h"), "r")
+    lines :list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = []
+    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = {
+        "doc" : "",
+        "members" : []
+    }
 
-    for line in f.readlines():
+    for i in range(len(lines)):
+        line :str = lines[i]
         if not line.startswith("EOS_RESULT_VALUE"):
             continue
-        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"].append(line.split("(", 1)[1].split(", ", 1)[0])
+        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"]["members"].append({
+            "doc": _extract_doc(lines, i - 1),
+            "name": line.split("(", 1)[1].split(", ", 1)[0],
+        })
 
     f.close()
 
 
 def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_inclide_dir, "eos_ui_keys.h"), "r")
+    lines :list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = []
-    for line in f.readlines():
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = {
+        "doc" : "",
+        "members" : []
+    }
+
+    for i in range(len(lines)):
+        line :str = lines[i]
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"].append(splited[0] + splited[1])
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"]["members"].append({
+            "doc" : _extract_doc(lines, i - 1),
+            "name" : splited[0] + splited[1],
+        })
 
     f.close()
 
 
 def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_inclide_dir, "eos_ui_buttons.h"), "r")
+    lines :list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = []
-    for line in f.readlines():
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = {
+        "doc" : "",
+        "members" : []
+    }
+
+    for i in range(len(lines)):
+        line :str = lines[i]
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"].append(splited[0] + splited[1])
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"]["members"].append({
+            "doc" : _extract_doc(lines, i - 1),
+            "name" : splited[0] + splited[1],
+        })
 
     f.close()
 
@@ -2706,7 +2740,7 @@ def _is_need_skip_method(method_name: str) -> bool:
         "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
         "EOS_RTCAudio_SetAudioInputSettings",
         "EOS_RTCAudio_SetAudioOutputSettings",
-        # 废弃 NODT: This api is deprecated.
+        # 废弃 NOT: This api is deprecated.
         "EOS_AntiCheatClient_PollStatus",
     ]
 
@@ -2930,12 +2964,13 @@ def __is_input_struct(struct_type: str) -> bool:
     if struct_type in ["EOS_IntegratedPlatform_Steam_Options"]:
         return True
     for infos in handles.values():
-        for method_name in infos["methods"]:
+        methods = infos["methods"]
+        for method_name in methods:
             if method_name.endswith("Release"):
                 # 不检查释放方法
                 continue
 
-            method_info = infos["methods"][method_name]
+            method_info = methods[method_name]
             for arg in method_info["args"]:
                 if _decay_eos_type(arg["type"]) == struct_type and not arg["name"].startswith("Out"):
                     return True
@@ -2980,8 +3015,9 @@ def __is_internal_struct(struct_type: str, r_owned_structs: list[str]) -> bool:
         return False  # Hack
     r_owned_structs.clear()
     for struct_name in structs:
-        for field in structs[struct_name]:
-            field_type = structs[struct_name][field]
+        fields = __get_struct_fields(struct_name)
+        for field in fields:
+            field_type = fields[field]["type"]
             if not struct_name in r_owned_structs and not _is_internal_struct_arr_field(field_type, field) and _decay_eos_type(field_type) == struct_type:
                 r_owned_structs.append(struct_name)
     return len(r_owned_structs) > 0
@@ -2992,8 +3028,9 @@ def __is_internal_struct_of_arr(struct_type: str, r_owned_structs: list[str]) ->
     if not _decay_eos_type(struct_type) in structs:
         return False
     for struct_name in structs:
-        for field in structs[struct_name]:
-            field_type = structs[struct_name][field]
+        fields = __get_struct_fields(struct_name)
+        for field in fields:
+            field_type = fields[field]["type"]
             if not struct_name in r_owned_structs and _is_internal_struct_arr_field(field_type, field) and _decay_eos_type(field_type) == struct_type:
                 r_owned_structs.append(struct_name)
     return len(r_owned_structs) > 0
@@ -3013,7 +3050,8 @@ def __is_method_input_only_struct(struct_type: str) -> bool:
                 if struct_type == _decay_eos_type(arg["type"]):
                     return True
         for h_info in infos["handles"].values():
-            for m_info in h_info["methods"].values():
+            methods = h_info["methods"]
+            for m_info in methods.values():
                 for arg in m_info["args"]:
                     if struct_type == _decay_eos_type(arg["type"]):
                         return True
@@ -3076,7 +3114,8 @@ def _make_additional_method_requirements():
 
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
-        field_count = len(structs[struct_type]) - (1 if "ClientData" in structs[struct_type] else 0) - (1 if "ApiVersion" in structs[struct_type] else 0)
+        fields = __get_struct_fields(struct_type)
+        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0)
         if max_field_count_to_expend_of_input_options > 0 and field_count <= max_field_count_to_expend_of_input_options and __is_method_input_only_struct(struct_type):
             expended_as_args_structs.append(struct_type)
         if max_field_count_to_expend_of_callback_info > 0 and field_count <= max_field_count_to_expend_of_callback_info and __is_callback_output_only_struct(struct_type):
@@ -3129,12 +3168,16 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 for j in range(len(splited)):
                     splited[j] = splited[j].strip()
                 if not _is_deprecated_constant(splited[0]) and not _is_need_skip_constant(splited[0]):
-                    r_file_lower2infos[interface_lower]["constants"][splited[0]] = splited[1]
+                    r_file_lower2infos[interface_lower]["constants"][splited[0]] = {
+                        "doc": _extract_doc(lines, i - 1),
+                        "value": splited[1]
+                    }
 
         # 句柄类型
         if "typedef struct " in line:  #  and "Handle*" in line
             handle_type = line.split("* ", 1)[1].split(";", 1)[0]
             r_file_lower2infos[interface_lower]["handles"][handle_type] = {
+                "doc": _extract_doc(lines, i - 1),
                 "methods": {},
                 "callbacks": {},
                 "enums": {},
@@ -3151,7 +3194,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
         ]:
             enum_type = line.split("(")[1].rsplit(",")[0]
 
-            r_file_lower2infos[interface_lower]["enums"][enum_type] = []
+            r_file_lower2infos[interface_lower]["enums"][enum_type] = {
+                "doc": _extract_doc(lines, i - 1),
+                "members": []
+            }
 
             i += 1
             while not lines[i].startswith(");"):
@@ -3161,7 +3207,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     continue
 
                 splited = line.split(" = ")
-                r_file_lower2infos[interface_lower]["enums"][enum_type].append(splited[0])
+                r_file_lower2infos[interface_lower]["enums"][enum_type]["members"].append({
+                    "dos": _extract_doc(lines, i - 1),
+                    "name": splited[0]
+                })
                 i += 1
 
             i += 1
@@ -3178,6 +3227,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 continue
 
             method_info = {
+                "doc": _extract_doc(lines, i - 1),
                 "return": line.split("(", 1)[1].split(")")[0],
                 "args": [],
             }
@@ -3208,6 +3258,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             callback_name = args[1] if has_return else args[0]
 
             r_file_lower2infos[interface_lower]["callbacks"][callback_name] = {
+                "doc": _extract_doc(lines, i - 1),
                 "return": args[0] if has_return else "",
                 "args": [],
             }
@@ -3229,7 +3280,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             i += 1
 
             struct_name = line.lstrip("EOS_STRUCT").lstrip("(").rstrip("\n").rstrip(", (")
-            r_file_lower2infos[interface_lower]["structs"][struct_name] = {}
+            r_file_lower2infos[interface_lower]["structs"][struct_name] = {
+                "doc": _extract_doc(lines, i - 1),
+                "fields": {}
+            }
 
             while not lines[i].startswith("));"):
                 line = lines[i].lstrip("\t").rstrip("\n")
@@ -3238,6 +3292,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     continue
 
                 line = line.rsplit(";")[0]
+                doc = _extract_doc(lines, i - 1)
                 if line.startswith("union"):
                     # Union
                     union_fileds = {}
@@ -3262,7 +3317,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     union_type = union_type.rstrip(" ").rstrip(",") + "}"
 
                     field = lines[i].lstrip("\t").lstrip("}").lstrip(" ").rstrip("\n").rstrip(";")
-                    r_file_lower2infos[interface_lower]["structs"][struct_name][field] = union_type
+                    r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][field] = {
+                        "doc": doc,
+                        "type": union_type
+                    }
                 else:
                     # Regular
                     splited = line.rsplit(" ", 1)
@@ -3270,7 +3328,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         print(f"ERROR: {fp}:{i}\n")
                         print(f"{lines[i]}")
                     else:
-                        r_file_lower2infos[interface_lower]["structs"][struct_name][splited[1]] = splited[0]
+                        r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][splited[1]] = {
+                            "doc": doc,
+                            "type": splited[0]
+                        }
 
                 i += 1
 
@@ -3286,7 +3347,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             continue
 
 
-def _get_doc(lines: list[str], idx: int) -> list[str]:
+def _extract_doc(lines: list[str], idx: int) -> list[str]:
     ret :list[str] = []
     while idx >= 0:
         line :str = lines[idx].lstrip("\t")
@@ -3479,7 +3540,7 @@ def _is_enum_flags_type(type: str) -> bool:
 
 def _gen_struct_v2(
     struct_type: str,
-    fields: dict[str, str],
+    fields: dict[str, dict[str, str]],
     r_structs_cpp: list[str],
 ) -> list[str]:
     member_lines: list[str] = []
@@ -3493,8 +3554,7 @@ def _gen_struct_v2(
     for field in fields.keys():
         if is_deprecated_field(field):
             continue
-
-        field_type = fields[field]
+        field_type = fields[field]["type"]
         # 检出count字段，Godot不需要及将其作为成员
         if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
             count_fields.append(_find_count_field(field, fields.keys()))
@@ -3511,7 +3571,7 @@ def _gen_struct_v2(
 
     #
     for field in fields.keys():
-        type: str = fields[field]
+        type: str = fields[field]["type"]
         snake_field_name: str = to_snake_case(field)
         decayed_type: str = _decay_eos_type(type)
         remaped_type: str = ""
@@ -3723,7 +3783,7 @@ def _gen_struct_v2(
     if addtional_methods_requirements["set_from"]:
         r_structs_cpp.append(f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{")
         for field in fields.keys():
-            field_type = fields[field]
+            field_type = fields[field]["type"]
 
             if is_deprecated_field(field):
                 continue
@@ -3802,7 +3862,7 @@ def _gen_struct_v2(
         # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
 
         for field in fields.keys():
-            field_type = fields[field]
+            field_type = fields[field]["type"]
             snake_field_name = to_snake_case(field)
 
             # if field == "Reserved" and field_type == "void*":
@@ -3815,7 +3875,7 @@ def _gen_struct_v2(
                 continue
             if field in variant_union_type_fileds:
                 continue
-            if _is_todo_field(fields[field], field):
+            if _is_todo_field(field_type, field):
                 continue
 
             if field_type == "EOS_AllocateMemoryFunc":
@@ -3831,7 +3891,7 @@ def _gen_struct_v2(
                     r_structs_cpp.append(f"\t_packedint32_to_autio_frames({snake_field_name}, _shadow_{snake_field_name});")
                     r_structs_cpp.append(f"\tp_data.{field} = _shadow_{snake_field_name}.ptr();")
                     r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
-                elif _is_struct_ptr(fields[field]):
+                elif _is_struct_ptr(field_type):
                     r_structs_cpp.append(f"\tp_data.{field} = &{snake_field_name};")
                 elif _is_socket_id_type(_decay_eos_type(field_type), field):
                     r_structs_cpp.append(f"\t{snake_field_name}.ApiVersion = EOS_P2P_SOCKETID_API_LATEST;")
@@ -3966,9 +4026,10 @@ def _gen_struct_v2(
 
 def _get_callback_infos(callback_type: str) -> dict:
     for infos in handles.values():
-        for cb in infos["callbacks"]:
+        callbacks = infos["callbacks"]
+        for cb in callbacks:
             if cb == callback_type:
-                return infos["callbacks"][cb]
+                return callbacks[cb]
     print("ERROR unknown callback type:", callback_type)
     exit(1)
 
