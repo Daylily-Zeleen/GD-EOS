@@ -12,7 +12,7 @@ gen_src_dir = os.path.join(gen_dir, "src")
 
 # 解析结果
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {} # dict[str, dict[str, bool]] 
-expended_as_args_structs: list[str] = []  # 需要被展开为参数形式的结构体
+expanded_as_args_structs: list[str] = []  # 需要被展开为参数形式的结构体
 
 interfaces: dict[str, dict] = {
     "Platform": {
@@ -54,39 +54,39 @@ generate_infos: dict = {}
 
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
-max_field_count_to_expend_of_input_options: int = 3
-max_field_count_to_expend_of_callback_info: int = 1
+max_field_count_to_expand_of_input_options: int = 3
+max_field_count_to_expand_of_callback_info: int = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
 
 def main(argv):
     # 处理生成选项
-    global max_field_count_to_expend_of_input_options
-    global max_field_count_to_expend_of_callback_info
+    global max_field_count_to_expand_of_input_options
+    global max_field_count_to_expand_of_callback_info
     for arg in argv:
         if arg in ["-h", "--help"]:
             print("In order to reduce count of generated classes, here have 2 options:")
-            print('\tmax_field_count_to_expend_of_input_options: The max field count to expend input Options structs (except "ApiVersion" field).')
+            print('\tmax_field_count_to_expand_of_input_options: The max field count to expand input Options structs (except "ApiVersion" field).')
             print("\t\tdefault:3")
-            print("\tmax_field_count_to_expend_of_callback_info: The max field count to expend CallbackInfo structs.")
+            print("\tmax_field_count_to_expand_of_callback_info: The max field count to expand CallbackInfo structs.")
             print("\t\tdefault:1")
-            print("\tYou can override these option like this: max_field_count_to_expend_of_input_options=5")
+            print("\tYou can override these option like this: max_field_count_to_expand_of_input_options=5")
             exit()
         splited: list[str] = arg.split("=", 1)
         if (
             len(splited) != 2
             or not splited[1].isdecimal()
             or int(splited[1]) < 0
-            or not splited[0] in ["max_field_count_to_expend_of_input_options", "max_field_count_to_expend_of_callback_info"]
+            or not splited[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info"]
         ):
             print("Unsupported option:", arg)
             print('Use "-h" or "--help" to get help.')
             exit()
-        if splited[0] == "max_field_count_to_expend_of_input_options":
-            max_field_count_to_expend_of_input_options = int(splited[1])
-        elif splited[0] == "max_field_count_to_expend_of_callback_info":
-            max_field_count_to_expend_of_callback_info = int(splited[1])
+        if splited[0] == "max_field_count_to_expand_of_input_options":
+            max_field_count_to_expand_of_input_options = int(splited[1])
+        elif splited[0] == "max_field_count_to_expand_of_callback_info":
+            max_field_count_to_expand_of_callback_info = int(splited[1])
 
     generator_eos_interfaces()
 
@@ -327,7 +327,7 @@ def gen_files(file_base_name: str, infos: dict):
 
     structs_to_gen: dict = {}
     for st in infos["structs"]:
-        if _is_expended_struct(st):
+        if _is_expanded_struct(st):
             continue
         if _is_need_skip_struct(st):
             continue
@@ -618,7 +618,7 @@ def gen_structs(
 
     lines.append("namespace godot::eos {")
     for struct_type in struct_infos:
-        if _is_expended_struct(struct_type):
+        if _is_expanded_struct(struct_type):
             continue
         if _is_need_skip_struct(struct_type):
             continue
@@ -635,7 +635,7 @@ def gen_structs(
     lines.append("// ====================")
     lines.append(f"#define REGISTER_DATA_CLASSES_OF_{_convert_handle_class_name(handle_class)}()\\")
     for st in struct_infos:
-        if _is_expended_struct(st):
+        if _is_expanded_struct(st):
             continue
         if _is_need_skip_struct(st):
             continue
@@ -1772,7 +1772,7 @@ def _gen_callback(
         exit(1)
 
     signal_name = __convert_to_signal_name(callback_type)
-    if not _is_expended_struct(_decay_eos_type(arg_type)):
+    if not _is_expanded_struct(_decay_eos_type(arg_type)):
         r_bind_signal_lines.append(
             f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({__convert_to_struct_class(_decay_eos_type(arg_type))}, {to_snake_case(arg_name)})));'
         )
@@ -1942,7 +1942,7 @@ def __get_str_arr_element_type(str_arr_type: str) -> str:
         return str_arr_type.removesuffix("*").removeprefix("const ")
 
 
-def __expend_input_struct(
+def __expand_input_struct(
     arg_type: str,
     arg_name: str,
     invalid_arg_return_value: str,
@@ -2412,7 +2412,7 @@ def _gen_method(
             else:
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
 
-        elif __is_method_input_only_struct(decayed_type) and not _is_expended_struct(decayed_type):
+        elif __is_method_input_only_struct(decayed_type) and not _is_expanded_struct(decayed_type):
             if name.endswith("Options"):
                 options_type = decayed_type
                 options_input_identifier = f"p_{snake_name}"
@@ -2426,13 +2426,13 @@ def _gen_method(
             prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&{options_prepare_identifier}")
-        elif __is_method_input_only_struct(decayed_type) and _is_expended_struct(decayed_type):
+        elif __is_method_input_only_struct(decayed_type) and _is_expanded_struct(decayed_type):
             if name.endswith("Options"):
                 options_type = decayed_type
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expend_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals)
+            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals)
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -2911,7 +2911,7 @@ def remap_type(type: str, field: str = "") -> str:
     return simple_remap.get(type, type)
 
 
-def _is_expended_struct(struct_type: str) -> bool:
+def _is_expanded_struct(struct_type: str) -> bool:
     if struct_type in [
         # 特殊处理
         "EOS_PlayerDataStorage_ReadFileDataCallbackInfo",
@@ -2930,7 +2930,7 @@ def _is_expended_struct(struct_type: str) -> bool:
     if struct_type in ["EOS_LogMessage"]:
         # 已经以展开方式硬编码
         return True
-    return _decay_eos_type(struct_type) in expended_as_args_structs
+    return _decay_eos_type(struct_type) in expanded_as_args_structs
 
 
 def to_snake_case(text: str) -> str:
@@ -3125,10 +3125,10 @@ def _make_additional_method_requirements():
     for struct_type in structs:
         fields = __get_struct_fields(struct_type)
         field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0)
-        if max_field_count_to_expend_of_input_options > 0 and field_count <= max_field_count_to_expend_of_input_options and __is_method_input_only_struct(struct_type):
-            expended_as_args_structs.append(struct_type)
-        if max_field_count_to_expend_of_callback_info > 0 and field_count <= max_field_count_to_expend_of_callback_info and __is_callback_output_only_struct(struct_type):
-            expended_as_args_structs.append(struct_type)
+        if max_field_count_to_expand_of_input_options > 0 and field_count <= max_field_count_to_expand_of_input_options and __is_method_input_only_struct(struct_type):
+            expanded_as_args_structs.append(struct_type)
+        if max_field_count_to_expand_of_callback_info > 0 and field_count <= max_field_count_to_expand_of_callback_info and __is_callback_output_only_struct(struct_type):
+            expanded_as_args_structs.append(struct_type)
 
 
 def _is_deprecated_constant(name: str) -> bool:
@@ -3374,6 +3374,7 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
             while line.startswith(" "):
                 prefix_space_count += 1
                 line = line.removeprefix(" ")
+            line = line.replace("*/\n", "\n")
 
             for _i in range(divmod(prefix_space_count, 4)[0]):
                 line = "\t" + line
