@@ -2612,6 +2612,8 @@ def _gen_method(
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
+    _insert_doc_method(handle_klass, snake_method_name, info["doc"])
+
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_inclide_dir, "eos_result.h"), "r")
@@ -3351,19 +3353,30 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
     ret :list[str] = []
     while idx >= 0:
         line :str = lines[idx].lstrip("\t")
+
         valid = False
         for prefix in [" */", "//", "/**", " *"]:
             if line.startswith(prefix):
-                line = line.lstrip(prefix).rstrip().rstrip("*/")
+                line = line.removeprefix(prefix).removeprefix(" ")
                 valid = True
                 break
+
         if valid:
-            if len(line.strip()) > 0:
-                ret.append(line)
+            # 将前置空格每 4 个转为一个 缩进
+            prefix_space_count = 0
+            while line.startswith(" "):
+                prefix_space_count += 1
+                line = line.removeprefix(" ")
+
+            for _i in range(divmod(prefix_space_count, 4)[0]):
+                line = "\t" + line
+
+            ret.append(line)
             idx -= 1
         else:
             break
 
+    # 去除首尾空行
     while len(ret) > 0:
         if len(ret[0].strip()) <= 0:
             ret.pop(0)
@@ -3377,6 +3390,7 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
             break
 
     ret.reverse()
+
     return ret
 
 
@@ -3712,6 +3726,8 @@ def _gen_struct_v2(
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remaped_type} {snake_field_name}{{}};")
 
+        _insert_doc_property(typename, snake_field_name, fields[field]["doc"])
+
     # 对某些类型进行特殊处理
     if struct_type == "EOS_PlayerDataStorage_WriteFileDataCallbackInfo":
         # GDExtension 的数组与 godot 之间不是引用传递，无法以out参数将data_buffer传递给回调,
@@ -4032,6 +4048,112 @@ def _get_callback_infos(callback_type: str) -> dict:
                 return callbacks[cb]
     print("ERROR unknown callback type:", callback_type)
     exit(1)
+
+
+def _insert_doc_property(typename: str, prop: str, doc: list[str]):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        indent_count = 0
+        while line.startswith("\t"):
+            indent_count += 1
+            line = line.removeprefix("\t")
+        if line.startswith(f'<member name="{prop}"'):
+            insert_idx = i + 1
+            indent_count += 1
+            break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</member>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    # 插入
+    for line in doc:
+        line = line.removeprefix(" ")
+        if len(line.strip()) == 0:
+            # 非空行再加缩进
+            for i in range(indent_count):
+                line = "\t" + line
+        lines.insert(insert_idx, line)
+        insert_idx += 1
+
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def _insert_doc_method(typename: str, method: str, doc: list[str]):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        if line.lstrip("\t").startswith(f'<method name="{method}"'):
+            for j in range(i + 1, len(lines)):
+                line = lines[j]
+
+                indent_count = 0
+                while line.startswith("\t"):
+                    indent_count += 1
+                    line = line.removeprefix("\t")
+
+                if line.startswith("<description>"):
+                    insert_idx = j + 1
+                    indent_count += 1
+
+                    break
+            if insert_idx >= 0:
+                break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</description>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    # 插入
+    for line in doc:
+        # line = line.removeprefix(" ")
+        if len(line.strip()) != 0:
+            # 非空行再加缩进
+            for i in range(indent_count):
+                line = "\t" + line
+        lines.insert(insert_idx, line)
+        insert_idx += 1
+
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def __get_doc_file(typename: str) -> list[str]:
+    try:
+        f = open(os.path.join("./doc_classes", typename) + ".xml", "r")
+        ret :list[str] = f.readlines()
+        f.close()
+        return ret
+    except:
+        return []
+
+
+def __stroe_doc_file(typename: str, content: list[str]):
+    try:
+        f = open(os.path.join("./doc_classes", typename) + ".xml", "w")
+        f.writelines(content)
+        f.close()
+    except:
+        return
 
 
 if __name__ == "__main__":
