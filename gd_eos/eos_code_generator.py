@@ -544,7 +544,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
                     continue
                 lines.append(f'\t_BIND_ENUM_BITFIELD_FLAG({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
                 # 文档
-                _insert_doc_constnt(converted_handle_class, _convert_enum_value(e), e_info["doc"])
+                _insert_doc_constant(converted_handle_class, _convert_enum_value(e), e_info["doc"])
         else:
             for e_info in enums[enum_type]["members"]:
                 e = e_info["name"]
@@ -552,7 +552,7 @@ def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
                     continue
                 lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
                 # 文档
-                _insert_doc_constnt(converted_handle_class, _convert_enum_value(e), e_info["doc"])
+                _insert_doc_constant(converted_handle_class, _convert_enum_value(e), e_info["doc"])
         __remove_backslash_of_last_line(lines)
         lines.append("")
 
@@ -843,7 +843,7 @@ def _gen_handle(
         if _is_string_constant(const_value):
             method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}')
             has_string_constants = True
-            _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"])
+            _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"], {})
     if has_string_constants:
         method_define_lines.append("")
 
@@ -1952,6 +1952,7 @@ def __expand_input_struct(
     r_prepare_lines: list[str],
     r_after_call_lines: list[str],
     r_bind_defvals: list[str],
+    r_required_arg_doc: dict[str, list[str]], # 字段 -> 文档
 ):
     decayed_type = _decay_eos_type(arg_type)
 
@@ -1992,6 +1993,7 @@ def __expand_input_struct(
             # 需要跳过的字段
             continue
 
+        r_required_arg_doc[field] = fields[field]["doc"]
         r_bind_args.append(f'"{snake_field}"')
 
         options_field = f"{arg_name}.{field}"
@@ -2329,6 +2331,7 @@ def _gen_method(
 
     bind_defvals: list[str] = []
 
+    expended_args_doc: dict[str, list[str]] = {}# 字段 -> doc
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
         name: str = info["args"][i]["name"]
@@ -2432,7 +2435,7 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals)
+            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals, expended_args_doc)
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -2619,7 +2622,7 @@ def _gen_method(
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
-    _insert_doc_method(handle_klass, snake_method_name, info["doc"])
+    _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc)
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
@@ -3399,6 +3402,10 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
 
     ret.reverse()
 
+    for i in range(len(ret)):
+        while "<" in ret[i] and "/>" in ret[i]:
+            ret[i] = ret[i].replace("<", "(").replace("/>", ")")
+
     return ret
 
 
@@ -4091,7 +4098,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     __stroe_doc_file(typename=typename, content=lines)
 
 
-def _insert_doc_method(typename: str, method: str, doc: list[str]):
+def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]]):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
@@ -4128,11 +4135,25 @@ def _insert_doc_method(typename: str, method: str, doc: list[str]):
 
     # 插入
     __insert_doc_to(lines, insert_idx, doc, indent_count)
+    if len(additional_args_doc) > 0:
+        insert_idx += len(doc)
+        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Expanded Struct Fileds --------------\n"], indent_count)
+        insert_idx += 2
+
+        for arg in additional_args_doc:
+            arg_doc = additional_args_doc[arg].copy()
+            for i in range(len(arg_doc)):
+                arg_doc[i] = "\t" + arg_doc[i]
+            arg_doc.insert(0, "\n")
+            arg_doc.insert(1, f"{arg}:\n")
+            __insert_doc_to(lines, insert_idx, arg_doc, indent_count)
+            insert_idx += len(arg_doc)
+
     # 保存
     __stroe_doc_file(typename=typename, content=lines)
 
 
-def _insert_doc_constnt(typename: str, constant: str, doc: list[str]):
+def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
@@ -4141,10 +4162,12 @@ def _insert_doc_constnt(typename: str, constant: str, doc: list[str]):
     indent_count : int = 0 
     for i in range(len(lines)):
         line = lines[i]
+
         indent_count = 0
         while line.startswith("\t"):
             indent_count += 1
             line = line.removeprefix("\t")
+
         if line.startswith(f'<constant name="{constant}"'):
             insert_idx = i + 1
             indent_count += 1
