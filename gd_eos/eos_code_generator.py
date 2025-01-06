@@ -1706,7 +1706,7 @@ def __is_api_version_field(type: str, name: str) -> bool:
     return type == "int32_t" and name == "ApiVersion"
 
 
-def __get_struct_fields(type: str) -> dict[str, str]:
+def __get_struct_fields(type: str) -> dict[str, dict]:
     return structs[_decay_eos_type(type)]["fields"]
 
 
@@ -2350,7 +2350,7 @@ def _gen_method(
             if method_name == "EOS_Logging_SetCallback":
                 declare_args.append(f"const Callable& p_{snake_name}")
                 bind_args.append(f'"{snake_name}"')
-                prepare_lines.append(f"EOS::get_log_message_callback() = p_{snake_name};")
+                prepare_lines.append(f"\tEOS::get_log_message_callback() = p_{snake_name};")
             else:
                 # 回调参数
                 declare_args.append(f"const Callable& p_{snake_name} = {{}}")
@@ -2382,7 +2382,8 @@ def _gen_method(
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
 
                 bind_defvals.append("DEFVAL(Callable())")
-
+            # 插入回调的文档
+            expended_args_doc[name] = __make_callback_doc(decayed_type)
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             next_decayed_type = _decay_eos_type(info["args"][i + 1]["type"])
@@ -4065,6 +4066,31 @@ def _get_callback_infos(callback_type: str) -> dict:
     exit(1)
 
 
+def __make_callback_doc(callback_type: str) -> list[str]:
+    info = _get_callback_infos(callback_type)
+    ret :list[str] = []
+
+    for arg in info["args"]:
+        name = arg["name"]
+        type = arg["type"]
+        decayed_type = _decay_eos_type(type)
+        if not _is_expanded_struct(decayed_type):
+            ret.append(f"{name}: {type}\n")
+            for l in structs[decayed_type]["doc"]:
+                ret.append(f"\t{l}")
+        else:
+            arg_fields = __get_struct_fields(decayed_type)
+
+            for f in arg_fields:
+                info = arg_fields[f]
+                f_type = info["type"]
+                ret.append(f"{f}: {f_type}\n")
+                for l in info["doc"]:
+                    ret.append(f"\t{l}\n")
+
+    return ret
+
+
 def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
@@ -4137,7 +4163,7 @@ def _insert_doc_method(typename: str, method: str, doc: list[str], additional_ar
     __insert_doc_to(lines, insert_idx, doc, indent_count)
     if len(additional_args_doc) > 0:
         insert_idx += len(doc)
-        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Expanded Struct Fileds --------------\n"], indent_count)
+        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Arguments Additional Descriptions --------------\n"], indent_count)
         insert_idx += 2
 
         for arg in additional_args_doc:
