@@ -530,6 +530,7 @@ def gen_files(file_base_name: str, infos: dict):
 def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
     lines = ["#pragma once"]
     lines.append("")
+    converted_handle_class = _convert_handle_class_name(handle_class)
 
     # Bind enum value macro
     for enum_type in enums:
@@ -542,14 +543,19 @@ def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
                 if _is_need_skip_enum_value(enum_type, e):
                     continue
                 lines.append(f'\t_BIND_ENUM_BITFIELD_FLAG({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
+                # 文档
+                _insert_doc_constnt(converted_handle_class, _convert_enum_value(e), e_info["doc"])
         else:
             for e_info in enums[enum_type]["members"]:
                 e = e_info["name"]
                 if _is_need_skip_enum_value(enum_type, e):
                     continue
                 lines.append(f'\t_BIND_ENUM_CONSTANT({enum_type}, {e}, "{_convert_enum_value(e)}")\\')
+                # 文档
+                _insert_doc_constnt(converted_handle_class, _convert_enum_value(e), e_info["doc"])
         __remove_backslash_of_last_line(lines)
         lines.append("")
+
 
     # Bind macro
     lines.append(f"#define _BIND_ENUMS_{macro_suffix}()\\")
@@ -575,9 +581,9 @@ def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
         if _is_need_skip_enum_type(enum_type):
             continue
         if _is_enum_flags_type(enum_type):
-            lines.append(f"\tVARIANT_BITFIELD_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)})\\")
+            lines.append(f"\tVARIANT_BITFIELD_CAST(godot::eos::{converted_handle_class}::{_convert_enum_type(enum_type)})\\")
         else:
-            lines.append(f"\tVARIANT_ENUM_CAST(godot::eos::{_convert_handle_class_name(handle_class)}::{_convert_enum_type(enum_type)})\\")
+            lines.append(f"\tVARIANT_ENUM_CAST(godot::eos::{converted_handle_class}::{_convert_enum_type(enum_type)})\\")
     __remove_backslash_of_last_line(lines)
     lines.append("")
 
@@ -3210,7 +3216,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
                 splited = line.split(" = ")
                 r_file_lower2infos[interface_lower]["enums"][enum_type]["members"].append({
-                    "dos": _extract_doc(lines, i - 1),
+                    "doc": _extract_doc(lines, i - 1),
                     "name": splited[0]
                 })
                 i += 1
@@ -4054,6 +4060,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
+
     insert_idx : int = -1
     indent_count : int = 0 
     for i in range(len(lines)):
@@ -4077,15 +4084,8 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
         line = lines[insert_idx]
 
     # 插入
-    for line in doc:
-        line = line.removeprefix(" ")
-        if len(line.strip()) == 0:
-            # 非空行再加缩进
-            for i in range(indent_count):
-                line = "\t" + line
-        lines.insert(insert_idx, line)
-        insert_idx += 1
-
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
     __stroe_doc_file(typename=typename, content=lines)
 
 
@@ -4125,6 +4125,45 @@ def _insert_doc_method(typename: str, method: str, doc: list[str]):
         line = lines[insert_idx]
 
     # 插入
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def _insert_doc_constnt(typename: str, constant: str, doc: list[str]):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        indent_count = 0
+        while line.startswith("\t"):
+            indent_count += 1
+            line = line.removeprefix("\t")
+        if line.startswith(f'<constant name="{constant}"'):
+            insert_idx = i + 1
+            indent_count += 1
+            break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</constant>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    # 插入
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def __insert_doc_to(lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
     for line in doc:
         # line = line.removeprefix(" ")
         if len(line.strip()) != 0:
@@ -4133,8 +4172,6 @@ def _insert_doc_method(typename: str, method: str, doc: list[str]):
                 line = "\t" + line
         lines.insert(insert_idx, line)
         insert_idx += 1
-
-    __stroe_doc_file(typename=typename, content=lines)
 
 
 def __get_doc_file(typename: str) -> list[str]:
