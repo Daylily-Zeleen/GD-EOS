@@ -843,6 +843,7 @@ def _gen_handle(
         if _is_string_constant(const_value):
             method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}')
             has_string_constants = True
+            _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"])
     if has_string_constants:
         method_define_lines.append("")
 
