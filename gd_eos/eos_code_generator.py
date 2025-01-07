@@ -6,7 +6,7 @@ import os, sys
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 # TODO: 对RTC的子句柄进行处理，避免硬编码
 
-sdk_inclide_dir = "thirdparty/eos-sdk/SDK/Include"
+sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
 gen_dir = "gd_eos/gen/"
 gen_include_dir = os.path.join(gen_dir, "include")
@@ -75,20 +75,20 @@ def main(argv):
             print("\t\tdefault:1")
             print("\tYou can override these option like this: max_field_count_to_expand_of_input_options=5")
             exit()
-        splited: list[str] = arg.split("=", 1)
+        splits: list[str] = arg.split("=", 1)
         if (
-            len(splited) != 2
-            or not splited[1].isdecimal()
-            or int(splited[1]) < 0
-            or not splited[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info"]
+            len(splits) != 2
+            or not splits[1].isdecimal()
+            or int(splits[1]) < 0
+            or not splits[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info"]
         ):
             print("Unsupported option:", arg)
             print('Use "-h" or "--help" to get help.')
             exit()
-        if splited[0] == "max_field_count_to_expand_of_input_options":
-            max_field_count_to_expand_of_input_options = int(splited[1])
-        elif splited[0] == "max_field_count_to_expand_of_callback_info":
-            max_field_count_to_expand_of_callback_info = int(splited[1])
+        if splits[0] == "max_field_count_to_expand_of_input_options":
+            max_field_count_to_expand_of_input_options = int(splits[1])
+        elif splits[0] == "max_field_count_to_expand_of_callback_info":
+            max_field_count_to_expand_of_callback_info = int(splits[1])
 
     generator_eos_interfaces()
 
@@ -126,7 +126,7 @@ def generator_eos_interfaces() -> None:
 
 def preprocess():
     # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 印象枚举的绑定
-    f = open(os.path.join(sdk_inclide_dir, "eos_base.h"), "r")
+    f = open(os.path.join(sdk_include_dir, "eos_base.h"), "r")
     lines: list[str] = f.readlines()
     f.close()
 
@@ -135,7 +135,7 @@ def preprocess():
         if "#define EOS_HAS_ENUM_CLASS" in line and not line.startswith("//"):
             lines[i] = "//" + line
 
-    f = open(os.path.join(sdk_inclide_dir, "eos_base.h"), "w")
+    f = open(os.path.join(sdk_include_dir, "eos_base.h"), "w")
     f.write("".join(lines))
     f.close()
 
@@ -228,9 +228,9 @@ def _gen_disabled_macro(handle_type: str) -> str:
 def gen_files(file_base_name: str, infos: dict):
     eos_header = file_base_name + ".h"
     eos_types_header = file_base_name + ".h"
-    if os.path.exists(os.path.join(sdk_inclide_dir, file_base_name + "_types.h")):
+    if os.path.exists(os.path.join(sdk_include_dir, file_base_name + "_types.h")):
         eos_types_header = file_base_name + "_types.h"
-    if not os.path.exists(os.path.join(sdk_inclide_dir, eos_header)):
+    if not os.path.exists(os.path.join(sdk_include_dir, eos_header)):
         eos_header = eos_types_header
 
     if file_base_name == "eos_sdk":
@@ -770,8 +770,8 @@ def _gen_handle(
     method_bind_lines: list[str] = []
 
     notifies_member_lines: list[str] = []
-    setup_nofities_lines: list[str] = []
-    remove_nofities_lines: list[str] = []
+    setup_notifies_lines: list[str] = []
+    remove_notifies_lines: list[str] = []
 
     for method in method_infos:
         if method.endswith("Release"):
@@ -806,7 +806,7 @@ def _gen_handle(
                     valid_field_count += 1
 
                 if valid_field_count == 1 and "ApiVersion" in options_fields:
-                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_member_lines, setup_nofities_lines, remove_nofities_lines)
+                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_member_lines, setup_notifies_lines, remove_notifies_lines)
 
                     for m in method_infos:
                         if m == method:
@@ -857,11 +857,11 @@ def _gen_handle(
         r_cpp_lines.append(f"}}")
         r_cpp_lines.append(f"")
 
-    if len(release_method) or len(remove_nofities_lines):
+    if len(release_method) or len(remove_notifies_lines):
         r_cpp_lines.append(f"{klass}::~{klass}() {{")
-        if len(remove_nofities_lines):
+        if len(remove_notifies_lines):
             r_cpp_lines.append(f"\tif (m_handle) {{")
-            for line in remove_nofities_lines:
+            for line in remove_notifies_lines:
                 r_cpp_lines.append("\t" + line)
             r_cpp_lines.append(f"\t}}")
         if len(release_method):
@@ -883,8 +883,8 @@ def _gen_handle(
             # 特殊处理 RTCAudio
             r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
             r_cpp_lines.append(f"\tif (m_handle) {{")
-            r_cpp_lines.append(f"\t\tauto rtc_auduo_handle = EOS_RTC_GetAudioInterface(m_handle);")
-            r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_auduo_handle);')
+            r_cpp_lines.append(f"\t\tauto rtc_audio_handle = EOS_RTC_GetAudioInterface(m_handle);")
+            r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_audio_handle);')
             r_cpp_lines.append(f"\t}}")
             r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
 
@@ -897,8 +897,8 @@ def _gen_handle(
             r_cpp_lines.append(f"\t}}")
             r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCData")}')
             r_cpp_lines.append(f"#endif // _EOS_VERSION_GREATER_THAN_1_6_1")
-        if len(setup_nofities_lines):
-            for line in setup_nofities_lines:
+        if len(setup_notifies_lines):
+            for line in setup_notifies_lines:
                 r_cpp_lines.append(line)
         r_cpp_lines.append(f"}}")
         r_cpp_lines.append(f"")
@@ -937,7 +937,7 @@ def _gen_handle(
     if need_singleton:
         ret.append(f"\t{klass}();")
     # Destructor
-    if len(release_method) or len(remove_nofities_lines):  # and not is_base_handle_type:
+    if len(release_method) or len(remove_notifies_lines):  # and not is_base_handle_type:
         ret.append(f"\t~{klass}();")
     # Handle setget
     if not is_base_handle_type:
@@ -1038,8 +1038,8 @@ def _get_base_class(handle_type: str) -> str:
 
 
 def _convert_to_interface_lower(file_name: str) -> str:
-    splited = file_name.rsplit("\\", 1)
-    f: str = splited[len(splited) - 1]
+    splits = file_name.rsplit("\\", 1)
+    f: str = splits[len(splits) - 1]
     if f == "eos_types.h":
         # Hack
         return "platform"
@@ -1148,8 +1148,8 @@ def parse_all_file():
         "constants": {},
     }
 
-    for f in os.listdir(sdk_inclide_dir):
-        fp = os.path.join(sdk_inclide_dir, f)
+    for f in os.listdir(sdk_include_dir):
+        fp = os.path.join(sdk_include_dir, f)
         if os.path.isdir(fp):
             continue
 
@@ -1180,6 +1180,14 @@ def parse_all_file():
             }
         _parse_file(interface_lower, fp, file_lower2infos)
 
+        docs = {}
+        for h in file_lower2infos[interface_lower]["handles"]:
+            h_info = file_lower2infos[interface_lower]["handles"][h]
+            if len(h_info["doc"]) <= 0:
+                docs[h] = h_info["doc"]
+        if len(docs) > 1:
+            print(f, docs)
+
     _get_EOS_EResult(file_lower2infos)
     _get_EOS_UI_EKeyCombination(file_lower2infos)
     _get_EOS_UI_EInputStateButtonFlags(file_lower2infos)
@@ -1197,15 +1205,15 @@ def parse_all_file():
 
                 # 获取接口方法
                 if "_Get" in method_name and method_name.endswith("Interface"):
-                    splited: list[str] = method_name.split("_")
-                    for i in range(len(splited)):
-                        if splited[i] in ["EOS", "Platform"]:
-                            splited[i] = ""
-                        if splited[i].startswith("Get"):
-                            splited[i] = splited[i].removeprefix("Get")
-                        if splited[i].removesuffix("Interface"):
-                            splited[i] = splited[i].removesuffix("Interface")
-                    interfaces["".join(splited)] = methods[method_name]
+                    splits: list[str] = method_name.split("_")
+                    for i in range(len(splits)):
+                        if splits[i] in ["EOS", "Platform"]:
+                            splits[i] = ""
+                        if splits[i].startswith("Get"):
+                            splits[i] = splits[i].removeprefix("Get")
+                        if splits[i].removesuffix("Interface"):
+                            splits[i] = splits[i].removesuffix("Interface")
+                    interfaces["".join(splits)] = methods[method_name]
                     to_remove_methods.append(method_name)
 
                     handle_type = _decay_eos_type(methods[method_name]["args"][0]["type"])
@@ -1311,7 +1319,7 @@ def parse_all_file():
                 continue
             if not cheat_handle_type in handles:
                 print(handles.keys())
-                print("ERR UNKONWN handle type:", cheat_handle_type)
+                print("ERR UNKNOWN handle type:", cheat_handle_type)
                 exit(1)
             handles[cheat_handle_type]["methods"][m] = methods[m]
             to_remove.append(m)
@@ -1328,7 +1336,7 @@ def parse_all_file():
                 print("WARN: has not owned handle enum type:", e)
                 continue
             if not cheat_handle_type in handles:
-                print("ERR UNKONWN handle type:", cheat_handle_type)
+                print("ERR UNKNOWN handle type:", cheat_handle_type)
                 exit(1)
             handles[cheat_handle_type]["enums"][e] = enums[e]
             to_remove.append(e)
@@ -1359,7 +1367,7 @@ def parse_all_file():
                 print("WARN: has not owned handle callback type:", cb)
                 continue
             if not cheat_handle_type in handles:
-                print("ERR UNKONWN handle type:", cheat_handle_type)
+                print("ERR UNKNOWN handle type:", cheat_handle_type)
                 exit(1)
             handles[cheat_handle_type]["callbacks"][cb] = callbacks[cb]
             to_remove.append(cb)
@@ -1376,7 +1384,7 @@ def parse_all_file():
                 print("WARN: has not owned constant:", c)
                 continue
             if not cheat_handle_type in handles:
-                print("ERR UNKONWN handle type:", cheat_handle_type)
+                print("ERR UNKNOWN handle type:", cheat_handle_type)
                 exit(1)
             handles[cheat_handle_type]["constants"][c] = constants[c]
             to_remove.append(c)
@@ -1464,38 +1472,38 @@ def _convert_interface_class_name(interface_name_lower: str) -> str:
         return "EOS"
     if interface_name_lower == "eos_userinfo":
         return "EOSUserInfoInterface"
-    splited_name = interface_name_lower.removeprefix("eos_").split("_")
-    for i in range(len(splited_name)):
-        if splited_name[i] in ["rtc", "p2p", "ui"]:
-            splited_name[i] = splited_name[i].upper()
-        elif splited_name[i] == "playerdatastorage":
-            splited_name[i] = "PlayerDataStorage"
-        elif splited_name[i] == "p2p":
-            splited_name[i] = "P2P"
-        elif splited_name[i] == "sdk":
-            splited_name[i] = "Platform"
-        elif splited_name[i] == "userinfo":
-            splited_name[i] = "UserInfo"
-        elif splited_name[i] == "titlestorage":
-            splited_name[i] = "TitleStorage"
-        elif splited_name[i] == "anticheatserver":
-            splited_name[i] = "AntiCheatServer"
-        elif splited_name[i] == "anticheatclient":
-            splited_name[i] = "AntiCheatClient"
-        elif splited_name[i] == "anticheatcommon":
-            splited_name[i] = "AntiCheatCommon"
-        elif splited_name[i] == "progressionsnapshot":
-            splited_name[i] = "ProgressionSnapshot"
-        elif splited_name[i] == "kws":
-            splited_name[i] = "KWS"
-        elif splited_name[i] == "custominvites":
-            splited_name[i] = "CustomInvites"
-        elif splited_name[i] == "integratedplatform":
-            splited_name[i] = "IntegratedPlatform"
+    name_splits = interface_name_lower.removeprefix("eos_").split("_")
+    for i in range(len(name_splits)):
+        if name_splits[i] in ["rtc", "p2p", "ui"]:
+            name_splits[i] = name_splits[i].upper()
+        elif name_splits[i] == "playerdatastorage":
+            name_splits[i] = "PlayerDataStorage"
+        elif name_splits[i] == "p2p":
+            name_splits[i] = "P2P"
+        elif name_splits[i] == "sdk":
+            name_splits[i] = "Platform"
+        elif name_splits[i] == "userinfo":
+            name_splits[i] = "UserInfo"
+        elif name_splits[i] == "titlestorage":
+            name_splits[i] = "TitleStorage"
+        elif name_splits[i] == "anticheatserver":
+            name_splits[i] = "AntiCheatServer"
+        elif name_splits[i] == "anticheatclient":
+            name_splits[i] = "AntiCheatClient"
+        elif name_splits[i] == "anticheatcommon":
+            name_splits[i] = "AntiCheatCommon"
+        elif name_splits[i] == "progressionsnapshot":
+            name_splits[i] = "ProgressionSnapshot"
+        elif name_splits[i] == "kws":
+            name_splits[i] = "KWS"
+        elif name_splits[i] == "custominvites":
+            name_splits[i] = "CustomInvites"
+        elif name_splits[i] == "integratedplatform":
+            name_splits[i] = "IntegratedPlatform"
         else:
-            splited_name[i] = splited_name[i].capitalize()
+            name_splits[i] = name_splits[i].capitalize()
 
-    return "EOS" + "".join(splited_name)
+    return "EOS" + "".join(name_splits)
 
 
 def _convert_handle_class_name(handle_type: str) -> str:
@@ -1748,8 +1756,8 @@ def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
     return ret
 
 
-def __convert_to_struct_class(strcut_type: str) -> str:
-    return _decay_eos_type(strcut_type).replace("EOS_", "EOS")
+def __convert_to_struct_class(struct_type: str) -> str:
+    return _decay_eos_type(struct_type).replace("EOS_", "EOS")
 
 
 def _gen_callback(
@@ -1802,7 +1810,7 @@ def _gen_callback(
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
         ## 检出不需要成为参数的字段
         count_fields: list[str] = []
-        variant_union_type_fileds: list[str] = []
+        variant_union_type_fields: list[str] = []
         for field in fields.keys():
             if is_deprecated_field(field):
                 continue
@@ -1816,7 +1824,7 @@ def _gen_callback(
             if _is_variant_union_type(field_type, field):
                 for f in fields.keys():
                     if f == field + "Type":
-                        variant_union_type_fileds.append(f)
+                        variant_union_type_fields.append(f)
         ##
         ret: str = ""
         signal_bind_args: str = ""
@@ -1836,7 +1844,7 @@ def _gen_callback(
             if __is_api_version_field(field_type, field):
                 continue
 
-            if is_deprecated_field(field) or field in count_fields or field in variant_union_type_fileds:
+            if is_deprecated_field(field) or field in count_fields or field in variant_union_type_fields:
                 continue
 
             if _is_client_data_field(field_type, field):
@@ -1984,7 +1992,7 @@ def __expand_input_struct(
 
     ## 检出不需要成为参数的字段
     count_fields: list[str] = []
-    variant_union_type_fileds: list[str] = []
+    variant_union_type_fields: list[str] = []
     for field in fields.keys():
         if is_deprecated_field(field):
             continue
@@ -1998,7 +2006,7 @@ def __expand_input_struct(
         if _is_variant_union_type(field_type, field):
             for f in fields.keys():
                 if f == field + "Type":
-                    variant_union_type_fileds.append(f)
+                    variant_union_type_fields.append(f)
     ##
     for field in fields:
         field_type: str = fields[field]["type"]
@@ -2010,7 +2018,7 @@ def __expand_input_struct(
             macro = __get_api_latest_macro(decayed_type)
             r_prepare_lines.append(f"\t{arg_name}.ApiVersion = {macro};")
             continue
-        elif is_deprecated_field(field) or field in count_fields or field in variant_union_type_fileds:
+        elif is_deprecated_field(field) or field in count_fields or field in variant_union_type_fields:
             # 需要跳过的字段
             continue
 
@@ -2316,8 +2324,8 @@ def __convert_method_name(method_name: str, handle_type: str = "") -> str:
                 if method_name == m:
                     continue
                 if m.endswith(candidate_method_name):
-                    splited = method_name.rsplit("_", 2)
-                    candidate_method_name = "".join([splited[1], splited[2]])
+                    splits = method_name.rsplit("_", 2)
+                    candidate_method_name = "".join([splits[1], splits[2]])
                     valid = False
                     break
         return to_snake_case(candidate_method_name).removeprefix("e_")  # Hack, 去除枚举前缀
@@ -2675,7 +2683,7 @@ def _gen_method(
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
-    f = open(os.path.join(sdk_inclide_dir, "eos_result.h"), "r")
+    f = open(os.path.join(sdk_include_dir, "eos_result.h"), "r")
     lines :list[str] = f.readlines()
 
     r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = {
@@ -2696,7 +2704,7 @@ def _get_EOS_EResult(r_file_lower2infos: list[str]):
 
 
 def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
-    f = open(os.path.join(sdk_inclide_dir, "eos_ui_keys.h"), "r")
+    f = open(os.path.join(sdk_include_dir, "eos_ui_keys.h"), "r")
     lines :list[str] = f.readlines()
 
     r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = {
@@ -2709,17 +2717,17 @@ def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
-        splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
+        splits = line.split("(", 1)[1].rsplit(")")[0].split(", ")
         r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"]["members"].append({
             "doc" : _extract_doc(lines, i - 1),
-            "name" : splited[0] + splited[1],
+            "name" : splits[0] + splits[1],
         })
 
     f.close()
 
 
 def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
-    f = open(os.path.join(sdk_inclide_dir, "eos_ui_buttons.h"), "r")
+    f = open(os.path.join(sdk_include_dir, "eos_ui_buttons.h"), "r")
     lines :list[str] = f.readlines()
 
     r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = {
@@ -2732,10 +2740,10 @@ def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
-        splited = line.split("(", 1)[1].rsplit(")")[0].split(", ")
+        splits = line.split("(", 1)[1].rsplit(")")[0].split(", ")
         r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"]["members"].append({
             "doc" : _extract_doc(lines, i - 1),
-            "name" : splited[0] + splited[1],
+            "name" : splits[0] + splits[1],
         })
 
     f.close()
@@ -2754,10 +2762,10 @@ def _convert_enum_type(ori: str) -> str:
     if ori.startswith("EOS_E"):
         return ori.replace("EOS_E", "")
     elif "_E" in ori:
-        splited = ori.split("_")
-        splited[2] = splited[2].removeprefix("E")
-        splited.pop(0)
-        return "_".join(splited)
+        splits = ori.split("_")
+        splits[2] = splits[2].removeprefix("E")
+        splits.pop(0)
+        return "_".join(splits)
     else:
         print("ERROR: Unsupport:", ori)
         return ori
@@ -3221,18 +3229,18 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
         # 常量宏
         if line.startswith("#define EOS_"):
             text: str = line.strip().split(" ", 1)[1]
-            splited: list[str] = []
+            splits: list[str] = []
             if len(text.split(" ", 1)) > 1 and not "(" in text.split(" ", 1)[0]:
-                splited = text.split(" ", 1)
+                splits = text.split(" ", 1)
             if len(text.split("\t", 1)) > 1 and not "(" in text.split(" ", 1)[0]:
-                splited = text.split("\t", 1)
-            if splited:
-                for j in range(len(splited)):
-                    splited[j] = splited[j].strip()
-                if not _is_deprecated_constant(splited[0]) and not _is_need_skip_constant(splited[0]):
-                    r_file_lower2infos[interface_lower]["constants"][splited[0]] = {
+                splits = text.split("\t", 1)
+            if splits:
+                for j in range(len(splits)):
+                    splits[j] = splits[j].strip()
+                if not _is_deprecated_constant(splits[0]) and not _is_need_skip_constant(splits[0]):
+                    r_file_lower2infos[interface_lower]["constants"][splits[0]] = {
                         "doc": _extract_doc(lines, i - 1),
-                        "value": splited[1]
+                        "value": splits[1]
                     }
 
         # 句柄类型
@@ -3268,10 +3276,10 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     i += 1
                     continue
 
-                splited = line.split(" = ")
+                splits = line.split(" = ")
                 r_file_lower2infos[interface_lower]["enums"][enum_type]["members"].append({
                     "doc": _extract_doc(lines, i - 1),
-                    "name": splited[0]
+                    "name": splits[0]
                 })
                 i += 1
 
@@ -3297,13 +3305,13 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
             for a in args:
                 if len(a) <= 0:
                     continue
-                splited = a.rsplit(" ", 1)
-                if splited[0] == "void":
+                splits = a.rsplit(" ", 1)
+                if splits[0] == "void":
                     continue
                 method_info["args"].append(
                     {
-                        "type": splited[0],
-                        "name": splited[1],
+                        "type": splits[0],
+                        "name": splits[1],
                     }
                 )
             #
@@ -3365,12 +3373,12 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                             i += 1
                             continue
                         line = line.rsplit(";")[0]
-                        splited = line.rsplit(" ", 1)
-                        if len(splited) != 2:
+                        splits = line.rsplit(" ", 1)
+                        if len(splits) != 2:
                             print(f"-ERROR: {fp}:{i}\n")
                             print(f"{lines[i]}")
                         else:
-                            union_fileds[splited[1]] = splited[0]
+                            union_fileds[splits[1]] = splits[0]
                         i += 1
 
                     union_type = "Union{"
@@ -3385,14 +3393,14 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     }
                 else:
                     # Regular
-                    splited = line.rsplit(" ", 1)
-                    if len(splited) != 2:
+                    splits = line.rsplit(" ", 1)
+                    if len(splits) != 2:
                         print(f"ERROR: {fp}:{i}\n")
                         print(f"{lines[i]}")
                     else:
-                        r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][splited[1]] = {
+                        r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][splits[1]] = {
                             "doc": doc,
-                            "type": splited[0]
+                            "type": splits[0]
                         }
 
                 i += 1
@@ -3535,7 +3543,7 @@ def _is_handle_type(type: str, field: str = "") -> bool:
 
 
 def _find_count_field(field: str, fields: list[str]) -> str:
-    splited = to_snake_case(field).split("_")
+    splits = to_snake_case(field).split("_")
     similars_fileds: list[str] = []
     for f in fields:
         if f == fields:
@@ -3543,12 +3551,12 @@ def _find_count_field(field: str, fields: list[str]) -> str:
         if f.endswith("Count") or f.endswith("Size") or f.endswith("Length") or f.endswith("LengthBytes") or f.endswith("SizeBytes"):
             fsplited = to_snake_case(f).split("_")
             similar = 0
-            for i in range(min(2, len(fsplited), len(splited))):
-                if fsplited[i].removesuffix("s").removesuffix("y") == splited[i].removesuffix("ies").removesuffix("s"):
+            for i in range(min(2, len(fsplited), len(splits))):
+                if fsplited[i].removesuffix("s").removesuffix("y") == splits[i].removesuffix("ies").removesuffix("s"):
                     similar += 1
                 else:
                     break
-            if similar >= min(2, len(fsplited), len(splited)):
+            if similar >= min(2, len(fsplited), len(splits)):
                 return f
             else:
                 if similar > 0:
@@ -3630,7 +3638,7 @@ def _gen_struct_v2(
 
     #
     count_fields: list[str] = []
-    variant_union_type_fileds: list[str] = []
+    variant_union_type_fields: list[str] = []
     for field in fields.keys():
         if is_deprecated_field(field):
             continue
@@ -3643,7 +3651,7 @@ def _gen_struct_v2(
         if _is_variant_union_type(field_type, field):
             for f in fields.keys():
                 if f == field + "Type":
-                    variant_union_type_fileds.append(f)
+                    variant_union_type_fields.append(f)
 
     addtional_methods_requirements = struct2additional_method_requirements[struct_type]
 
@@ -3671,7 +3679,7 @@ def _gen_struct_v2(
             continue
         elif field in count_fields:
             continue
-        elif field in variant_union_type_fileds:
+        elif field in variant_union_type_fields:
             continue
         elif _is_memory_func_type(type):
             continue  # 内存分配方法不需要成员变量
@@ -3871,7 +3879,7 @@ def _gen_struct_v2(
                 continue
             if field in count_fields:
                 continue
-            if field in variant_union_type_fileds:
+            if field in variant_union_type_fields:
                 continue
             if _is_todo_field(field_type, field):
                 continue
@@ -3955,7 +3963,7 @@ def _gen_struct_v2(
                 continue
             if field in count_fields:
                 continue
-            if field in variant_union_type_fileds:
+            if field in variant_union_type_fields:
                 continue
             if _is_todo_field(field_type, field):
                 continue
