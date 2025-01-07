@@ -3216,8 +3216,24 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
     i = 0
 
+    interface_doc :list[str] = []
     while i < len(lines):
         line = lines[i]
+
+        if len(interface_doc) <= 0:
+            # 尝试提取接口说明
+            if line.startswith("/**") and not line.strip().endswith("*/"):
+                is_interface_doc = False
+                for j in range(i, len(lines)):
+                    if lines[j].startswith(" * @see EOS_Platform_") and lines[j].strip().endswith("Interface"):
+                        is_interface_doc = True
+
+                    if lines[j].startswith(" */"):
+                        if is_interface_doc:
+                            i = j + 1
+                            interface_doc = _extract_doc(lines, i - 1)
+                            print(interface_doc)
+                        break
 
         # ApiVersion 宏
         if line.startswith("#define EOS_") and "_API_LATEST" in line:
