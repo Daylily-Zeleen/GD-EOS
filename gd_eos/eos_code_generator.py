@@ -2332,6 +2332,7 @@ def _gen_method(
     bind_defvals: list[str] = []
 
     expended_args_doc: dict[str, list[str]] = {}# 字段 -> doc
+    additional_doc: list[str] = []
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
         name: str = info["args"][i]["name"]
@@ -2606,6 +2607,8 @@ def _gen_method(
         r_define_lines.append(f"\treturn result_code;")
     elif return_type == "Signal":
         r_define_lines.append(f'\treturn Signal(this, SNAME("{callback_signal}"));')
+        # 附加返回的文档
+        additional_doc.append(f"Return signal [signal {callback_signal}].\n")
     elif return_type.startswith("BitField"):
         r_define_lines.append(f"\treturn _EXPAND_TO_GODOT_VAL_FLAGS({return_type}, ret);")
     elif return_type != "void":
@@ -2623,7 +2626,7 @@ def _gen_method(
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
-    _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc)
+    _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc, additional_doc)
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
@@ -4082,6 +4085,8 @@ def __make_callback_doc(callback_type: str) -> list[str]:
             arg_fields = __get_struct_fields(decayed_type)
 
             for f in arg_fields:
+                if f == "ClientData":
+                    continue # 跳过这个特殊字段
                 info = arg_fields[f]
                 f_type = info["type"]
                 ret.append(f"{f}: {f_type}\n")
@@ -4124,7 +4129,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     __stroe_doc_file(typename=typename, content=lines)
 
 
-def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]]):
+def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]], addtional_doc: list[str] = []):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
@@ -4174,6 +4179,15 @@ def _insert_doc_method(typename: str, method: str, doc: list[str], additional_ar
             arg_doc.insert(1, f"{arg}:\n")
             __insert_doc_to(lines, insert_idx, arg_doc, indent_count)
             insert_idx += len(arg_doc)
+    if len(addtional_doc) > 0:
+        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
+        insert_idx += 2
+
+        additional_doc_copy = addtional_doc.copy()
+        additional_doc_copy.insert(0, "\n")
+        additional_doc_copy.insert(1, f"{arg}:\n")
+        __insert_doc_to(lines, insert_idx, addtional_doc, indent_count)
+        insert_idx += len(additional_doc_copy)
 
     # 保存
     __stroe_doc_file(typename=typename, content=lines)
