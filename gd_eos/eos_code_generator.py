@@ -1,3 +1,5 @@
+#!user/bin/python
+# -*- coding: utf-8 -*-
 import os, sys
 
 # TODO: 解析废弃成员避免硬编码
@@ -622,7 +624,7 @@ def gen_structs(
             continue
         if _is_need_skip_struct(struct_type):
             continue
-        lines += _gen_struct_v2(struct_type, struct_infos[struct_type]["fields"], r_cpp_lines)
+        lines += _gen_struct_v2(struct_type, struct_infos[struct_type], r_cpp_lines)
 
     lines.append(f"")
     r_cpp_lines.append("} // namespace godot::eos")
@@ -671,6 +673,7 @@ def gen_packed_results(file_base_name: str, types_include_file: str, register_ma
     r_h_lines.append("")
     r_h_lines.append("} // namespace godot::eos")
     r_h_lines.append("")
+
     return ret
 
 
@@ -744,7 +747,7 @@ def _convert_constant_as_method_name(name: str) -> str:
 
 def _gen_handle(
     handle_name: str,
-    infos: dict[str, dict],
+    infos: dict,
     macro_suffix: str,
     r_cpp_lines: list[str],
     r_register_lines: list[str],
@@ -1011,6 +1014,9 @@ def _gen_handle(
     # 注册宏
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
 
+
+    _insert_doc_class_brief(klass, infos["doc"])
+    _insert_doc_class_description(klass)
     return ret
 
 
@@ -1675,6 +1681,10 @@ def _gen_packed_result_type(
     r_cpp_lines.append(f"")
 
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{typename})\\")
+
+    handle = __find_method_handle_type(method_name)
+    _insert_doc_class_brief(typename, [f"The result type of [method {_convert_handle_class_name(handle)}.{__convert_method_name(method_name)}].\n"])
+    _insert_doc_class_description(typename)
     return typename
 
 
@@ -2268,6 +2278,15 @@ def __make_packed_result(
 
     if has_result_code:
         r_after_call_lines.append(f"\t}}")
+
+
+def __find_method_handle_type(method_name: str) -> str:
+    for h in handles:
+        for m in handles[h]["methods"]:
+            if m == method_name:
+                return h
+    print(f"ERROR: {method_name} has not owned handle type.")
+    exit()
 
 
 def __convert_method_name(method_name: str, handle_type: str = "") -> str:
@@ -3188,6 +3207,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
     f.close()
 
     i = 0
+
     while i < len(lines):
         line = lines[i]
 
@@ -3599,9 +3619,10 @@ def _is_enum_flags_type(type: str) -> bool:
 
 def _gen_struct_v2(
     struct_type: str,
-    fields: dict[str, dict[str, str]],
+    struct_info: dict,
     r_structs_cpp: list[str],
 ) -> list[str]:
+    fields: dict[str, dict[str, str]] = struct_info["fields"]
     member_lines: list[str] = []
     setget_declare_lines: list[str] = []
     setget_define_lines: list[str] = []
@@ -4082,6 +4103,10 @@ def _gen_struct_v2(
         for line in optional_cpp_lines:
             r_structs_cpp.insert(insert_idx, line)
 
+    # doc
+    _insert_doc_class_brief(typename, struct_info["doc"])
+    _insert_doc_class_description(typename)
+
     return lines
 
 
@@ -4148,6 +4173,77 @@ def __make_callback_doc(callback_type: str) -> list[str]:
                     ret.append(f"\t{l}\n")
 
     return ret
+
+
+def _insert_doc_class_description(typename: str, doc: list[str] = []):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        indent_count = 0
+        while line.startswith("\t"):
+            indent_count += 1
+            line = line.removeprefix("\t")
+        if line.startswith(f'<description>'):
+            insert_idx = i + 1
+            indent_count += 1
+            break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</description>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    doc = doc.copy()
+    doc.insert(0, "[b]CAUTIOUS[/b]: This document is extracted from EOS C SDK, there have some differences between the EOS C SDK and this GDScript SDK APIs.\n")
+    doc.insert(1, "[b]NOTE: Keep in mind that this document is for reference only.[/b]\n")
+    # doc.insert(2, "[b]CAUTIOUS[/b]: 该文档是从 EOS C SDK 中提取的，与该 GDScript SDK 的 API 存在差异。\n")
+    # doc.insert(3, "[b]NOTE: 请牢记该文档仅供参考。[/b]\n")
+    # 插入
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def _insert_doc_class_brief(typename: str, doc: list[str]):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        indent_count = 0
+        while line.startswith("\t"):
+            indent_count += 1
+            line = line.removeprefix("\t")
+        if line.startswith(f'<brief_description>'):
+            insert_idx = i + 1
+            indent_count += 1
+            break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</brief_description>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    # 插入
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
+    __stroe_doc_file(typename=typename, content=lines)
 
 
 def _insert_doc_property(typename: str, prop: str, doc: list[str]):
@@ -4302,7 +4398,7 @@ def __insert_doc_to(lines: list[str], insert_idx: int, doc: list[str], indent_co
 
 def __get_doc_file(typename: str) -> list[str]:
     try:
-        f = open(os.path.join("./doc_classes", typename) + ".xml", "r")
+        f = open(os.path.join("./doc_classes", typename) + ".xml", "r", encoding="utf-8")
         ret :list[str] = f.readlines()
         f.close()
         return ret
@@ -4312,7 +4408,7 @@ def __get_doc_file(typename: str) -> list[str]:
 
 def __stroe_doc_file(typename: str, content: list[str]):
     try:
-        f = open(os.path.join("./doc_classes", typename) + ".xml", "w")
+        f = open(os.path.join("./doc_classes", typename) + ".xml", "w", encoding="utf-8")
         f.writelines(content)
         f.close()
     except:
