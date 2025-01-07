@@ -26,7 +26,7 @@ EOS_PlayerDataStorage_EReadResult read_file_data_callback(const EOSCallbackInfoT
 
     auto data = GDCallbackInfoTy::from_eos(*p_data);
     Variant res = file_transfer_data->operation_callback.call(data);
-    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 3, EOS_PlayerDataStorage_EReadResult::EOS_RR_FailRequest, "Read file data callback shoul return a Value of PlayerDataStorage.ReadResult.");
+    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 3, EOS_PlayerDataStorage_EReadResult::EOS_RR_FailRequest, "Read file data callback should return a Value of PlayerDataStorage.ReadResult.");
 
     EOS_PlayerDataStorage_EReadResult read_result = (EOS_PlayerDataStorage_EReadResult)(res.operator int32_t());
     if (read_result == EOS_PlayerDataStorage_EReadResult::EOS_RR_FailRequest || read_result == EOS_PlayerDataStorage_EReadResult::EOS_RR_CancelRequest) {
@@ -47,7 +47,7 @@ EOS_PlayerDataStorage_EWriteResult write_file_data_callback(const EOSCallbackInf
 
     auto data = GDCallbackInfoTy::from_eos(*p_data);
     Variant res = file_transfer_data->operation_callback.call(data);
-    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 4, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest, "Write file data callback shoul return a Value of PlayerDataStorage.WriteResult.");
+    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 4, EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest, "Write file data callback should return a Value of PlayerDataStorage.WriteResult.");
 
     EOS_PlayerDataStorage_EWriteResult write_result = (EOS_PlayerDataStorage_EWriteResult)(res.operator int32_t());
     if (write_result == EOS_PlayerDataStorage_EWriteResult::EOS_WR_FailRequest || write_result == EOS_PlayerDataStorage_EWriteResult::EOS_WR_CancelRequest) {
@@ -77,7 +77,7 @@ EOS_TitleStorage_EReadResult title_storage_read_file_data_callback(const EOSCall
 
     auto data = GDCallbackInfoTy::from_eos(*p_data);
     Variant res = file_transfer_data->operation_callback.call(data);
-    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 3, EOS_TitleStorage_EReadResult::EOS_TS_RR_FailRequest, "Read file data callback shoul return a Value of PlayerDataStorage.ReadResult.");
+    ERR_FAIL_COND_V_MSG(res.get_type() != Variant::INT || (int32_t)res < 1 || (int32_t)res > 3, EOS_TitleStorage_EReadResult::EOS_TS_RR_FailRequest, "Read file data callback should return a Value of PlayerDataStorage.ReadResult.");
 
     EOS_TitleStorage_EReadResult read_result = (EOS_TitleStorage_EReadResult)(res.operator int32_t());
     if (read_result == EOS_TitleStorage_EReadResult::EOS_TS_RR_FailRequest || read_result == EOS_TitleStorage_EReadResult::EOS_TS_RR_CancelRequest) {

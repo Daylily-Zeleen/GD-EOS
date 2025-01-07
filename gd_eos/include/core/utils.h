@@ -881,7 +881,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd->callback.is_valid()) {                                                                                                   \
             auto res = cd->callback.call(cb_data);                                                                                       \
             if (res.get_type() != Variant::INT || (int32_t)res != 0 || (int32_t)res != 1) {                                              \
-                ERR_PRINT("Read file data callback shoul return a Value of IntegreatePlatform.EOS_EIntegratedPlatformPreLogoutAction."); \
+                ERR_PRINT("Read file data callback should return a Value of IntegreatePlatform.EOS_EIntegratedPlatformPreLogoutAction."); \
             } else {                                                                                                                     \
                 return_action = (EOS_EIntegratedPlatformPreLogoutAction)(res.operator int32_t());                                        \
             }                                                                                                                            \
