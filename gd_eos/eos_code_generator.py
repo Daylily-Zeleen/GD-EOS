@@ -1747,15 +1747,10 @@ def _gen_callback(
     r_bind_signal_lines: list[str],
     for_gen_signal_binding: bool = False,
 ) -> str:
-    infos: dict = {}
-    for handle_infos in handles.values():
-        callbacks = handle_infos["callbacks"]
-        for cb_ty in callbacks:
-            if cb_ty == _decay_eos_type(callback_type):
-                infos = callbacks[callback_type]
-                break
-        if len(infos):
-            break
+    (infos, handle, method) = _get_callback_infos_v2(callback_type)
+    method = __convert_method_name(method, handle) if len(method) else method
+    handle = _convert_handle_class_name(handle)
+
     if not len(infos["args"]) == 1:
         # 特殊处理
         if not callback_type in ["EOS_PlayerDataStorage_OnWriteFileDataCallback"]:
@@ -1777,15 +1772,22 @@ def _gen_callback(
             f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({__convert_to_struct_class(_decay_eos_type(arg_type))}, {to_snake_case(arg_name)})));'
         )
         gd_cb_info_type = remap_type(_decay_eos_type(arg_type), arg_name).removeprefix("Ref<").removesuffix(">")
+        ret = ""
         if callback_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
-            return f'_EOS_USER_PRE_LOGOUT_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+            ret = f'_EOS_USER_PRE_LOGOUT_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
         elif len(return_type):
             if for_gen_signal_binding:
                 return ""
             print("ERROR unsupport callback type:", callback_type)
             exit(1)
         else:
-            return f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+            ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+
+        additional_doc :list[str] = []
+        if len(method) and signal_name.startswith("on_"):
+            additional_doc.append(f"Callback of [method {method}].\n")
+        _insert_doc_signal(handle, signal_name, infos["doc"], {}, additional_doc)
+        return ret
     else:
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
         ## 检出不需要成为参数的字段
@@ -1808,6 +1810,8 @@ def _gen_callback(
         ##
         ret: str = ""
         signal_bind_args: str = ""
+
+        expanded_args_doc: dict[str, list[str]] = {}
 
         if len(return_type):
             if for_gen_signal_binding:
@@ -1870,11 +1874,18 @@ def _gen_callback(
             else:
                 ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f'PropertyInfo(Variant({remap_type(field_type)}()).get_type(), "{snake_case_field}")'
+
+            expanded_args_doc[snake_case_field] = fields[field]["doc"]
         ret += ")"
 
         # if len(signal_bind_args):
         #     signal_bind_args = ", " + signal_bind_args
         r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}"{signal_bind_args}));')
+        
+        additional_doc :list[str] = []
+        if len(method) and signal_name.startswith("on_"):
+            additional_doc.append(f"Callback of [method {method}].\n")
+        _insert_doc_signal(handle, signal_name, infos["doc"], expanded_args_doc, additional_doc)
         return ret
 
 
@@ -2259,6 +2270,40 @@ def __make_packed_result(
         r_after_call_lines.append(f"\t}}")
 
 
+def __convert_method_name(method_name: str, handle_type: str = "") -> str:
+    if method_name == "EOS_Logging_SetCallback":
+        return "set_logging_callback"
+    elif method_name == "EOS_Platform_Create":
+        return "platform_create"
+    else:
+        if len(handle_type) <= 0:
+            for h in handles:
+                for m in handles[h]["methods"]:
+                    if m == method_name:
+                        handle_type = h
+                        break
+                if len(handle_type):
+                    break
+        if len(handle_type) == 0:
+            print("ERROR")
+            exit()
+
+        # 避免同类内方法重名
+        candidate_method_name = method_name.rsplit("_", 1)[1]
+        valid = False
+        while not valid:
+            valid = True
+            for m in handles[handle_type]["methods"]:
+                if method_name == m:
+                    continue
+                if m.endswith(candidate_method_name):
+                    splited = method_name.rsplit("_", 2)
+                    candidate_method_name = "".join([splited[1], splited[2]])
+                    valid = False
+                    break
+        return to_snake_case(candidate_method_name).removeprefix("e_")  # Hack, 去除枚举前缀
+
+
 def _gen_method(
     handle_type: str,
     method_name: str,
@@ -2499,25 +2544,7 @@ def _gen_method(
             call_args.append(f"to_eos_type<gd_arg_t<{remap_type(type, name)}>, {type}>(p_{snake_name})")
         i += 1
 
-    # 避免同类内方法重名
-    candidate_method_name = method_name.rsplit("_", 1)[1]
-    valid = False
-    while not valid:
-        valid = True
-        for m in handles[handle_type]["methods"]:
-            if method_name == m:
-                continue
-            if m.endswith(candidate_method_name):
-                splited = method_name.rsplit("_", 2)
-                candidate_method_name = "".join([splited[1], splited[2]])
-                valid = False
-                break
-    snake_method_name = to_snake_case(candidate_method_name).removeprefix("e_")  # Hack, 去除枚举前缀
-
-    if method_name == "EOS_Logging_SetCallback":
-        snake_method_name = "set_logging_callback"
-    elif method_name == "EOS_Platform_Create":
-        snake_method_name = "platform_create"
+    snake_method_name = __convert_method_name(method_name, handle_type)
     # ======= 声明 ===============
     r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
@@ -2578,7 +2605,6 @@ def _gen_method(
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
         r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
-        snake_method_name = "set_logging_callback"
     elif _is_handle_type(_decay_eos_type(info["return"])):
         r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
@@ -4069,6 +4095,34 @@ def _get_callback_infos(callback_type: str) -> dict:
     exit(1)
 
 
+def _get_callback_infos_v2(callback_type: str) -> tuple[dict, str, str]:
+    info :dict = []
+    handle :str = ""
+    method :str = ""
+    for h in handles:
+        callbacks = handles[h]["callbacks"]
+        for cb in callbacks:
+            if cb == callback_type:
+                info =  callbacks[cb]
+                handle = h
+                break
+        if len(handle):
+            break
+    if len(handle) == 0:
+        print("ERROR unknown callback type:", callback_type)
+        exit(1)
+
+    methods = handles[handle]["methods"]
+    for m in methods:
+        for arg in methods[m]["args"]:
+            if _decay_eos_type(arg["type"]) == callback_type:
+                method = m
+                break
+        if len(method):
+            break
+    return (info, handle, method)
+
+
 def __make_callback_doc(callback_type: str) -> list[str]:
     info = _get_callback_infos(callback_type)
     ret :list[str] = []
@@ -4129,7 +4183,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     __stroe_doc_file(typename=typename, content=lines)
 
 
-def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]], addtional_doc: list[str] = []):
+def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
     lines :list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
@@ -4138,7 +4192,50 @@ def _insert_doc_method(typename: str, method: str, doc: list[str], additional_ar
     indent_count : int = 0 
     for i in range(len(lines)):
         line = lines[i]
-        if line.lstrip("\t").startswith(f'<method name="{method}"'):
+
+        indent_count = 0
+        while line.startswith("\t"):
+            indent_count += 1
+            line = line.removeprefix("\t")
+
+        if line.startswith(f'<constant name="{constant}"'):
+            insert_idx = i + 1
+            indent_count += 1
+            break
+
+    if insert_idx < 0:
+        return
+
+    # 移除已有的文档
+    line = lines[insert_idx]
+    while not line.lstrip("\t").startswith("</constant>"):
+        lines.pop(insert_idx)
+        line = lines[insert_idx]
+
+    # 插入
+    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    # 保存
+    __stroe_doc_file(typename=typename, content=lines)
+
+
+def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]] = {}, additional_doc: list[str] = []):
+    __insert_doc_method_like("method", typename, method, doc, additional_args_doc, additional_doc)
+
+
+def _insert_doc_signal(typename: str, signal: str, doc: list[str], additional_args_doc: dict[str, list[str]] = {}, additional_doc: list[str] = []):
+    __insert_doc_method_like("signal", typename, signal, doc, additional_args_doc, additional_doc)
+
+
+def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str], additional_args_doc: dict[str, list[str]], additional_doc: list[str] = []):
+    lines :list[str] = __get_doc_file(typename=typename)
+    if len(lines) == 0:
+        return
+
+    insert_idx : int = -1
+    indent_count : int = 0 
+    for i in range(len(lines)):
+        line = lines[i]
+        if line.lstrip("\t").startswith(f'<{tag} name="{name}"'):
             for j in range(i + 1, len(lines)):
                 line = lines[j]
 
@@ -4179,51 +4276,15 @@ def _insert_doc_method(typename: str, method: str, doc: list[str], additional_ar
             arg_doc.insert(1, f"{arg}:\n")
             __insert_doc_to(lines, insert_idx, arg_doc, indent_count)
             insert_idx += len(arg_doc)
-    if len(addtional_doc) > 0:
+    if len(additional_doc) > 0:
         __insert_doc_to(lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
         insert_idx += 2
 
-        additional_doc_copy = addtional_doc.copy()
+        additional_doc_copy = additional_doc.copy()
         additional_doc_copy.insert(0, "\n")
-        additional_doc_copy.insert(1, f"{arg}:\n")
-        __insert_doc_to(lines, insert_idx, addtional_doc, indent_count)
+        __insert_doc_to(lines, insert_idx, additional_doc, indent_count)
         insert_idx += len(additional_doc_copy)
 
-    # 保存
-    __stroe_doc_file(typename=typename, content=lines)
-
-
-def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
-    lines :list[str] = __get_doc_file(typename=typename)
-    if len(lines) == 0:
-        return
-
-    insert_idx : int = -1
-    indent_count : int = 0 
-    for i in range(len(lines)):
-        line = lines[i]
-
-        indent_count = 0
-        while line.startswith("\t"):
-            indent_count += 1
-            line = line.removeprefix("\t")
-
-        if line.startswith(f'<constant name="{constant}"'):
-            insert_idx = i + 1
-            indent_count += 1
-            break
-
-    if insert_idx < 0:
-        return
-
-    # 移除已有的文档
-    line = lines[insert_idx]
-    while not line.lstrip("\t").startswith("</constant>"):
-        lines.pop(insert_idx)
-        line = lines[insert_idx]
-
-    # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
     # 保存
     __stroe_doc_file(typename=typename, content=lines)
 
