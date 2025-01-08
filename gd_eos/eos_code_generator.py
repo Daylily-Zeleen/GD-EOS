@@ -1043,7 +1043,8 @@ def _convert_to_interface_lower(file_name: str) -> str:
     if f == "eos_types.h":
         # Hack
         return "platform"
-    if f == "eos_init.h":
+    if f in ["eos_init.h", "eos_logging.h"]:
+        # logging 不单独作为一个接口
         return "common"
     return f.removesuffix("_types.h").removesuffix(".h").replace("_sdk", "_platform").removeprefix("eos_")
 
@@ -1260,9 +1261,14 @@ def parse_all_file():
             interface_handle_type :str = ""
             for l in interface_doc:
                 if l.startswith("@see EOS_Platform_Get") and l.strip().endswith("Interface"):
-                    interface_handle_type = "EOS_H" + l.removeprefix("@see EOS_Platform_Get").strip().removesuffix("Interface")
+                    interface_handle_type = l.removeprefix("@see EOS_Platform_Get").strip().removesuffix("Interface")
+                    if interface_handle_type != "EOS":
+                        interface_handle_type = "EOS_H" + interface_handle_type
                     break
-            _handles[interface_handle_type]["doc"] = interface_doc
+            if interface_handle_type in _handles:
+                _handles[interface_handle_type]["doc"] = interface_doc
+            else:
+                handles[interface_handle_type]["doc"] = interface_doc
             file_lower2infos[il]["interface_doc"] = []
 
         # 检查文档是否被正确使用
@@ -3231,7 +3237,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
     while i < len(lines):
         line = lines[i]
         if len(r_file_lower2infos[interface_lower]["interface_doc"]) <= 0:
-            # 尝试提取接口说明
+            # 尝试提取接口说明(仅识别多行注释)
             if line.startswith("/**") and not line.strip().endswith("*/"):
                 is_interface_doc = False
                 for j in range(i, len(lines)):
@@ -3241,8 +3247,26 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     if lines[j].startswith(" */"):
                         if is_interface_doc:
                             i = j + 1
-                            r_file_lower2infos[interface_lower]["interface_doc"] = _extract_doc(lines, i - 1)
+                            r_file_lower2infos[interface_lower]["interface_doc"] = _extract_doc(lines, j)
+                            break
+
+                    if len(lines[j].strip()) == 0:
+                        doc :list[str] = _extract_doc(lines, j - 1)
+                        if len(doc) <= 0:
+                            # 非文档尾随空行，跳出
+                            break
+
+                        # 第一个非特定文档作为句柄文档, 补充确实的接口获取说明行
+                        interface_type = _convert_interface_class_name(interface_lower)
+                        if interface_type != "EOS":
+                            interface_type = interface_type.removeprefix("EOS")
+                        doc.append("\n")
+                        doc.append(f"@see EOS_Platform_Get{interface_type}Interface\n")
+                        i = j
+                        r_file_lower2infos[interface_lower]["interface_doc"] = doc
+                        print("----", interface_lower, interface_type)
                         break
+
 
         # ApiVersion 宏
         if line.startswith("#define EOS_") and "_API_LATEST" in line:
