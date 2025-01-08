@@ -1137,6 +1137,7 @@ def parse_all_file():
         "structs": {},
         "handles": {},
         "constants": {},
+        "interface_doc": []
     }
     file_lower2infos["platform"] = {
         "file": "eos_sdk",
@@ -1146,6 +1147,7 @@ def parse_all_file():
         "structs": {},
         "handles": {},
         "constants": {},
+        "interface_doc": []
     }
 
     for f in os.listdir(sdk_include_dir):
@@ -1177,16 +1179,9 @@ def parse_all_file():
                 "structs": {},  # 最终为空
                 "handles": {},  # 最终为空
                 "constants": {},  # 最终为空
+                "interface_doc": [] # 最终为空
             }
         _parse_file(interface_lower, fp, file_lower2infos)
-
-        docs = {}
-        for h in file_lower2infos[interface_lower]["handles"]:
-            h_info = file_lower2infos[interface_lower]["handles"][h]
-            if len(h_info["doc"]) <= 0:
-                docs[h] = h_info["doc"]
-        if len(docs) > 1:
-            print(f, docs)
 
     _get_EOS_EResult(file_lower2infos)
     _get_EOS_UI_EKeyCombination(file_lower2infos)
@@ -1196,6 +1191,7 @@ def parse_all_file():
     # 将方法、回调，移动到对应的handle中,并检出接口类
     for il in file_lower2infos:
         _handles = file_lower2infos[il]["handles"]
+
         for infos in file_lower2infos.values():
             methods: dict[str, dict] = infos["methods"]
             to_remove_methods: list[str] = []
@@ -1257,6 +1253,22 @@ def parse_all_file():
 
             for m in to_remove_methods:
                 infos["methods"].pop(m)
+
+        # 处理接口句柄文档
+        interface_doc :list[str] = file_lower2infos[il]["interface_doc"]
+        if len(interface_doc):
+            interface_handle_type :str = ""
+            for l in interface_doc:
+                if l.startswith("@see EOS_Platform_Get") and l.strip().endswith("Interface"):
+                    interface_handle_type = "EOS_H" + l.removeprefix("@see EOS_Platform_Get").strip().removesuffix("Interface")
+                    break
+            _handles[interface_handle_type]["doc"] = interface_doc
+            file_lower2infos[il]["interface_doc"] = []
+
+        # 检查文档是否被正确使用
+        if len(file_lower2infos[il]["interface_doc"]) > 0:
+            print("ERROR: ", il)
+            exit()
 
     # 初始化生成信息
     for il in file_lower2infos:
@@ -3216,23 +3228,20 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
     i = 0
 
-    interface_doc :list[str] = []
     while i < len(lines):
         line = lines[i]
-
-        if len(interface_doc) <= 0:
+        if len(r_file_lower2infos[interface_lower]["interface_doc"]) <= 0:
             # 尝试提取接口说明
             if line.startswith("/**") and not line.strip().endswith("*/"):
                 is_interface_doc = False
                 for j in range(i, len(lines)):
-                    if lines[j].startswith(" * @see EOS_Platform_") and lines[j].strip().endswith("Interface"):
+                    if lines[j].startswith(" * @see EOS_Platform_Get") and lines[j].strip().endswith("Interface"):
                         is_interface_doc = True
 
                     if lines[j].startswith(" */"):
                         if is_interface_doc:
                             i = j + 1
-                            interface_doc = _extract_doc(lines, i - 1)
-                            print(interface_doc)
+                            r_file_lower2infos[interface_lower]["interface_doc"] = _extract_doc(lines, i - 1)
                         break
 
         # ApiVersion 宏
