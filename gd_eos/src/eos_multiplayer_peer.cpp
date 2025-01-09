@@ -182,7 +182,7 @@ Error EOSMultiplayerPeer::create_client(const String &socket_id, const Ref<EOSPr
 
     //send connection request to server
     EOSPacket packet;
-    packet.set_event(EVENT_RECIEVE_PEER_ID);
+    packet.set_event(EVENT_RECEIVE_PEER_ID);
     packet.set_channel(CH_RELIABLE);
     packet.set_reliability(EOS_EPacketReliability::EOS_PR_ReliableUnordered);
     packet.set_sender_peer_id(unique_id);
@@ -410,8 +410,8 @@ Dictionary EOSMultiplayerPeer::get_all_peers() {
  * Parameters:
  *   allow - bool used to set allowed delivery.
  * Description: Set whether or not delayed delivery should be allowed on all sent packets.
- * This means that packets will be delayed in their delivery if a connenetion with the other
- * peer has not been estalished yet, otherwise the packets will be dropped.
+ * This means that packets will be delayed in their delivery if a connection with the other
+ * peer has not been established yet, otherwise the packets will be dropped.
  ****************************************/
 void EOSMultiplayerPeer::set_allow_delayed_delivery(bool allow) {
     allow_delayed_delivery = allow;
@@ -430,7 +430,7 @@ bool EOSMultiplayerPeer::is_allowing_delayed_delivery() {
  * Parameters:
  *   enable - bool used to set auto accept connection requests.
  * Description: Set whether or not to auto accept connection requests when they are
- * recieved. If this is off, connection requests are put into a list to be accepted
+ * received. If this is off, connection requests are put into a list to be accepted
  * or denied later if desired.
  ****************************************/
 void EOSMultiplayerPeer::set_auto_accept_connection_requests(bool enable) {
@@ -597,8 +597,8 @@ Error EOSMultiplayerPeer::_put_packet(const uint8_t *p_buffer, int32_t p_buffer_
 
     /*IMPORTANT NOTE: EOS does not support an unreliable ordered transfer mode,
     so it has been left out. EOSMultiplayerPeer prints a warning and automatically sets the transfer
-    mode to TRANSFER_MODE_RELIABLE if the user tries to set to unreliable ordred.
-    See _set_transer_mode()*/
+    mode to TRANSFER_MODE_RELIABLE if the user tries to set to unreliable ordered.
+    See _set_transfer_mode()*/
     switch (_get_transfer_mode()) {
         case TRANSFER_MODE_UNRELIABLE: {
             reliability = EOS_EPacketReliability::EOS_PR_UnreliableUnordered;
@@ -649,7 +649,7 @@ Error EOSMultiplayerPeer::_put_packet(const uint8_t *p_buffer, int32_t p_buffer_
  * _get_available_packet_count
  * Description: Called by MultiplayerAPI to query how
  * many packets are currently queued. The MultiplayerAPI calls this method
- * every time it polls to determine if there are packets to recieve.
+ * every time it polls to determine if there are packets to receive.
  ****************************************/
 int32_t EOSMultiplayerPeer::_get_available_packet_count() const {
     return socket.get_packet_count();
@@ -667,7 +667,7 @@ int32_t EOSMultiplayerPeer::_get_max_packet_size() const {
 /****************************************
  * _get_packet_channel
  * Description: Called by MultiplayerAPI to get the channel of next
- * avaialble packet in the packet queue.
+ * available packet in the packet queue.
  ****************************************/
 int32_t EOSMultiplayerPeer::_get_packet_channel() const {
     return socket.get_packet_channel();
@@ -676,7 +676,7 @@ int32_t EOSMultiplayerPeer::_get_packet_channel() const {
 /****************************************
  * _get_packet_mode
  * Description: Called by MultiplayerAPI to get the transfer mode of next
- * avaialble packet in the packet queue.
+ * available packet in the packet queue.
  ****************************************/
 MultiplayerPeer::TransferMode EOSMultiplayerPeer::_get_packet_mode() const {
     return _convert_eos_reliability_to_transfer_mode(socket.get_packet_reliability());
@@ -761,10 +761,10 @@ bool EOSMultiplayerPeer::_is_server() const {
 /****************************************
  * _poll
  * Description: Called by MultiplayerAPI every network frame to poll queued packets inside EOSPacketPeerMediator.
- * Packets are recieved first from EOSPacketPeerMediator. Once polled, the event type of each packet
+ * Packets are received first from EOSPacketPeerMediator. Once polled, the event type of each packet
  * are retrieved from the first byte of the packet.
- * 1. If the event type is EVENT_RECIEVED_PEER_ID, the sender peer id contained inside the packet header is added to the list of
- * connected peers for this mutliplayer instance. This usually happens only once when peers first establish a connection.
+ * 1. If the event type is EVENT_RECEIVED_PEER_ID, the sender peer id contained inside the packet header is added to the list of
+ * connected peers for this multiplayer instance. This usually happens only once when peers first establish a connection.
  * 2. If the event is EVENT_STORE_PACKET, the packet is queued into the socket's packet queue to be
  * retrieved by the MultiplayerAPI later (See _get_packet()).
  * 3. If the event is EVENT_MESH_CONNECTION_REQUEST, then do nothing. This event is just to notify the multiplayer instance
@@ -813,11 +813,11 @@ void EOSMultiplayerPeer::_poll() {
 
                 socket.push_packet(packet);
             } break;
-            case Event::EVENT_RECIEVE_PEER_ID: {
+            case Event::EVENT_RECEIVE_PEER_ID: {
                 uint32_t peer_id = *reinterpret_cast<const uint32_t *>(data_ptr.ptr() + INDEX_PEER_ID);
 
-                if (event == Event::EVENT_RECIEVE_PEER_ID) {
-                    ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT && connection_status == CONNECTION_CONNECTED, "Client has recieved a EVENT_RECIEVE_PEER_ID packet when already connected. This shouldn't have happened!");
+                if (event == Event::EVENT_RECEIVE_PEER_ID) {
+                    ERR_FAIL_COND_MSG(active_mode == MODE_CLIENT && connection_status == CONNECTION_CONNECTED, "Client has received a EVENT_RECEIVE_PEER_ID packet when already connected. This shouldn't have happened!");
 
                     if (active_mode == MODE_CLIENT && peer_id != 1) {
                         _close();
@@ -1061,7 +1061,7 @@ bool EOSMultiplayerPeer::_is_requesting_connection(EOS_ProductUserId p_remote_us
  * Parameters:
  *   mode - The transfer mode to convert.
  * Description: A helper function that converts the given transfer mode to matching packet reliability.
- * If TRANSFER_MODE_UNRELIABLE_ORDED is passed, the function returns EOS_PR_ReliableOrdered because EOS
+ * If TRANSFER_MODE_UNRELIABLE_ORDERED is passed, the function returns EOS_PR_ReliableOrdered because EOS
  * does not support unreliable ordered
  ****************************************/
 EOS_EPacketReliability EOSMultiplayerPeer::_convert_transfer_mode_to_eos_reliability(TransferMode mode) const {
@@ -1122,7 +1122,7 @@ void EOSMultiplayerPeer::_disconnect_remote_user(EOS_ProductUserId remote_user_i
  * peer who just connected, the socket id that the remote peer connected to, the connection type (which tells
  * you whether it was a new connection or a re-connection), and the network type (which tells you if it is a direct
  * connection or a relay server is being used.) When a connection is established for the first time and the instance
- * is not a client, a packet will be sent back to the newly connected peer with the EVENT_RECIEVE_PEER_ID event.
+ * is not a client, a packet will be sent back to the newly connected peer with the EVENT_RECEIVE_PEER_ID event.
  * This is how servers and mesh instances peers exchange their peer ids with newly connected peers.
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPeerConnectionEstablishedInfo *data) {
@@ -1130,7 +1130,7 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
             active_mode != MODE_CLIENT) { //We're either a server or mesh
         //Send peer id to connected peer
         EOSPacket packet;
-        packet.set_event(EVENT_RECIEVE_PEER_ID);
+        packet.set_event(EVENT_RECEIVE_PEER_ID);
         packet.set_channel(CH_RELIABLE);
         packet.set_reliability(EOS_EPacketReliability::EOS_PR_ReliableUnordered);
         packet.set_sender_peer_id(unique_id);

@@ -6,6 +6,9 @@ import os, sys
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 # TODO: 对RTC的子句柄进行处理，避免硬编码
 
+# TODO: 对文档提及的成员进行 GDS接口化
+# TODO: 跳过展开结构的无用成员文档
+
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
 gen_dir = "gd_eos/gen/"
@@ -123,9 +126,8 @@ def generator_eos_interfaces() -> None:
     gen_all_in_one()
     print("Generate Completed!")
 
-
 def preprocess():
-    # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 印象枚举的绑定
+    # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 影响枚举的绑定
     f = open(os.path.join(sdk_include_dir, "eos_base.h"), "r")
     lines: list[str] = f.readlines()
     f.close()
@@ -197,7 +199,7 @@ def gen_all_in_one():
             f"\tgodot::Engine::get_singleton()->register_singleton(godot::eos::{handle_class}::get_class_static(), godot::eos::{handle_class}::get_singleton());\\"
         )
         if handle_type == "EOS_HPlatform":
-            continue  # Pltform 接口必须在最后析构
+            continue  # Platform 接口必须在最后析构
         unregister_singleton_lines.append(f"\tgodot::Engine::get_singleton()->unregister_singleton(godot::eos::{handle_class}::get_class_static());\\")
         unregister_singleton_lines.append(f"\tmemdelete(godot::eos::{handle_class}::get_singleton());\\")
 
@@ -1595,7 +1597,7 @@ def _gen_packed_result_type(
         decayed_type: str = _decay_eos_type(arg["type"])
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_arr_type(arg_type, arg_name):
-            print("ERROR UNSUPPORT handle arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
             exit(1)
         elif _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
@@ -1626,10 +1628,10 @@ def _gen_packed_result_type(
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif _is_str_type(arg_type, arg_name):
-            print("ERROR: UNSUPPORT")
+            print("ERROR: UNSUPPORTED")
             exit(1)
         elif _is_str_arr_type(arg_type, arg_name):
-            print("ERROR: UNSUPPORT")
+            print("ERROR: UNSUPPORTED")
             exit(1)
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
@@ -1653,13 +1655,13 @@ def _gen_packed_result_type(
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
             i += 1
         elif _is_arr_field(arg_type, arg_name):
-            print("ERROR UNSUPPORT arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED arr:", method_name, arg_type)
             exit(1)
         elif _is_internal_struct_arr_field(arg_type, arg_name):
-            print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
             exit(1)
         elif _is_audio_frames_type(arg_type, arg_name):
-            print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
             exit(1)
         elif _is_enum_flags_type(arg_type):
             members_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
@@ -1681,7 +1683,7 @@ def _gen_packed_result_type(
     if method_info["return"] == "EOS_EResult":
         r_h_lines.append(f"\tEOS_EResult result_code{{ EOS_EResult::EOS_InvalidParameters }};")
     else:
-        print("ERROR unsupport to gen packed result:", method_name)
+        print("ERROR unsupported to gen packed result:", method_name)
     r_h_lines += members_lines
     r_h_lines.append("")
     r_h_lines.append(f"public:")
@@ -1799,7 +1801,7 @@ def _gen_callback(
     return_type: str = infos["return"]
 
     if not __is_struct_type(_decay_eos_type(arg_type)):
-        print("ERROR unsupport callback:", callback_type)
+        print("ERROR unsupported callback:", callback_type)
         exit(1)
 
     signal_name = __convert_to_signal_name(callback_type)
@@ -1814,7 +1816,7 @@ def _gen_callback(
         elif len(return_type):
             if for_gen_signal_binding:
                 return ""
-            print("ERROR unsupport callback type:", callback_type)
+            print("ERROR unsupported callback type:", callback_type)
             exit(1)
         else:
             ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
@@ -1852,7 +1854,7 @@ def _gen_callback(
         if len(return_type):
             if for_gen_signal_binding:
                 return ""
-            print("ERROR unsupport callback type:", callback_type)
+            print("ERROR unsupported callback type:", callback_type)
             exit(1)
         else:
             ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
@@ -1998,7 +2000,7 @@ def __expand_input_struct(
     r_bind_args: list[str],
     r_prepare_lines: list[str],
     r_after_call_lines: list[str],
-    r_bind_defvals: list[str],
+    r_bind_def_vals: list[str],
     r_required_arg_doc: dict[str, list[str]], # 字段 -> 文档
 ):
     decayed_type = _decay_eos_type(arg_type)
@@ -2050,7 +2052,7 @@ def __expand_input_struct(
         elif _is_audio_frames_type(arg_type, arg_name):
             r_declare_args.append(f"const PackedInt32Array &p_{snake_field}")
             r_prepare_lines.append(f"\tLocalVector<int32_t> _shadow_{snake_field};")
-            r_prepare_lines.append(f"\t_packedint32_to_autio_frames(p_{snake_field}, _shadow_{snake_field});")
+            r_prepare_lines.append(f"\t_packed_int32_to_audio_frames(p_{snake_field}, _shadow_{snake_field});")
             r_prepare_lines.append(f"\t{arg_name}.{_find_count_field(field, fields.keys())} = _shadow_{snake_field}.size();")
             r_prepare_lines.append(f"\t{options_field} = _shadow_{snake_field}.ptr();")
         elif _is_socket_id_type(decay_field_type, field):
@@ -2060,7 +2062,7 @@ def __expand_input_struct(
                 f"\tif (ascii_{snake_field}.size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && ascii_{snake_field}.get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {{"
             )
             r_prepare_lines.append(
-                f'\t\tERR_PRINT(vformat("EOS: Socket name \\"%s\\"\'s length is greater than %d (in ASCII), will be truncatured.", p_{snake_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));'
+                f'\t\tERR_PRINT(vformat("EOS: Socket name \\"%s\\"\'s length is greater than %d (in ASCII), will be truncated.", p_{snake_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));'
             )
             r_prepare_lines.append(f"\t\tascii_{snake_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
             r_prepare_lines.append(f"\t\tascii_{snake_field}.set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);")
@@ -2085,7 +2087,7 @@ def __expand_input_struct(
         elif _is_requested_channel_ptr_field(field_type, field):
             r_declare_args.append(f"{remap_type(field_type, field)} p_{snake_field} = -1")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL({options_field}, p_{snake_field});")
-            r_bind_defvals.append("DEFVAL(-1)")
+            r_bind_def_vals.append("DEFVAL(-1)")
         elif field_type.startswith("Union"):
             r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
             if _is_variant_union_type(field_type, field):
@@ -2158,7 +2160,7 @@ def __make_packed_result(
             r_after_call_lines.append(f"\tret->result_code = result_code;")
             r_after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
         else:
-            print("Error UNSUPPORT:", method_name)
+            print("Error UNSUPPORTED:", method_name)
             exit(1)
     acl_indents = "\t\t" if has_result_code else "\t"
     i = begin_idx
@@ -2169,7 +2171,7 @@ def __make_packed_result(
         snake_name: str = to_snake_case(arg_name.removeprefix("InOut").removeprefix("Out").removeprefix("bOut"))
 
         if _is_handle_arr_type(arg_type, arg_name):
-            print("ERROR UNSUPPORT handle arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
             exit(1)
         elif _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
@@ -2219,11 +2221,11 @@ def __make_packed_result(
                 r_after_call_lines.append(f"{acl_indents}{remap_type(decayed_type, arg_name)} ret = {arg_name};")
         elif arg_type == "char*" and (i + 1) < len(args) and args[i + 1]["type"].endswith("int32_t*") and args[i + 1]["name"].endswith("Length"):
             r_prepare_lines.append(f"\tchar {arg_name} [{__get_str_result_max_length_macro(method_name)} + 1] {{}};")
-            initialize_vlaue = "0"
+            initialize_value = "0"
             if args[i + 1]["name"].startswith("InOut"):
-                initialize_vlaue = f"{__get_str_result_max_length_macro(method_name)} + 1"
+                initialize_value = f"{__get_str_result_max_length_macro(method_name)} + 1"
 
-            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]}{{ {initialize_vlaue} }};')
+            r_prepare_lines.append(f'\t{_decay_eos_type(args[i+1]["type"])} {args[i+1]["name"]}{{ {initialize_value} }};')
 
             r_call_args.append(f"&{arg_name}[0]")
             r_call_args.append(f'&{args[i+1]["name"]}')
@@ -2278,17 +2280,17 @@ def __make_packed_result(
 
             i += 1
         elif _is_arr_field(arg_type, arg_name):
-            print("ERROR UNSUPPORT arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED arr:", method_name, arg_type)
             exit(1)
         elif _is_internal_struct_arr_field(arg_type, arg_name):
-            print("ERROR UNSUPPORT struct arr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
             exit(1)
         elif _is_struct_ptr(arg_type):
-            print("ERROR UNSUPPORT struct ptr:", method_name, arg_type)
+            print("ERROR UNSUPPORTED struct ptr:", method_name, arg_type)
             exit(1)
         else:
             if not arg_type.endswith("*"):
-                print("ERROR UNSUPPORT out: ", arg_type, arg_name)
+                print("ERROR UNSUPPORTED out: ", arg_type, arg_name)
                 exit(1)
 
             r_prepare_lines.append(f'\t{arg_type.removesuffix("*")} {arg_name};')
@@ -2419,7 +2421,7 @@ def _gen_method(
     static: bool = True
     i: int = 0
 
-    bind_defvals: list[str] = []
+    bind_def_vals: list[str] = []
 
     expended_args_doc: dict[str, list[str]] = {}# 字段 -> doc
     additional_doc: list[str] = []
@@ -2472,7 +2474,7 @@ def _gen_method(
                 else:
                     call_args.append(f"{_gen_callback(decayed_type, [])}")
 
-                bind_defvals.append("DEFVAL(Callable())")
+                bind_def_vals.append("DEFVAL(Callable())")
             # 插入回调的文档
             expended_args_doc[name] = __make_callback_doc(decayed_type)
         elif __is_client_data(type, name):
@@ -2527,7 +2529,7 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_defvals, expended_args_doc)
+            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_def_vals, expended_args_doc)
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -2571,14 +2573,14 @@ def _gen_method(
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
         elif _is_handle_arr_type(type, name):
-            print("ERROR: Unsupport handle arr argument:", method_name, type, name)
+            print("ERROR: Unsupported handle arr argument:", method_name, type, name)
             exit(1)
         elif _is_handle_type(decayed_type):
             declare_args.append(f"const {remap_type(decayed_type, name)} &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"p_{snake_name}.is_valid()? p_{snake_name}->get_handle() : nullptr")
         elif name.endswith("StringBufferSizeBytes"):
-            # xxxGetFilname 的字符串 buffer 长度不是使用 InOut 来传入缓冲区大小并传出缓冲区被使用的大小，
+            # xxxGetFilename 的字符串 buffer 长度不是使用 InOut 来传入缓冲区大小并传出缓冲区被使用的大小，
             # 而是使用 Out 进行传出 + xxxStringBufferSizeBytes 来传入缓冲区大小
             prepare_lines.append(f"\t{type} {name} = {__get_str_result_max_length_macro(method_name)} + 1;")
             call_args.append(name)
@@ -2691,8 +2693,8 @@ def _gen_method(
     if len(bind_args_text):
         bind_args_text = ", " + bind_args_text
     default_val_arg = ""
-    if len(bind_defvals):
-        default_val_arg = ", " + ", ".join(bind_defvals)
+    if len(bind_def_vals):
+        default_val_arg = ", " + ", ".join(bind_def_vals)
 
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
@@ -2785,7 +2787,7 @@ def _convert_enum_type(ori: str) -> str:
         splits.pop(0)
         return "_".join(splits)
     else:
-        print("ERROR: Unsupport:", ori)
+        print("ERROR: Unsupported:", ori)
         return ori
 
 
@@ -2849,12 +2851,12 @@ def _is_need_skip_enum_value(ori_enum_type: str, enum_value: str) -> bool:
 def _get_enum_owned_interface(ori_enum_type: str) -> str:
     for infos in generate_infos.values():
         if ori_enum_type in infos["enums"]:
-            print("ERROR UNSUPPORT ENUM:", ori_enum_type)
+            print("ERROR UNSUPPORTED ENUM:", ori_enum_type)
             exit(1)
         for h in infos["handles"]:
             if ori_enum_type in infos["handles"][h]["enums"]:
                 return _convert_handle_class_name(h)
-    print("ERROR UNSUPPORT ENUM !:", ori_enum_type)
+    print("ERROR UNSUPPORTED ENUM !:", ori_enum_type)
     exit(1)
 
 
@@ -2895,12 +2897,12 @@ def remap_type(type: str, field: str = "") -> str:
         return "Callable"
 
     if type.startswith("Union") and len(field):
-        uion_field_map = {
+        union_field_map = {
             "ParamValue": "Variant",
             "Value": "Variant",
             "AccountId": "String",
         }
-        return uion_field_map[field]
+        return union_field_map[field]
 
     todo_types = {
         #
@@ -2951,7 +2953,7 @@ def remap_type(type: str, field: str = "") -> str:
         "EOS_OnlinePlatformType": "uint32_t",
         "EOS_IntegratedPlatformType": "String",
         "Union{EOS_AntiCheatCommon_ClientHandle : ClientHandle, const char* : String, uint32_t : UInt32, in, EOS_AntiCheatCommon_Vec3f : Vec3f, EOS_AntiCheatCommon_Quat : Quat}": "Variant",
-        "Union{int64_t : AsInt64, double : AsDouble, EOS_Bool : AsBool, const char* : AsUtf8}": "Vaiant",
+        "Union{int64_t : AsInt64, double : AsDouble, EOS_Bool : AsBool, const char* : AsUtf8}": "Variant",
         "Union{EOS_EpicAccountId : Epic, const char* : External}": "String",
         "EOS_AntiCheatCommon_ClientHandle": "EOSAntiCheatCommon_Client *",
         #
@@ -3264,7 +3266,6 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         doc.append(f"@see EOS_Platform_Get{interface_type}Interface\n")
                         i = j
                         r_file_lower2infos[interface_lower]["interface_doc"] = doc
-                        print("----", interface_lower, interface_type)
                         break
 
 
@@ -3414,7 +3415,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 doc = _extract_doc(lines, i - 1)
                 if line.startswith("union"):
                     # Union
-                    union_fileds = {}
+                    union_fields = {}
                     i += 2
                     while not lines[i].lstrip("\t").startswith("}"):
                         line = lines[i].lstrip("\t").rstrip("\n")
@@ -3427,12 +3428,12 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                             print(f"-ERROR: {fp}:{i}\n")
                             print(f"{lines[i]}")
                         else:
-                            union_fileds[splits[1]] = splits[0]
+                            union_fields[splits[1]] = splits[0]
                         i += 1
 
                     union_type = "Union{"
-                    for union_f in union_fileds.keys():
-                        union_type += f"{union_fileds[union_f]} : {union_f}, "
+                    for union_f in union_fields.keys():
+                        union_type += f"{union_fields[union_f]} : {union_f}, "
                     union_type = union_type.rstrip(" ").rstrip(",") + "}"
 
                     field = lines[i].lstrip("\t").lstrip("}").lstrip(" ").rstrip("\n").rstrip(";")
@@ -3593,27 +3594,27 @@ def _is_handle_type(type: str, field: str = "") -> bool:
 
 def _find_count_field(field: str, fields: list[str]) -> str:
     splits = to_snake_case(field).split("_")
-    similars_fileds: list[str] = []
+    similar_fields: list[str] = []
     for f in fields:
         if f == fields:
             continue
         if f.endswith("Count") or f.endswith("Size") or f.endswith("Length") or f.endswith("LengthBytes") or f.endswith("SizeBytes"):
-            fsplited = to_snake_case(f).split("_")
+            f_splits = to_snake_case(f).split("_")
             similar = 0
-            for i in range(min(2, len(fsplited), len(splits))):
-                if fsplited[i].removesuffix("s").removesuffix("y") == splits[i].removesuffix("ies").removesuffix("s"):
+            for i in range(min(2, len(f_splits), len(splits))):
+                if f_splits[i].removesuffix("s").removesuffix("y") == splits[i].removesuffix("ies").removesuffix("s"):
                     similar += 1
                 else:
                     break
-            if similar >= min(2, len(fsplited), len(splits)):
+            if similar >= min(2, len(f_splits), len(splits)):
                 return f
             else:
                 if similar > 0:
-                    similars_fileds.append(f)
-    if len(similars_fileds) == 1:
-        return similars_fileds[0]
+                    similar_fields.append(f)
+    if len(similar_fields) == 1:
+        return similar_fields[0]
 
-    print("== error:", field, similars_fileds)
+    print("== error:", field, similar_fields)
     print(field, fields)
     exit(1)
 
@@ -3637,7 +3638,7 @@ def _is_memory_func_type(type: str) -> bool:
     return type in ["EOS_AllocateMemoryFunc", "EOS_ReallocateMemoryFunc", "EOS_ReleaseMemoryFunc"]
 
 
-def _is_integreate_platform_init_option(type: str, field: str) -> bool:
+def _is_integrated_platform_init_option(type: str, field: str) -> bool:
     return type == "const void*" and field == "InitOptions"
 
 
@@ -3702,7 +3703,7 @@ def _gen_struct_v2(
                 if f == field + "Type":
                     variant_union_type_fields.append(f)
 
-    addtional_methods_requirements = struct2additional_method_requirements[struct_type]
+    additional_methods_requirements = struct2additional_method_requirements[struct_type]
 
     typename = __convert_to_struct_class(struct_type)
 
@@ -3711,18 +3712,18 @@ def _gen_struct_v2(
         type: str = fields[field]["type"]
         snake_field_name: str = to_snake_case(field)
         decayed_type: str = _decay_eos_type(type)
-        remaped_type: str = ""
+        remapped_type: str = ""
 
         if not _is_need_skip_struct(decayed_type) and __is_struct_type(decayed_type) and not _is_internal_struct_arr_field(type, field):
             # 非数组的结构体
-            remaped_type = remap_type(decayed_type, field)
+            remapped_type = remap_type(decayed_type, field)
         elif _is_nullable_float_pointer_field(type, field):
-            remaped_type = _decay_eos_type(type)
+            remapped_type = _decay_eos_type(type)
         elif _is_handle_type(decayed_type):
-            # 句柄类型使用Ref<RefCounted>作为成员变量，非msvc编译器不支持Ref<T>作为成员时T的前向声明
-            remaped_type = "Ref<RefCounted>"
+            # 句柄类型使用Ref<RefCounted>作为成员变量，非 msvc 编译器不支持Ref<T>作为成员时T的前向声明
+            remapped_type = "Ref<RefCounted>"
         else:
-            remaped_type = remap_type(type, field)
+            remapped_type = remap_type(type, field)
 
         if is_deprecated_field(field):
             continue
@@ -3744,7 +3745,7 @@ def _gen_struct_v2(
             continue  # 暴露的结构体不再含有 ClientData 字段
         elif __is_api_version_field(type, field):
             continue  # 不需要ApiVersion作为成员
-        elif remaped_type == "bool":
+        elif remapped_type == "bool":
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
             member_lines.append(f"\tbool {snake_field_name}{{}};")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_BOOL({snake_field_name})")
@@ -3752,7 +3753,7 @@ def _gen_struct_v2(
         elif _is_socket_id_type(decayed_type, field):
             bind_lines.append(f"\t_BIND_PROP_STR({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_STR({snake_field_name})")
-            if addtional_methods_requirements["set_to"]:
+            if additional_methods_requirements["set_to"]:
                 member_lines.append(f"\tEOS_P2P_SocketId {snake_field_name};")
                 setget_define_lines.append(f"_DEFINE_SETGET_STR_SOCKET_ID({typename}, {snake_field_name})")
             else:
@@ -3771,7 +3772,7 @@ def _gen_struct_v2(
             member_lines.append(f"\tLocalVector<CharString> {snake_field_name};")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_STR_ARR({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET_STR_ARR({typename}, {snake_field_name})")
-            if addtional_methods_requirements["to"]:
+            if additional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
                 element_type: str = __get_str_arr_element_type(type)
                 if element_type != "const char*":  # 如果是C字符串则直接使用CharString
@@ -3781,32 +3782,32 @@ def _gen_struct_v2(
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\tTypedArray<class {_convert_handle_class_name(decayed_type)}> {snake_field_name};")
-            if addtional_methods_requirements["to"]:
+            if additional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
                 member_lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{snake_field_name}{{}};")
         elif _is_handle_type(decayed_type):
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_TYPED({snake_field_name}, Ref<class {_convert_handle_class_name(decayed_type)}>)")
             setget_define_lines.append(f"_DEFINE_SETGET_TYPED({typename}, {snake_field_name}, {remap_type(decayed_type, field)})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name};")
         elif _is_struct_ptr(type):
             bind_lines.append(f"\t_BIND_PROP_STRUCT_PTR({snake_field_name}, {remap_type(type)})")
-            setget_declare_lines.append(f"\t_DECLARE_SETGET_STRUCT_PTR({remaped_type}, {snake_field_name})")
-            setget_define_lines.append(f"_DEFINE_SETGET_STRUCT_PTR({typename}, {remaped_type},  {snake_field_name})")
+            setget_declare_lines.append(f"\t_DECLARE_SETGET_STRUCT_PTR({remapped_type}, {snake_field_name})")
+            setget_define_lines.append(f"_DEFINE_SETGET_STRUCT_PTR({typename}, {remapped_type},  {snake_field_name})")
             member_lines.append(f"\t{_decay_eos_type(type)} {snake_field_name}{{}};")
         elif _is_internal_struct_arr_field(type, field):
             bind_lines.append(f"\t_BIND_PROP_TYPED_ARR({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{}};")
-            if addtional_methods_requirements["to"]:
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{}};")
+            if additional_methods_requirements["to"]:
                 # 需要转为eos类型的结构体数组才需要的字段
                 member_lines.append(f"\tLocalVector<{_decay_eos_type(type)}> _shadow_{snake_field_name}{{}};")
         elif __is_struct_type(decayed_type):
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_field_name}, {_convert_handle_class_name(decayed_type)})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{}};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{}};")
         elif _is_enum_flags_type(type):
             bind_lines.append(f"\t_BIND_PROP_FLAGS({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_field_name})")
@@ -3822,32 +3823,32 @@ def _gen_struct_v2(
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{ -1.0 }};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ -1.0 }};")
         elif _is_anticheat_client_handle_type(decayed_type):
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{ nullptr }};")
-        elif remaped_type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ nullptr }};")
+        elif remapped_type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name};")
         elif _is_requested_channel_ptr_field(type, field):
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{ -1 }};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ -1 }};")
         elif type == "int32_t" and field == "ApiVersion":
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{ {__get_api_latest_macro(struct_type)} }};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ {__get_api_latest_macro(struct_type)} }};")
         else:
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remaped_type} {snake_field_name}{{}};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{}};")
 
         _insert_doc_property(typename, snake_field_name, fields[field]["doc"])
 
@@ -3880,20 +3881,20 @@ def _gen_struct_v2(
     lines.append(f"\tGDCLASS({typename}, EOSDataClass)")
     lines.append("")
     lines += member_lines
-    if addtional_methods_requirements["to"]:
+    if additional_methods_requirements["to"]:
         lines.append("")
         lines.append(f"\t{struct_type} m_eos_data{{}};")
     lines.append("")
     lines.append("public:")
     lines += setget_declare_lines
     lines.append("")
-    if addtional_methods_requirements["set_from"]:
+    if additional_methods_requirements["set_from"]:
         lines.append(f"\tvoid set_from_eos(const {struct_type} &p_origin);")
-    if addtional_methods_requirements["from"]:
+    if additional_methods_requirements["from"]:
         lines.append(f"\tstatic Ref<{typename}> from_eos(const {struct_type} &p_origin);")
-    if addtional_methods_requirements["set_to"]:
+    if additional_methods_requirements["set_to"]:
         lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
-    if addtional_methods_requirements["to"]:
+    if additional_methods_requirements["to"]:
         lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
     lines.append("protected:")
     lines.append("\tstatic void _bind_methods();")
@@ -3911,7 +3912,7 @@ def _gen_struct_v2(
 
     optional_cpp_lines: list[str] = []
 
-    if addtional_methods_requirements["from"]:
+    if additional_methods_requirements["from"]:
         r_structs_cpp.append(f"Ref<{typename}> {typename}::from_eos(const {struct_type} &p_origin) {{")
         r_structs_cpp.append(f"\tRef<{typename}> ret;")
         r_structs_cpp.append(f"\tret.instantiate();")
@@ -3919,7 +3920,7 @@ def _gen_struct_v2(
         r_structs_cpp.append(f"\treturn ret;")
         r_structs_cpp.append("}")
 
-    if addtional_methods_requirements["set_from"]:
+    if additional_methods_requirements["set_from"]:
         r_structs_cpp.append(f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{")
         for field in fields.keys():
             field_type = fields[field]["type"]
@@ -3938,7 +3939,7 @@ def _gen_struct_v2(
                 continue  # 暴露的结构体不再含有 ClientData 字段
             if _is_memory_func_type(field_type):
                 # 内存分配方法不需要成员变量
-                print("ERROR Unsupport")
+                print("ERROR Unsupported")
                 exit(1)
 
             if _is_platform_specific_options_field(field):
@@ -3954,7 +3955,7 @@ def _gen_struct_v2(
                 print("ERROR:", field)
                 exit(1)
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
-                if addtional_methods_requirements["set_to"]:
+                if additional_methods_requirements["set_to"]:
                     r_structs_cpp.append(f"\tmemcpy(&{to_snake_case(field)}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
                 else:
                     r_structs_cpp.append(f"\t{to_snake_case(field)}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
@@ -3996,7 +3997,7 @@ def _gen_struct_v2(
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
         r_structs_cpp.append("}")
 
-    if addtional_methods_requirements["set_to"]:
+    if additional_methods_requirements["set_to"]:
         r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
         # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
 
@@ -4027,7 +4028,7 @@ def _gen_struct_v2(
                 if __is_api_version_field(field_type, field):
                     r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
                 elif _is_audio_frames_type(field_type, field):
-                    r_structs_cpp.append(f"\t_packedint32_to_autio_frames({snake_field_name}, _shadow_{snake_field_name});")
+                    r_structs_cpp.append(f"\t_packed_int32_to_audio_frames({snake_field_name}, _shadow_{snake_field_name});")
                     r_structs_cpp.append(f"\tp_data.{field} = _shadow_{snake_field_name}.ptr();")
                     r_structs_cpp.append(f"\tp_data.{_find_count_field(field, fields.keys())} = _shadow_{snake_field_name}.size();")
                 elif _is_struct_ptr(field_type):
@@ -4081,7 +4082,7 @@ def _gen_struct_v2(
                     r_structs_cpp.append(
                         f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
                     )
-                elif _is_internal_struct_field(field_type, field) or _is_integreate_platform_init_option(field_type, field):
+                elif _is_internal_struct_field(field_type, field) or _is_integrated_platform_init_option(field_type, field):
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
                 elif _is_arr_field(field_type, field):
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
@@ -4267,7 +4268,7 @@ def _insert_doc_class_description(typename: str, doc: list[str] = []):
     # 插入
     __insert_doc_to(lines, insert_idx, doc, indent_count)
     # 保存
-    __stroe_doc_file(typename=typename, content=lines)
+    __store_doc_file(typename=typename, content=lines)
 
 
 def _insert_doc_class_brief(typename: str, doc: list[str]):
@@ -4300,7 +4301,7 @@ def _insert_doc_class_brief(typename: str, doc: list[str]):
     # 插入
     __insert_doc_to(lines, insert_idx, doc, indent_count)
     # 保存
-    __stroe_doc_file(typename=typename, content=lines)
+    __store_doc_file(typename=typename, content=lines)
 
 
 def _insert_doc_property(typename: str, prop: str, doc: list[str]):
@@ -4333,7 +4334,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
     # 插入
     __insert_doc_to(lines, insert_idx, doc, indent_count)
     # 保存
-    __stroe_doc_file(typename=typename, content=lines)
+    __store_doc_file(typename=typename, content=lines)
 
 
 def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
@@ -4368,7 +4369,7 @@ def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
     # 插入
     __insert_doc_to(lines, insert_idx, doc, indent_count)
     # 保存
-    __stroe_doc_file(typename=typename, content=lines)
+    __store_doc_file(typename=typename, content=lines)
 
 
 def _insert_doc_method(typename: str, method: str, doc: list[str], additional_args_doc: dict[str, list[str]] = {}, additional_doc: list[str] = []):
@@ -4439,7 +4440,7 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
         insert_idx += len(additional_doc_copy)
 
     # 保存
-    __stroe_doc_file(typename=typename, content=lines)
+    __store_doc_file(typename=typename, content=lines)
 
 
 def __insert_doc_to(lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
@@ -4463,7 +4464,7 @@ def __get_doc_file(typename: str) -> list[str]:
         return []
 
 
-def __stroe_doc_file(typename: str, content: list[str]):
+def __store_doc_file(typename: str, content: list[str]):
     try:
         f = open(os.path.join("./doc_classes", typename) + ".xml", "w", encoding="utf-8")
         f.writelines(content)

@@ -8,7 +8,7 @@
  * The mediator receives packets from the EOS P2P interface every process
  * frame and sorts those packets according to their destination socket so
  * that the appropriate multiplayer instance can poll them later. The mediator
- * receives EOS notifications and fowards it to the appropriate multiplayer
+ * receives EOS notifications and forwards it to the appropriate multiplayer
  * instance according to the socket the notification was received from.
  * Mediator manages incoming connection requests and forwards them to the
  * appropriate multiplayer instance according to the socket id of the
@@ -52,7 +52,7 @@ void EOSPacketPeerMediator::_bind_methods() {
  * that it can execute every process frame (see _init()). Checks if there are
  * any packets available from the incoming packet queue. If there are, receives
  * the packet and sorts it into separate queues according to it's destination socket. Packets that
- * are peer id packets (packets with EVENT_RECIEVE_PEER_ID) and pushed to the front. Packets will
+ * are peer id packets (packets with EVENT_RECEIVE_PEER_ID) and pushed to the front. Packets will
  * stop being polled if the queue size limit is reached.
  ****************************************/
 void EOSPacketPeerMediator::_on_process_frame() {
@@ -70,11 +70,11 @@ void EOSPacketPeerMediator::_on_process_frame() {
     packet_size_options.RequestedChannel = nullptr;
     uint32_t max_packet_size;
 
-    EOS_P2P_ReceivePacketOptions recieve_packet_options;
-    recieve_packet_options.ApiVersion = EOS_P2P_RECEIVEPACKET_API_LATEST;
-    recieve_packet_options.LocalUserId = local_user_id;
-    recieve_packet_options.MaxDataSizeBytes = EOS_P2P_MAX_PACKET_SIZE;
-    recieve_packet_options.RequestedChannel = nullptr;
+    EOS_P2P_ReceivePacketOptions receive_packet_options;
+    receive_packet_options.ApiVersion = EOS_P2P_RECEIVEPACKET_API_LATEST;
+    receive_packet_options.LocalUserId = local_user_id;
+    receive_packet_options.MaxDataSizeBytes = EOS_P2P_MAX_PACKET_SIZE;
+    receive_packet_options.RequestedChannel = nullptr;
 
     bool next_packet_available = true;
     EOS_EResult result = EOS_EResult::EOS_Success;
@@ -97,7 +97,7 @@ void EOSPacketPeerMediator::_on_process_frame() {
             uint8_t channel;
             EOS_P2P_SocketId socket;
             EOS_ProductUserId remote_user;
-            result = EOS_P2P_ReceivePacket(EOSP2P::get_singleton()->get_handle(), &recieve_packet_options, &remote_user, &socket, &channel, packet_data.ptrw(), &buffer_size);
+            result = EOS_P2P_ReceivePacket(EOSP2P::get_singleton()->get_handle(), &receive_packet_options, &remote_user, &socket, &channel, packet_data.ptrw(), &buffer_size);
             String socket_name = socket.SocketName;
 
             ERR_FAIL_COND_MSG(result == EOS_EResult::EOS_InvalidParameters, "Failed to get packet! Invalid parameters.");
@@ -112,7 +112,7 @@ void EOSPacketPeerMediator::_on_process_frame() {
             packet->set_sender(remote_user);
             uint8_t event = packet->get_data().ptr()[EOSMultiplayerPeer::INDEX_EVENT_TYPE];
 
-            if (event == EOSMultiplayerPeer::EVENT_RECIEVE_PEER_ID) {
+            if (event == EOSMultiplayerPeer::EVENT_RECEIVE_PEER_ID) {
                 socket_packet_queues[socket_name].push_front(packet);
             } else {
                 socket_packet_queues[socket_name].push_back(packet);
@@ -169,7 +169,7 @@ bool EOSPacketPeerMediator::register_peer(EOSMultiplayerPeer *peer) {
  * unregister_peer
  * Parameters:
  *   peer - The peer to be unregistered with the mediator.
- * Description: Unregisteres a peer and it's socket with the mediator.
+ * Description: Unregisters a peer and it's socket with the mediator.
  * Peers can no longer receive packets, notifications, or connection requests once this is done.
  * unregistration usually happens when a peer closes.
  ****************************************/
@@ -308,7 +308,7 @@ bool EOSPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_i
     const SharedPtr<PacketData> &packet = socket_packet_queues[socket_id][0];
     uint8_t event = packet->get_data().ptr()[EOSMultiplayerPeer::INDEX_EVENT_TYPE];
 
-    return event == EOSMultiplayerPeer::EVENT_RECIEVE_PEER_ID;
+    return event == EOSMultiplayerPeer::EVENT_RECEIVE_PEER_ID;
 }
 
 /****************************************

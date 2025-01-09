@@ -24,11 +24,11 @@ namespace godot::eos::internal {
 
 #define _EOS_VERSION_GREATER_THAN_1_6_1 (EOS_MAJOR_VERSION > 1 || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION > 16) || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION == 16 && EOS_PATCH_VERSION > 1))
 
-#define _BIND_ENUM_CONSTANT(enume_type_name, e, e_bind) \
-    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enume_type_name>(enume_type_name::e, e_bind), e_bind, enume_type_name::e);
+#define _BIND_ENUM_CONSTANT(enum_type_name, e, e_bind) \
+    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enum_type_name>(enum_type_name::e, e_bind), e_bind, enum_type_name::e);
 
-#define _BIND_ENUM_BITFIELD_FLAG(enume_type_name, e, e_bind) \
-    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enume_type_name::e, e_bind), e_bind, enume_type_name::e, true);
+#define _BIND_ENUM_BITFIELD_FLAG(enum_type_name, e, e_bind) \
+    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enum_type_name::e, e_bind), e_bind, enum_type_name::e, true);
 
 #define _BIND_CONSTANT(constant, constant_bind) \
     godot::ClassDB::bind_integer_constant(get_class_static(), "", constant_bind, constant);
@@ -36,9 +36,9 @@ namespace godot::eos::internal {
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
 
 #ifdef _MSC_VER // Check if using Microsoft Visual Studio
-#define STRNCPY_S(dest, destsz, src, count) strncpy_s(dest, destsz, src, count)
+#define STRNCPY_S(dest, dest_size, src, count) strncpy_s(dest, dest_size, src, count)
 #else
-#define STRNCPY_S(dest, destsz, src, count) strncpy(dest, src, count)
+#define STRNCPY_S(dest, dest_size, src, count) strncpy(dest, src, count)
 #endif
 
 #define _DECLARE_SETGET(field)           \
@@ -65,28 +65,28 @@ namespace godot::eos::internal {
     String klass::get_##field() const { return String::utf8((char *)field.get_data()); } \
     void klass::set_##field(const String &p_val) { field = p_val.utf8(); }
 
-#define _DEFINE_SETGET_STR_SOCKET_ID(klass, field)                                                                                                                   \
-    String klass::get_##field() const { return String(&(field).SocketName[0]); }                                                                                     \
-    void klass::set_##field(const String &p_val) {                                                                                                                   \
-        auto ascii = p_val.ascii();                                                                                                                                  \
-        if ((ascii).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (ascii).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                     \
-            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            (ascii).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                        \
-            (ascii).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                    \
-        }                                                                                                                                                            \
-        memset(&(field).SocketName[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                         \
-        memcpy(&(field).SocketName[0], ascii.get_data(), MIN(ascii.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));                                                       \
+#define _DEFINE_SETGET_STR_SOCKET_ID(klass, field)                                                                                                                 \
+    String klass::get_##field() const { return String(&(field).SocketName[0]); }                                                                                   \
+    void klass::set_##field(const String &p_val) {                                                                                                                 \
+        auto ascii = p_val.ascii();                                                                                                                                \
+        if ((ascii).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (ascii).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
+            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
+            (ascii).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            (ascii).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
+        }                                                                                                                                                          \
+        memset(&(field).SocketName[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                       \
+        memcpy(&(field).SocketName[0], ascii.get_data(), MIN(ascii.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE));                                                     \
     }
 
-#define _DEFINE_SETGET_STR_SOCKET_NAME(klass, field)                                                                                                                 \
-    String klass::get_##field() const { return String((char *)field.get_data()); }                                                                                   \
-    void klass::set_##field(const String &p_val) {                                                                                                                   \
-        field = p_val.ascii();                                                                                                                                       \
-        if ((field).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (field).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                     \
-            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            (field).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                        \
-            (field).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                    \
-        }                                                                                                                                                            \
+#define _DEFINE_SETGET_STR_SOCKET_NAME(klass, field)                                                                                                               \
+    String klass::get_##field() const { return String((char *)field.get_data()); }                                                                                 \
+    void klass::set_##field(const String &p_val) {                                                                                                                 \
+        field = p_val.ascii();                                                                                                                                     \
+        if ((field).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (field).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
+            ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
+            (field).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            (field).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
+        }                                                                                                                                                          \
     }
 
 #define _DECLARE_SETGET_STR_ARR(field)     \
@@ -314,12 +314,12 @@ PackedInt32Array to_godot_type_arr(const int16_t *p_from, Tint p_count) {
     return ret;
 }
 
-inline void _packedint32_to_autio_frames(const PackedInt32Array &p_from, LocalVector<int16_t> &p_to) {
+inline void _packed_int32_to_audio_frames(const PackedInt32Array &p_from, LocalVector<int16_t> &p_to) {
     p_to.clear();
     p_to.reserve(p_from.size());
     for (int32_t e : p_from) {
 #ifdef DEBUG_ENABLED
-        ERR_CONTINUE_MSG(e < INT16_MIN || e > INT16_MAX, "Audio Frme should be a int16_t.");
+        ERR_CONTINUE_MSG(e < INT16_MIN || e > INT16_MAX, "Audio Frame should be a int16_t.");
 #endif // DEBUG_ENABLED
         p_to.push_back(e);
     }
@@ -342,7 +342,7 @@ PackedInt32Array to_godot_type_arr(const uint8_t *p_from, Tint p_count) {
     return ret;
 }
 
-// uint32_t* Plaform ID数组使用（不会超过int32 的正值范围）
+// uint32_t* Platform ID数组使用（不会超过int32 的正值范围）
 template <typename Tint>
 PackedInt32Array to_godot_type_arr(const uint32_t *p_from, Tint p_count) {
     PackedInt32Array ret;
@@ -414,7 +414,7 @@ inline void to_eos_type_out(gd_arg_t<From> p_from, To &r_to) {
 template <>
 inline void to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
     if (p_from.size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && p_from.get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {
-        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncatured.", String(p_from), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
+        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", String(p_from), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
     }
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
@@ -591,7 +591,7 @@ inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_t
                 return String::utf8(p_union.AsUtf8);
             } break;
             default: {
-                ERR_FAIL_V_MSG({}, vformat("Unsuppoert AttributeType: ", (int)p_union_type));
+                ERR_FAIL_V_MSG({}, vformat("Unsupported AttributeType: ", (int)p_union_type));
             } break;
         }
     }
@@ -733,7 +733,7 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
 
 template <typename GDFrom, typename EOSTo>
-inline void _conver_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
+inline void _convert_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
     p_to.resize(p_from.size());
     for (decltype(p_from.size()) i = 0; i < p_from.size(); ++i) {
         auto casted = Object::cast_to<GDFrom>(p_from[i]);
@@ -743,14 +743,14 @@ inline void _conver_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, Local
 }
 
 #define _TO_EOS_FIELD_STRUCT_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
-    _conver_to_eos_struct_vector(gd_field, shadow_field);                              \
+    _convert_to_eos_struct_vector(gd_field, shadow_field);                             \
     r_eos_field_count = shadow_field.size();                                           \
     eos_field = shadow_field.ptr();
 #define _TO_EOS_FIELD_HANDLER(eos_field, gd_field, gd_type_to_cast) \
     eos_field = gd_field.is_valid() ? Object::cast_to<gd_type_to_cast>(gd_field.ptr())->get_handle() : nullptr
 
 template <typename GDFrom, typename EOSTo>
-inline void _conver_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
+inline void _convert_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
     p_to.resize(p_from.size());
     for (decltype(p_from.size()) i = 0; i < p_from.size(); ++i) {
         auto casted = Object::cast_to<GDFrom>(p_from[i]);
@@ -759,7 +759,7 @@ inline void _conver_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Local
     }
 }
 #define _TO_EOS_FIELD_HANDLER_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
-    _conver_to_eos_handle_vector(gd_field, shadow_field);                               \
+    _convert_to_eos_handle_vector(gd_field, shadow_field);                              \
     r_eos_field_count = shadow_field.size();                                            \
     eos_field = shadow_field.ptr();
 #define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
@@ -782,8 +782,8 @@ inline void _conver_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Local
 #define _MAKE_PROP_INFO_ENUM(m_name, enum_owner, enum_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, #enum_owner "." #enum_type)
 
 // 展开转换
-template <typename GDDataClass, typename EOSArraTy, typename TInt>
-godot::TypedArray<GDDataClass> _to_godot_value_struct_arr(EOSArraTy p_eos_arr, TInt p_count) {
+template <typename GDDataClass, typename EOSArrayTy, typename TInt>
+godot::TypedArray<GDDataClass> _to_godot_value_struct_arr(EOSArrayTy p_eos_arr, TInt p_count) {
     godot::TypedArray<GDDataClass> ret;
     ret.resize(p_count);
     for (decltype(p_count) i = 0; i < p_count; ++i) {
@@ -799,8 +799,8 @@ godot::Ref<GDHandle> _to_godot_handle(EOSHandle p_eos_handle) {
     ret->set_handle(p_eos_handle);
     return ret;
 }
-template <typename GDDataClass, typename EOSArraTy, typename TInt>
-godot::TypedArray<GDDataClass> _to_godot_value_handle_arr(EOSArraTy p_eos_arr, TInt p_count) {
+template <typename GDDataClass, typename EOSArrayTy, typename TInt>
+godot::TypedArray<GDDataClass> _to_godot_value_handle_arr(EOSArrayTy p_eos_arr, TInt p_count) {
     godot::TypedArray<GDDataClass> ret;
     ret.resize(p_count);
     for (decltype(p_count) i = 0; i < p_count; ++i) {
@@ -873,21 +873,21 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
     }
 
-#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                          \
-    [](m_callback_info_ty m_callback_identifier) {                                                                                       \
-        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                              \
-        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                                                     \
-        auto return_action = EOS_EIntegratedPlatformPreLogoutAction::EOS_IPLA_ProcessLogoutImmediately;                                  \
-        if (cd->callback.is_valid()) {                                                                                                   \
-            auto res = cd->callback.call(cb_data);                                                                                       \
-            if (res.get_type() != Variant::INT || (int32_t)res != 0 || (int32_t)res != 1) {                                              \
-                ERR_PRINT("Read file data callback should return a Value of IntegreatePlatform.EOS_EIntegratedPlatformPreLogoutAction."); \
-            } else {                                                                                                                     \
-                return_action = (EOS_EIntegratedPlatformPreLogoutAction)(res.operator int32_t());                                        \
-            }                                                                                                                            \
-        }                                                                                                                                \
-        cd->handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                              \
-        return return_action;                                                                                                            \
+#define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                           \
+    [](m_callback_info_ty m_callback_identifier) {                                                                                        \
+        auto cd = (_CallbackClientData *)m_callback_identifier->ClientData;                                                               \
+        auto cb_data = m_arg_type::from_eos(*m_callback_identifier);                                                                      \
+        auto return_action = EOS_EIntegratedPlatformPreLogoutAction::EOS_IPLA_ProcessLogoutImmediately;                                   \
+        if (cd->callback.is_valid()) {                                                                                                    \
+            auto res = cd->callback.call(cb_data);                                                                                        \
+            if (res.get_type() != Variant::INT || (int32_t)res != 0 || (int32_t)res != 1) {                                               \
+                ERR_PRINT("Read file data callback should return a Value of IntegratedPlatform.EOS_EIntegratedPlatformPreLogoutAction."); \
+            } else {                                                                                                                      \
+                return_action = (EOS_EIntegratedPlatformPreLogoutAction)(res.operator int32_t());                                         \
+            }                                                                                                                             \
+        }                                                                                                                                 \
+        cd->handle_wrapper->emit_signal(SNAME(m_callback_signal), cb_data);                                                               \
+        return return_action;                                                                                                             \
     }
 
 // EOS VERSION
@@ -907,22 +907,22 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     return m_handle_identifier == m_other_identifier->get_handle()
 
 // Platform tick
-#define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                    \
-protected:                                                                                                                                                                            \
-    void tick_internal() {                                                                                                                                                            \
-        if (m_handle) {                                                                                                                                                               \
-            EOS_Platform_Tick(m_handle);                                                                                                                                              \
-        }                                                                                                                                                                             \
-    }                                                                                                                                                                                 \
-    void setup_tick() {                                                                                                                                                               \
-        MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();                                                                                                        \
-        ERR_FAIL_COND_MSG(main_loop == nullptr || !main_loop->has_signal("process_frame"), "EOS wraning: Can't tick automatically, please call \"EOSPlatform::tick()\" by youself."); \
-        ERR_FAIL_COND(main_loop->connect("process_frame", callable_mp(this, &EOSPlatform::tick_internal)) != OK);                                                                     \
-    }                                                                                                                                                                                 \
-    void _notification(int p_what) {                                                                                                                                                  \
-        if (p_what == NOTIFICATION_POSTINITIALIZE) {                                                                                                                                  \
-            callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                                                                                              \
-        }                                                                                                                                                                             \
+#define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                     \
+protected:                                                                                                                                                                             \
+    void tick_internal() {                                                                                                                                                             \
+        if (m_handle) {                                                                                                                                                                \
+            EOS_Platform_Tick(m_handle);                                                                                                                                               \
+        }                                                                                                                                                                              \
+    }                                                                                                                                                                                  \
+    void setup_tick() {                                                                                                                                                                \
+        MainLoop *main_loop = godot::Engine::get_singleton()->get_main_loop();                                                                                                         \
+        ERR_FAIL_COND_MSG(main_loop == nullptr || !main_loop->has_signal("process_frame"), "EOS warning: Can't tick automatically, please call \"EOSPlatform::tick()\" by yourself."); \
+        ERR_FAIL_COND(main_loop->connect("process_frame", callable_mp(this, &EOSPlatform::tick_internal)) != OK);                                                                      \
+    }                                                                                                                                                                                  \
+    void _notification(int p_what) {                                                                                                                                                   \
+        if (p_what == NOTIFICATION_POSTINITIALIZE) {                                                                                                                                   \
+            callable_mp(this, &EOSPlatform::setup_tick).call_deferred();                                                                                                               \
+        }                                                                                                                                                                              \
     }
 
 // Memory

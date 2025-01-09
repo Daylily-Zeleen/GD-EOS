@@ -45,7 +45,7 @@ class EOSMultiplayerPeer : public MultiplayerPeerExtension {
 public:
     enum Event : uint8_t {
         EVENT_STORE_PACKET,
-        EVENT_RECIEVE_PEER_ID,
+        EVENT_RECEIVE_PEER_ID,
         EVENT_MESH_CONNECTION_REQUEST
     };
 
