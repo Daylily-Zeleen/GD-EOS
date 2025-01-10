@@ -3442,13 +3442,13 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
         # 结构体
         elif line.startswith("EOS_STRUCT"):
-            i += 1
-
             struct_name = line.lstrip("EOS_STRUCT").lstrip("(").rstrip("\n").rstrip(", (")
             r_file_lower2infos[interface_lower]["structs"][struct_name] = {
                 "doc": _extract_doc(lines, i - 1),
                 "fields": {}
             }
+
+            i += 1
 
             while not lines[i].startswith("));"):
                 line = lines[i].lstrip("\t").rstrip("\n")
