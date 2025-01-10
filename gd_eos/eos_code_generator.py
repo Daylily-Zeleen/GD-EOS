@@ -8,6 +8,7 @@ import os, sys
 
 # TODO: 对文档提及的成员进行 GDS接口化
 # TODO: 跳过展开结构的无用成员文档
+# TODO: 跳過 @see 被展开的结构体文档
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -4478,6 +4479,15 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
     __store_doc_file(typename=typename, content=lines)
 
 
+def __get_sorted_descending_keys(d) -> list[str]:
+    ret : list[str] = []
+    for k in d:
+        ret.append(k)
+
+    ret.sort(key=len, reverse=True)
+    return ret        
+
+
 def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
     for line in doc:
         if len(line.strip()) != 0:
@@ -4486,7 +4496,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                 line = "\t" + line
 
         # 关键词替换
-        for m in doc_keyword_map_method:
+        for m in __get_sorted_descending_keys(doc_keyword_map_method):
             if line.count(m) <= 0:
                 continue
             data :dict[str, str]= doc_keyword_map_method[m]
@@ -4500,7 +4510,8 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             line = line.replace(m, replace_keyword)
             print("rp m: ", typename, m, replace_keyword)
-        for em in doc_keyword_map_enum_member:
+
+        for em in __get_sorted_descending_keys(doc_keyword_map_enum_member):
             if line.count(em) <= 0:
                 continue
 
@@ -4515,7 +4526,8 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             line = line.replace(em, replace_keyword)
             print("rp em: ", typename, em, replace_keyword)
-        for e in doc_keyword_map_enum:
+
+        for e in __get_sorted_descending_keys(doc_keyword_map_enum):
             if line.count(e) <= 0:
                 continue
 
@@ -4530,7 +4542,8 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             line = line.replace(e, replace_keyword)
             print("rp e: ", typename, e, replace_keyword)
-        for c in doc_keyword_map_constant:
+
+        for c in __get_sorted_descending_keys(doc_keyword_map_constant):
             if line.count(c) <= 0:
                 continue
 
