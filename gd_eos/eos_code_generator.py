@@ -64,6 +64,11 @@ max_field_count_to_expand_of_callback_info: int = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
+# src -> {class: str, name: str}
+doc_keyword_map_method :dict[str, dict[str, str]] = {}
+doc_keyword_map_enum :dict[str, dict[str, str]] = {}
+doc_keyword_map_enum_member :dict[str, dict[str, str]] = {}
+doc_keyword_map_constant :dict[str, dict] = {}
 
 def main(argv):
     # 处理生成选项
@@ -140,6 +145,36 @@ def preprocess():
     f = open(os.path.join(sdk_include_dir, "eos_base.h"), "w")
     f.write("".join(lines))
     f.close()
+
+    # 处理文档关键词映射
+    for h in handles:
+        h_info = handles[h]
+        h_class = _convert_handle_class_name(h)
+        for m in h_info["methods"]:
+            doc_keyword_map_method[m] = {
+                "class" : h_class,
+                "name" : __convert_method_name(m, h),
+            }
+
+        for e in h_info["enums"]:
+            doc_keyword_map_enum[e] = {
+                "class" : h_class,
+                "name" : _convert_enum_type(e),
+            }
+
+            for e_member in h_info["enums"][e]["members"]:
+                doc_keyword_map_enum_member[e_member["name"]] = {
+                    "class" : h_class,
+                    "name" : _convert_enum_value(e_member["name"]),
+                }
+
+        for c in h_info["constants"]:
+            as_method = _is_string_constant(c)
+            doc_keyword_map_constant[c] = {
+                "class" : h_class,
+                "name" : _convert_constant_as_method_name(c) if as_method else _convert_constant_name(c),
+                "as_method": as_method,
+            }
 
 
 def __remove_backslash_of_last_line(lines: list[str]) -> None:
@@ -4266,7 +4301,7 @@ def _insert_doc_class_description(typename: str, doc: list[str] = []):
     # doc.insert(2, "[b]CAUTIOUS[/b]: 该文档是从 EOS C SDK 中提取的，与该 GDScript SDK 的 API 存在差异。\n")
     # doc.insert(3, "[b]NOTE: 请牢记该文档仅供参考。[/b]\n")
     # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     # 保存
     __store_doc_file(typename=typename, content=lines)
 
@@ -4299,7 +4334,7 @@ def _insert_doc_class_brief(typename: str, doc: list[str]):
         line = lines[insert_idx]
 
     # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     # 保存
     __store_doc_file(typename=typename, content=lines)
 
@@ -4332,7 +4367,7 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
         line = lines[insert_idx]
 
     # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     # 保存
     __store_doc_file(typename=typename, content=lines)
 
@@ -4367,7 +4402,7 @@ def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
         line = lines[insert_idx]
 
     # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     # 保存
     __store_doc_file(typename=typename, content=lines)
 
@@ -4416,10 +4451,10 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
         line = lines[insert_idx]
 
     # 插入
-    __insert_doc_to(lines, insert_idx, doc, indent_count)
+    __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     if len(additional_args_doc) > 0:
         insert_idx += len(doc)
-        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Arguments Additional Descriptions --------------\n"], indent_count)
+        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Arguments Additional Descriptions --------------\n"], indent_count)
         insert_idx += 2
 
         for arg in additional_args_doc:
@@ -4428,28 +4463,96 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
                 arg_doc[i] = "\t" + arg_doc[i]
             arg_doc.insert(0, "\n")
             arg_doc.insert(1, f"{arg}:\n")
-            __insert_doc_to(lines, insert_idx, arg_doc, indent_count)
+            __insert_doc_to(typename, lines, insert_idx, arg_doc, indent_count)
             insert_idx += len(arg_doc)
     if len(additional_doc) > 0:
-        __insert_doc_to(lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
+        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
         insert_idx += 2
 
         additional_doc_copy = additional_doc.copy()
         additional_doc_copy.insert(0, "\n")
-        __insert_doc_to(lines, insert_idx, additional_doc, indent_count)
+        __insert_doc_to(typename, lines, insert_idx, additional_doc, indent_count)
         insert_idx += len(additional_doc_copy)
 
     # 保存
     __store_doc_file(typename=typename, content=lines)
 
 
-def __insert_doc_to(lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
+def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
     for line in doc:
-        # line = line.removeprefix(" ")
         if len(line.strip()) != 0:
             # 非空行再加缩进
             for i in range(indent_count):
                 line = "\t" + line
+
+        # 关键词替换
+        for m in doc_keyword_map_method:
+            if line.count(m) <= 0:
+                continue
+            data :dict[str, str]= doc_keyword_map_method[m]
+            klass :str = data["class"]
+            name :str = data["name"]
+            replace_keyword :str = ""
+            if klass == typename:
+                replace_keyword = f"[method {name}]"
+            else:
+                replace_keyword = f"[method {klass}.{name}]"
+
+            line = line.replace(m, replace_keyword)
+            print("rp m: ", typename, m, replace_keyword)
+        for em in doc_keyword_map_enum_member:
+            if line.count(em) <= 0:
+                continue
+
+            data :dict[str, str] = doc_keyword_map_enum_member[em]
+            klass :str = data["class"]
+            name :str = data["name"]
+            replace_keyword :str = ""
+            if klass == typename:
+                replace_keyword = f"[constant {name}]"
+            else:
+                replace_keyword = f"[constant {klass}.{name}]"
+
+            line = line.replace(em, replace_keyword)
+            print("rp em: ", typename, em, replace_keyword)
+        for e in doc_keyword_map_enum:
+            if line.count(e) <= 0:
+                continue
+
+            data : dict[str, str] = doc_keyword_map_enum[e]
+            klass :str = data["class"]
+            name :str = data["name"]
+            replace_keyword :str = ""
+            if klass == typename:
+                replace_keyword = f"[enum {name}]"
+            else:
+                replace_keyword = f"[enum {klass}.{name}]"
+
+            line = line.replace(e, replace_keyword)
+            print("rp e: ", typename, e, replace_keyword)
+        for c in doc_keyword_map_constant:
+            if line.count(c) <= 0:
+                continue
+
+            data :dict = doc_keyword_map_constant[c]
+            klass :str = data["class"]
+            name :str = data["name"]
+            as_method:str = data["as_method"]
+            replace_keyword :str = ""
+            if as_method:
+                if klass == typename:
+                    replace_keyword = f"[method {name}]"
+                else:
+                    replace_keyword = f"[method {klass}.{name}]"
+            else:
+                if klass == typename:
+                    replace_keyword = f"[enum {name}]"
+                else:
+                    replace_keyword = f"[enum {klass}.{name}]"
+
+            line = line.replace(c, replace_keyword)
+            print("rp c: ", typename, c, replace_keyword)
+
         lines.insert(insert_idx, line)
         insert_idx += 1
 
