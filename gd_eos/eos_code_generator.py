@@ -183,6 +183,12 @@ def preprocess():
                 "as_method": as_method,
             }
 
+        for cb in h_info["callbacks"]:
+            doc_keyword_map_callback[cb] = {
+                "class" : h_class,
+                "name" : __convert_to_signal_name(cb)
+            }
+
     for s in structs:
         doc_keyword_map_struct[s] = __convert_to_struct_class(s)
 
@@ -4506,19 +4512,49 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
         # 关键词替换
         for m in __get_sorted_descending_keys(doc_keyword_map_method):
-            if line.count(m) <= 0:
-                continue
-            data :dict[str, str]= doc_keyword_map_method[m]
-            klass :str = data["class"]
-            name :str = data["name"]
-            replace_keyword :str = ""
-            if klass == typename:
-                replace_keyword = f"[method {name}]"
-            else:
-                replace_keyword = f"[method {klass}.{name}]"
+            # 替换选项类关键字
+            m_options = m + "Options"
+            if line.count(m_options) > 0:
+                mapped :dict = f"[{doc_keyword_map_struct[m_options]}]"
+                line = line.replace(m_options, mapped)
+                print("rp s: ", typename, m_options, mapped)
 
-            line = line.replace(m, replace_keyword)
-            print("rp m: ", typename, m, replace_keyword)
+            # 替换回调参数信息
+            m_callback_info = m + "CallbackInfo"
+            if line.count(m_callback_info) > 0:
+                mapped :dict = f"[{doc_keyword_map_struct[m_callback_info]}]"
+                line = line.replace(m_callback_info, mapped)
+                print("rp cb_info: ", typename, m_callback_info, mapped)
+
+            # 替换回调关键字
+            splits = m.split("_")
+            splits[len(splits) -1] = "On" + splits[len(splits) -1] + "Callback"
+            m_callback = "_".join(splits)
+            if line.count(m_callback) > 0:
+                data :dict[str, str]= doc_keyword_map_callback[m_callback]
+                klass :str = data["class"]
+                name :str = data["name"]
+                replace_keyword :str = ""
+                if klass == typename:
+                    replace_keyword = f"[signal {name}]"
+                else:
+                    replace_keyword = f"[signal {klass}.{name}]"
+                line = line.replace(m_callback, replace_keyword)
+                print("rp cb: ", typename, m_callback, replace_keyword)
+
+            # 替换函数关键字
+            if line.count(m) > 0:
+                data :dict[str, str]= doc_keyword_map_method[m]
+                klass :str = data["class"]
+                name :str = data["name"]
+                replace_keyword :str = ""
+                if klass == typename:
+                    replace_keyword = f"[method {name}]"
+                else:
+                    replace_keyword = f"[method {klass}.{name}]"
+
+                line = line.replace(m, replace_keyword)
+                print("rp m: ", typename, m, replace_keyword)
 
         for em in __get_sorted_descending_keys(doc_keyword_map_enum_member):
             if line.count(em) <= 0:
