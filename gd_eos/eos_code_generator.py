@@ -9,6 +9,8 @@ import os, sys
 # TODO: 对文档提及的成员进行 GDS接口化
 # TODO: 跳过展开结构的无用成员文档
 # TODO: 跳過 @see 被展开的结构体文档
+# TODO: @see xxxOptions(是否被展开) xxxCallback(信号)
+# TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -28,7 +30,7 @@ interfaces: dict[str, dict] = {
         }
     }
 }
-structs: dict[str, dict[str, str]] = {}
+structs: dict[str, dict] = {}
 handles: dict[str, dict] = {
     "EOS": {
         "doc": "",
@@ -65,11 +67,15 @@ max_field_count_to_expand_of_callback_info: int = 1
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
+# 以下成员按替换顺序排序
 # src -> {class: str, name: str}
 doc_keyword_map_method :dict[str, dict[str, str]] = {}
-doc_keyword_map_enum :dict[str, dict[str, str]] = {}
 doc_keyword_map_enum_member :dict[str, dict[str, str]] = {}
-doc_keyword_map_constant :dict[str, dict] = {}
+doc_keyword_map_enum :dict[str, dict[str, str]] = {}
+doc_keyword_map_constant :dict[str, dict] = {} # src -> {class: str, name: str, as_method: str}
+doc_keyword_map_callback :dict[str, dict[str, str]] = {}
+doc_keyword_map_struct : dict[str, str] = {} # src -> name
+
 
 def main(argv):
     # 处理生成选项
@@ -176,6 +182,9 @@ def preprocess():
                 "name" : _convert_constant_as_method_name(c) if as_method else _convert_constant_name(c),
                 "as_method": as_method,
             }
+
+    for s in structs:
+        doc_keyword_map_struct[s] = __convert_to_struct_class(s)
 
 
 def __remove_backslash_of_last_line(lines: list[str]) -> None:
@@ -4565,6 +4574,14 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             line = line.replace(c, replace_keyword)
             print("rp c: ", typename, c, replace_keyword)
+
+        for s in __get_sorted_descending_keys(doc_keyword_map_struct):
+            if line.count(s) <= 0:
+                continue
+
+            mapped :dict = f"[{doc_keyword_map_struct[s]}]"
+            line = line.replace(s, mapped)
+            print("rp s: ", typename, s, mapped)
 
         lines.insert(insert_idx, line)
         insert_idx += 1
