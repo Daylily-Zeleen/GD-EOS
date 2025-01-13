@@ -10,7 +10,6 @@ import traceback
 # TODO: 对文档提及的成员进行 GDS接口化
     # TODO: 跳过展开结构的无用成员文档
     # TODO: 跳過 @see 被展开的结构体文档
-    # TODO: @see xxxOptions(是否被展开)
     # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
@@ -36,7 +35,7 @@ handles: dict[str, dict] = {
     "EOS": {
         "doc": "",
         "methods": {},
-        "callbacks": {"EOS_LogMessageFunc": {"return": "", "args": [{"type": "const EOS_LogMessage*", "name": "Message"}]}},
+        "callbacks": {"EOS_LogMessageFunc": {"return": "", "args": [{"type": "const EOS_LogMessage*", "name": "Message"}], "doc": []}},
         "enums": {},
         "constants": {},
     },
@@ -139,6 +138,7 @@ def generator_eos_interfaces() -> None:
     gen_all_in_one()
     print("Generate Completed!")
 
+
 def preprocess():
     # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 影响枚举的绑定
     f = open(os.path.join(sdk_include_dir, "eos_base.h"), "r")
@@ -154,6 +154,10 @@ def preprocess():
     f.write("".join(lines))
     f.close()
 
+    _preprocess_docs()
+
+
+def _preprocess_docs():
     # 处理文档关键词映射
     for h in handles:
         h_info = handles[h]
@@ -192,6 +196,38 @@ def preprocess():
 
     for s in structs:
         doc_keyword_map_struct[s] = __convert_to_struct_class(s)
+
+    # 优化文档
+    for struct in structs:
+        struct_info :dict = structs[struct]
+        struct_info["doc"] = _optimize_doc(struct_info["doc"])
+
+        for field in struct_info["fields"]:
+            field_info = struct_info["fields"][field]
+            field_info["doc"] = _optimize_doc(field_info["doc"])
+
+    for h in handles:
+        handle_info :dict = handles[h]
+        handle_info["doc"] = _optimize_doc(handle_info["doc"])
+
+        for m in handle_info["methods"]:
+            m_info = handle_info["methods"][m]
+            m_info["doc"] = _optimize_doc(m_info["doc"])
+
+        for cb in handle_info["callbacks"]:
+            cb_info = handle_info["callbacks"][cb]
+            cb_info["doc"] = _optimize_doc(cb_info["doc"])
+
+        for et in handle_info["enums"]:
+            et_info = handle_info["enums"][et]
+            et_info["doc"] = _optimize_doc(et_info["doc"])
+            for e_info in handle_info["enums"][et]["members"]:
+                e_info["doc"] = _optimize_doc(e_info["doc"])
+
+        for c in handle_info["constants"]:
+            c_info = handle_info["constants"][c]
+            c_info["doc"] = _optimize_doc(c_info["doc"])
+
 
 
 def __remove_backslash_of_last_line(lines: list[str]) -> None:
@@ -3553,16 +3589,26 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
         while "<" in doc[i] and "/>" in doc[i]:
             doc[i] = doc[i].replace("<", "(").replace("/>", ")")
 
-    # 拼接
+    return doc
+
+
+def _optimize_doc(doc: list[str]) -> list[str]:
+    # 拼接: TODO 在所有信息处理后再进行(需要判断 _Options是否被展开)
     ret :list[str] = []
     in_details :bool = False
     for i in range(len(doc)):
         # 特殊处理
         if doc[i].lstrip().startswith("@"):
             line = doc[i].lstrip()
-            if line.startswith("@see") and line.rstrip().endswith("_Release"):
-                # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
-                continue
+            if line.startswith("@see"):
+                if line.rstrip().endswith("_Release"):
+                    # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
+                    continue
+                elif line.rstrip().endswith("Options"):
+                    option_type :str =  line.removeprefix("@see").strip()
+                    if _is_expanded_struct(option_type):
+                        # 跳过被展开的入参结构体类型说明
+                        continue
 
         if len(ret) <= 0:
             # 首行
@@ -3597,7 +3643,6 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
             else:
                 # 其他情况下拼接到上一行
                 ret[last_idx] = ret[last_idx].rstrip() + doc[i]
-
     return ret
 
 
