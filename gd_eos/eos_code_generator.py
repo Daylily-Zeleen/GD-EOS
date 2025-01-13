@@ -12,6 +12,8 @@ import os, sys
 # TODO: @see xxxOptions(是否被展开) xxxCallback(信号)
 # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
+# TODO: 文档拼接，调整缩进为空格
+
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
 gen_dir = "gd_eos/gen/"
@@ -4273,6 +4275,7 @@ def __make_callback_doc(callback_type: str) -> list[str]:
             arg_fields = __get_struct_fields(decayed_type)
 
             for f in arg_fields:
+                # TODO 处理要跳过的字段
                 if f == "ClientData":
                     continue # 跳过这个特殊字段
                 info = arg_fields[f]
@@ -4503,8 +4506,13 @@ def __get_sorted_descending_keys(d) -> list[str]:
     return ret        
 
 
+def __convert_prefix_tab(line: str) -> str:
+    return line.replace("\t", "    ")
+
+
 def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[str], indent_count: int) -> list[str]:
     for line in doc:
+        line = __convert_prefix_tab(line)
         if len(line.strip()) != 0:
             # 非空行再加缩进
             for i in range(indent_count):
