@@ -4312,7 +4312,7 @@ def __make_callback_doc(callback_type: str) -> list[str]:
         type = arg["type"]
         decayed_type = _decay_eos_type(type)
         if not _is_expanded_struct(decayed_type):
-            ret.append(f"{name}: {type}\n")
+            ret.append(f"{name}: {decayed_type}\n")
             for l in structs[decayed_type]["doc"]:
                 ret.append(f"\t{l}")
         else:
@@ -4323,7 +4323,7 @@ def __make_callback_doc(callback_type: str) -> list[str]:
                 if f == "ClientData":
                     continue # 跳过这个特殊字段
                 info = arg_fields[f]
-                f_type = info["type"]
+                f_type = _decay_eos_type(info["type"])
                 ret.append(f"{f}: {f_type}\n")
                 for l in info["doc"]:
                     ret.append(f"\t{l}\n")
