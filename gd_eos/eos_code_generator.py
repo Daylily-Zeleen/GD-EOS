@@ -12,8 +12,6 @@ import os, sys
 # TODO: @see xxxOptions(是否被展开) xxxCallback(信号)
 # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
-# TODO: 文档拼接，调整缩进为空格
-
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
 gen_dir = "gd_eos/gen/"
@@ -3521,7 +3519,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
 
 def _extract_doc(lines: list[str], idx: int) -> list[str]:
-    ret :list[str] = []
+    doc :list[str] = []
     while idx >= 0:
         line :str = lines[idx].lstrip("\t")
 
@@ -3543,31 +3541,77 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
             for _i in range(divmod(prefix_space_count, 4)[0]):
                 line = "\t" + line
 
-            ret.append(line)
+            doc.append(line)
             idx -= 1
         else:
             break
 
     # 去除首尾空行
-    while len(ret) > 0:
-        if len(ret[0].strip()) <= 0:
-            ret.pop(0)
+    while len(doc) > 0:
+        if len(doc[0].strip()) <= 0:
+            doc.pop(0)
         else:
             break
 
-    while len(ret) > 0:
-        if len(ret[len(ret) - 1].strip()) <= 0:
-            ret.pop(len(ret) - 1)
+    while len(doc) > 0:
+        if len(doc[len(doc) - 1].strip()) <= 0:
+            doc.pop(len(doc) - 1)
         else:
             break
 
-    ret.reverse()
+    doc.reverse()
 
-    for i in range(len(ret)):
-        while "<" in ret[i] and "/>" in ret[i]:
-            ret[i] = ret[i].replace("<", "(").replace("/>", ")")
+    for i in range(len(doc)):
+        while "<" in doc[i] and "/>" in doc[i]:
+            doc[i] = doc[i].replace("<", "(").replace("/>", ")")
+
+    # 拼接
+    ret :list[str] = []
+    in_details :bool = False
+    for i in range(len(doc)):
+        if i == 0:
+            # 首行
+            ret.append(doc[i])
+            in_details = False
+        elif len(doc[i].strip()) <= 0:
+            # 空行
+            ret.append(doc[i])
+            in_details = False
+        elif doc[i].lstrip().startswith("@"):
+            # 单行注释
+            ret.append(doc[i])
+            in_details = False
+        elif doc[i].removeprefix(" ").startswith("\t"):
+            # 前置缩进
+            ret.append(doc[i])
+            in_details = False
+        elif __is_int_str(doc[i].lstrip().split(".")[0].strip()):
+            # 标号开头
+            ret.append(doc[i])
+            in_details = False
+        else:
+            last_idx = len(ret) - 1
+
+            if not in_details:
+                # 详情行
+                if ret[last_idx].rstrip().endswith(":"):
+                    in_details = True
+
+            if in_details:
+                ret.append(doc[i])
+            else:
+                # 其他情况下拼接到上一行
+                ret[last_idx] = ret[last_idx].rstrip() + doc[i]
 
     return ret
+
+
+def __is_int_str(text: str) -> bool:
+    try:
+        int(text)
+        return True
+    except ValueError:
+        return False
 
 
 def _decay_eos_type(t: str) -> str:
