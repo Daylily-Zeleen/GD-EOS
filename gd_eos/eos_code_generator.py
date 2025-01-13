@@ -1,6 +1,7 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 import os, sys
+import traceback
 
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
@@ -196,7 +197,7 @@ def preprocess():
 def __remove_backslash_of_last_line(lines: list[str]) -> None:
     if not len(lines):
         print("Error")
-        exit(1)
+        _print_stack_and_exit()
     lines[len(lines) - 1] = lines[len(lines) - 1].removesuffix("\\")
 
 
@@ -486,7 +487,7 @@ def gen_files(file_base_name: str, infos: dict):
 
             if len(_disabled_macro) <= 0:
                 print("ERROR:", interface)
-                exit(1)
+                _print_stack_and_exit()
 
             if interface_low == "audio":
                 interface_low = "rtc_audio"
@@ -776,7 +777,7 @@ def _make_notify_code(
         cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPANDED")
     else:
         print("ERROR")
-        exit(1)
+        _print_stack_and_exit()
 
     r_member_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
     r_setup_lines.append("\t{")
@@ -1391,7 +1392,7 @@ def parse_all_file():
             if not cheat_handle_type in handles:
                 print(handles.keys())
                 print("ERR UNKNOWN handle type:", cheat_handle_type)
-                exit(1)
+                _print_stack_and_exit()
             handles[cheat_handle_type]["methods"][m] = methods[m]
             to_remove.append(m)
         for m in to_remove:
@@ -1408,7 +1409,7 @@ def parse_all_file():
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKNOWN handle type:", cheat_handle_type)
-                exit(1)
+                _print_stack_and_exit()
             handles[cheat_handle_type]["enums"][e] = enums[e]
             to_remove.append(e)
         for e in to_remove:
@@ -1439,7 +1440,7 @@ def parse_all_file():
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKNOWN handle type:", cheat_handle_type)
-                exit(1)
+                _print_stack_and_exit()
             handles[cheat_handle_type]["callbacks"][cb] = callbacks[cb]
             to_remove.append(cb)
         for cb in to_remove:
@@ -1456,7 +1457,7 @@ def parse_all_file():
                 continue
             if not cheat_handle_type in handles:
                 print("ERR UNKNOWN handle type:", cheat_handle_type)
-                exit(1)
+                _print_stack_and_exit()
             handles[cheat_handle_type]["constants"][c] = constants[c]
             to_remove.append(c)
         for c in to_remove:
@@ -1649,7 +1650,7 @@ def _gen_packed_result_type(
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_arr_type(arg_type, arg_name):
             print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_handle_type(decayed_type):
             # Handle 类型需要前向声明
             handle_class = _convert_handle_class_name(decayed_type)
@@ -1680,10 +1681,10 @@ def _gen_packed_result_type(
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif _is_str_type(arg_type, arg_name):
             print("ERROR: UNSUPPORTED")
-            exit(1)
+            _print_stack_and_exit()
         elif _is_str_arr_type(arg_type, arg_name):
             print("ERROR: UNSUPPORTED")
-            exit(1)
+            _print_stack_and_exit()
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1]["type"].endswith("int32_t*") and out_args[i + 1]["name"].endswith("Length"):
             # 配合 _MAX_LENGTH 宏的字符串
             members_lines.append(f"\tString {snake_name};")
@@ -1707,13 +1708,13 @@ def _gen_packed_result_type(
             i += 1
         elif _is_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORTED arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_internal_struct_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_audio_frames_type(arg_type, arg_name):
             print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_enum_flags_type(arg_type):
             members_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_name})")
@@ -1808,7 +1809,7 @@ def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
                     if _decay_eos_type(a["type"]) == callback_type:
                         if len(method_name):
                             print("ERROR: ", callback_type, method_name)
-                            exit(1)
+                            _print_stack_and_exit()
                         method_name = m
 
     ret = to_snake_case(callback_type.rsplit("_", 1)[1])
@@ -1853,7 +1854,7 @@ def _gen_callback(
 
     if not __is_struct_type(_decay_eos_type(arg_type)):
         print("ERROR unsupported callback:", callback_type)
-        exit(1)
+        _print_stack_and_exit()
 
     signal_name = __convert_to_signal_name(callback_type)
     if not _is_expanded_struct(_decay_eos_type(arg_type)):
@@ -1868,7 +1869,7 @@ def _gen_callback(
             if for_gen_signal_binding:
                 return ""
             print("ERROR unsupported callback type:", callback_type)
-            exit(1)
+            _print_stack_and_exit()
         else:
             ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
 
@@ -1879,23 +1880,10 @@ def _gen_callback(
         return ret
     else:
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
+
         ## 检出不需要成为参数的字段
-        count_fields: list[str] = []
-        variant_union_type_fields: list[str] = []
-        for field in fields.keys():
-            if is_deprecated_field(field):
-                continue
+        count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(_decay_eos_type(arg_type))
 
-            field_type = fields[field]["type"]
-            # 检出count字段
-            if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
-                count_fields.append(_find_count_field(field, fields.keys()))
-
-            # 检出Variant式的联合体类型字段
-            if _is_variant_union_type(field_type, field):
-                for f in fields.keys():
-                    if f == field + "Type":
-                        variant_union_type_fields.append(f)
         ##
         ret: str = ""
         signal_bind_args: str = ""
@@ -1906,7 +1894,7 @@ def _gen_callback(
             if for_gen_signal_binding:
                 return ""
             print("ERROR unsupported callback type:", callback_type)
-            exit(1)
+            _print_stack_and_exit()
         else:
             ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
 
@@ -1915,7 +1903,7 @@ def _gen_callback(
             if __is_api_version_field(field_type, field):
                 continue
 
-            if is_deprecated_field(field) or field in count_fields or field in variant_union_type_fields:
+            if is_deprecated_field(field) or field in count_and_variant_type_fields:
                 continue
 
             if _is_client_data_field(field_type, field):
@@ -2161,7 +2149,7 @@ def __expand_input_struct(
         elif _is_client_data_field(field_type, field):
             # 输入结构体不含有 ClientData 字段
             print("ERR:", arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_internal_struct_arr_field(field_type, field):
             r_declare_args.append(f"const TypedArray<{__convert_to_struct_class(_decay_eos_type(field_type))}> &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
@@ -2212,7 +2200,7 @@ def __make_packed_result(
             r_after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
         else:
             print("Error UNSUPPORTED:", method_name)
-            exit(1)
+            _print_stack_and_exit()
     acl_indents = "\t\t" if has_result_code else "\t"
     i = begin_idx
     while i < len(args):
@@ -2223,7 +2211,7 @@ def __make_packed_result(
 
         if _is_handle_arr_type(arg_type, arg_name):
             print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
@@ -2300,7 +2288,7 @@ def __make_packed_result(
                     break
             if len(length_variable) <= 0:
                 print(f"ERR can't find length_variable: {arg_name}")
-                exit(1)
+                _print_stack_and_exit()
             #
 
             r_prepare_lines.append(f"\tPackedByteArray {arg_name};")
@@ -2332,17 +2320,17 @@ def __make_packed_result(
             i += 1
         elif _is_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORTED arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_internal_struct_arr_field(arg_type, arg_name):
             print("ERROR UNSUPPORTED struct arr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_struct_ptr(arg_type):
             print("ERROR UNSUPPORTED struct ptr:", method_name, arg_type)
-            exit(1)
+            _print_stack_and_exit()
         else:
             if not arg_type.endswith("*"):
                 print("ERROR UNSUPPORTED out: ", arg_type, arg_name)
-                exit(1)
+                _print_stack_and_exit()
 
             r_prepare_lines.append(f'\t{arg_type.removesuffix("*")} {arg_name};')
             r_call_args.append(f"&{arg_name}")
@@ -2429,7 +2417,7 @@ def _gen_method(
 
     if (return_type == "Signal") and len(packed_result_type):
         print("ERROR 回调与打包返回冲突:", method_name)
-        exit(1)
+        _print_stack_and_exit()
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
@@ -2600,10 +2588,10 @@ def _gen_method(
             if len(converted_return_type):
                 if len(converted_return_type) != 1:
                     print("Error len(converted_return_type) != 1:", method_name)
-                    exit(1)
+                    _print_stack_and_exit()
                 if return_type != "void":
                     print("ERROR : ?")
-                    exit(1)
+                    _print_stack_and_exit()
                 return_type = converted_return_type[1]
 
             # Out 参数在最后，直接跳出
@@ -2617,7 +2605,7 @@ def _gen_method(
         elif _is_str_arr_type(type, name):
             # 字符串数组参数
             print("ERROR")
-            exit(1)
+            _print_stack_and_exit()
         elif _is_enum_flags_type(type):
             # 普通参数
             declare_args.append(f"BitField<{type}> p_{snake_name}")
@@ -2625,7 +2613,7 @@ def _gen_method(
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
         elif _is_handle_arr_type(type, name):
             print("ERROR: Unsupported handle arr argument:", method_name, type, name)
-            exit(1)
+            _print_stack_and_exit()
         elif _is_handle_type(decayed_type):
             declare_args.append(f"const {remap_type(decayed_type, name)} &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
@@ -2903,12 +2891,12 @@ def _get_enum_owned_interface(ori_enum_type: str) -> str:
     for infos in generate_infos.values():
         if ori_enum_type in infos["enums"]:
             print("ERROR UNSUPPORTED ENUM:", ori_enum_type)
-            exit(1)
+            _print_stack_and_exit()
         for h in infos["handles"]:
             if ori_enum_type in infos["handles"][h]["enums"]:
                 return _convert_handle_class_name(h)
     print("ERROR UNSUPPORTED ENUM !:", ori_enum_type)
-    exit(1)
+    _print_stack_and_exit()
 
 
 def _is_reserved_field(field: str, type: str) -> bool:
@@ -3720,7 +3708,7 @@ def _find_count_field(field: str, fields: list[str]) -> str:
 
     print("== error:", field, similar_fields)
     print(field, fields)
-    exit(1)
+    _print_stack_and_exit()
 
 
 def _is_todo_field(type: str, field: str) -> bool:
@@ -3779,6 +3767,29 @@ def _is_enum_flags_type(type: str) -> bool:
     return _is_enum_type(type) and (type.endswith("Flags") or type.endswith("Combination"))
 
 
+def __find_count_and_variant_type_fields_in_struct(struct_type: bool) -> list[str]:
+    ret :list[str] = []
+    fields: dict[str, dict[str, str]] = structs[struct_type]["fields"]
+    for field in fields.keys():
+        if is_deprecated_field(field):
+            ret.append(field)
+            continue
+
+        field_type = fields[field]["type"]
+        # 检出count字段，Godot不需要及将其作为成员
+        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
+            ret.append(_find_count_field(field, fields.keys()))
+
+        # 检出Variant式的联合体类型字段，Godot不需要及将其作为成员
+        elif _is_variant_union_type(field_type, field):
+            for f in fields.keys():
+                if f == field + "Type":
+                    ret.append(f)
+                    break
+
+    return ret
+
+
 def _gen_struct_v2(
     struct_type: str,
     struct_info: dict,
@@ -3791,21 +3802,7 @@ def _gen_struct_v2(
     bind_lines: list[str] = []
 
     #
-    count_fields: list[str] = []
-    variant_union_type_fields: list[str] = []
-    for field in fields.keys():
-        if is_deprecated_field(field):
-            continue
-        field_type = fields[field]["type"]
-        # 检出count字段，Godot不需要及将其作为成员
-        if _is_arr_field(field_type, field) or _is_internal_struct_arr_field(field_type, field):
-            count_fields.append(_find_count_field(field, fields.keys()))
-
-        # 检出Variant式的联合体类型字段，Godot不需要及将其作为成员
-        if _is_variant_union_type(field_type, field):
-            for f in fields.keys():
-                if f == field + "Type":
-                    variant_union_type_fields.append(f)
+    count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(struct_type)
 
     additional_methods_requirements = struct2additional_method_requirements[struct_type]
 
@@ -3831,9 +3828,7 @@ def _gen_struct_v2(
 
         if is_deprecated_field(field):
             continue
-        elif field in count_fields:
-            continue
-        elif field in variant_union_type_fields:
+        elif field in count_and_variant_type_fields:
             continue
         elif _is_memory_func_type(type):
             continue  # 内存分配方法不需要成员变量
@@ -4031,9 +4026,7 @@ def _gen_struct_v2(
 
             if is_deprecated_field(field):
                 continue
-            if field in count_fields:
-                continue
-            if field in variant_union_type_fields:
+            if field in count_and_variant_type_fields:
                 continue
             if _is_todo_field(field_type, field):
                 continue
@@ -4044,20 +4037,20 @@ def _gen_struct_v2(
             if _is_memory_func_type(field_type):
                 # 内存分配方法不需要成员变量
                 print("ERROR Unsupported")
-                exit(1)
+                _print_stack_and_exit()
 
             if _is_platform_specific_options_field(field):
                 print("ERROR:", field)
-                exit(1)
+                _print_stack_and_exit()
             elif _is_system_initialize_options_filed(field, field_type):
                 print("ERROR:", field)
-                exit(1)
+                _print_stack_and_exit()
             elif _is_reserved_field(field, field_type):
                 print("ERROR:", field)
-                exit(1)
+                _print_stack_and_exit()
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
-                exit(1)
+                _print_stack_and_exit()
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
                 if additional_methods_requirements["set_to"]:
                     r_structs_cpp.append(f"\tmemcpy(&{to_snake_case(field)}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
@@ -4067,7 +4060,7 @@ def _gen_struct_v2(
             elif _is_str_type(field_type, field):
                 if field.startswith("SocketName"):
                     print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
-                    exit(1)
+                    _print_stack_and_exit()
                 else:
                     r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif _is_str_arr_type(field_type, field):
@@ -4115,9 +4108,7 @@ def _gen_struct_v2(
 
             if is_deprecated_field(field):
                 continue
-            if field in count_fields:
-                continue
-            if field in variant_union_type_fields:
+            if field in count_and_variant_type_fields:
                 continue
             if _is_todo_field(field_type, field):
                 continue
@@ -4145,7 +4136,7 @@ def _gen_struct_v2(
                 elif _is_str_type(field_type, field):
                     if field.startswith("SocketName"):
                         print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
-                        exit(1)
+                        _print_stack_and_exit()
                     else:
                         r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
                 elif _is_str_arr_type(field_type, field):
@@ -4181,7 +4172,7 @@ def _gen_struct_v2(
                 elif _is_client_data_field(field_type, field):
                     # 没有需要设置ClientData的结构体
                     print("ERR:", struct_type)
-                    exit(1)
+                    _print_stack_and_exit()
                 elif _is_internal_struct_arr_field(field_type, field):
                     r_structs_cpp.append(
                         f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
@@ -4223,7 +4214,7 @@ def _gen_struct_v2(
                         r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
                     else:
                         print("ERROR: ", field_type)
-                        exit(1)
+                        _print_stack_and_exit()
                     r_structs_cpp.append("\t\t};")
                     r_structs_cpp.append("#else")
 
@@ -4249,7 +4240,7 @@ def _gen_struct_v2(
                         )
                     else:
                         print("ERROR: ", field_type)
-                        exit(1)
+                        _print_stack_and_exit()
                     r_structs_cpp.append("#endif")
                 else:
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
@@ -4279,7 +4270,7 @@ def _get_callback_infos(callback_type: str) -> dict:
             if cb == callback_type:
                 return callbacks[cb]
     print("ERROR unknown callback type:", callback_type)
-    exit(1)
+    _print_stack_and_exit()
 
 
 def _get_callback_infos_v2(callback_type: str) -> tuple[dict, str, str]:
@@ -4297,7 +4288,7 @@ def _get_callback_infos_v2(callback_type: str) -> tuple[dict, str, str]:
             break
     if len(handle) == 0:
         print("ERROR unknown callback type:", callback_type)
-        exit(1)
+        _print_stack_and_exit()
 
     methods = handles[handle]["methods"]
     for m in methods:
@@ -4700,6 +4691,11 @@ def __store_doc_file(typename: str, content: list[str]):
     except:
         return
 
+
+def _print_stack_and_exit():
+    for l in traceback.format_stack():
+        print(l)
+    exit(1)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
