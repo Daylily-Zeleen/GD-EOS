@@ -7,10 +7,10 @@ import os, sys
 # TODO: 对RTC的子句柄进行处理，避免硬编码
 
 # TODO: 对文档提及的成员进行 GDS接口化
-# TODO: 跳过展开结构的无用成员文档
-# TODO: 跳過 @see 被展开的结构体文档
-# TODO: @see xxxOptions(是否被展开) xxxCallback(信号)
-# TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
+    # TODO: 跳过展开结构的无用成员文档
+    # TODO: 跳過 @see 被展开的结构体文档
+    # TODO: @see xxxOptions(是否被展开)
+    # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -3569,7 +3569,14 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
     ret :list[str] = []
     in_details :bool = False
     for i in range(len(doc)):
-        if i == 0:
+        # 特殊处理
+        if doc[i].lstrip().startswith("@"):
+            line = doc[i].lstrip()
+            if line.startswith("@see") and line.rstrip().endswith("_Release"):
+                # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
+                continue
+
+        if len(ret) <= 0:
             # 首行
             ret.append(doc[i])
             in_details = False
@@ -4320,7 +4327,7 @@ def __make_callback_doc(callback_type: str) -> list[str]:
 
             for f in arg_fields:
                 # TODO 处理要跳过的字段
-                if f == "ClientData":
+                if _is_client_data_field(type, f):
                     continue # 跳过这个特殊字段
                 info = arg_fields[f]
                 f_type = _decay_eos_type(info["type"])
