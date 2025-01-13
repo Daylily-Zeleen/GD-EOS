@@ -4316,10 +4316,14 @@ def __make_callback_doc(callback_type: str) -> list[str]:
         else:
             arg_fields = __get_struct_fields(decayed_type)
 
+            count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(decayed_type)
             for f in arg_fields:
-                # TODO 处理要跳过的字段
                 if _is_client_data_field(type, f):
                     continue # 跳过这个特殊字段
+                # 处理要跳过的字段
+                if f in count_and_variant_type_fields:
+                    # 跳过其中Godot不需要的字段
+                    continue 
                 info = arg_fields[f]
                 f_type = _decay_eos_type(info["type"])
                 ret.append(f"{f}: {f_type}\n")
