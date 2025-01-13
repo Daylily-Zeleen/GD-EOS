@@ -5,11 +5,9 @@ import traceback
 
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
-# TODO: 对RTC的子句柄进行处理，避免硬编码
+# TODO: 对RTC的子句柄进行处理，避免硬编码 EOS_XXX_GetXXXInterface
 
 # TODO: 对文档提及的成员进行 GDS接口化
-    # TODO: 跳过展开结构的无用成员文档
-    # TODO: 跳過 @see 被展开的结构体文档
     # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
@@ -3601,14 +3599,13 @@ def _optimize_doc(doc: list[str]) -> list[str]:
         if doc[i].lstrip().startswith("@"):
             line = doc[i].lstrip()
             if line.startswith("@see"):
-                if line.rstrip().endswith("_Release"):
+                see_type :str =  line.removeprefix("@see").strip()
+                if see_type.endswith("_Release"):
                     # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
                     continue
-                elif line.rstrip().endswith("Options"):
-                    option_type :str =  line.removeprefix("@see").strip()
-                    if _is_expanded_struct(option_type):
-                        # 跳过被展开的入参结构体类型说明
-                        continue
+                elif _is_expanded_struct(see_type):
+                    # 跳过被展开的结构体类型说明
+                    continue
 
         if len(ret) <= 0:
             # 首行
@@ -4616,14 +4613,14 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             if line.count(m_options) > 0:
                 mapped :dict = f"[{doc_keyword_map_struct[m_options]}]"
                 line = line.replace(m_options, mapped)
-                print("rp s: ", typename, m_options, mapped)
+                # print("rp s: ", typename, m_options, mapped)
 
             # 替换回调参数信息
             m_callback_info = m + "CallbackInfo"
             if line.count(m_callback_info) > 0:
                 mapped :dict = f"[{doc_keyword_map_struct[m_callback_info]}]"
                 line = line.replace(m_callback_info, mapped)
-                print("rp cb_info: ", typename, m_callback_info, mapped)
+                # print("rp cb_info: ", typename, m_callback_info, mapped)
 
             # 替换回调关键字
             splits = m.split("_")
@@ -4639,7 +4636,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                 else:
                     replace_keyword = f"[signal {klass}.{name}]"
                 line = line.replace(m_callback, replace_keyword)
-                print("rp cb: ", typename, m_callback, replace_keyword)
+                # print("rp cb: ", typename, m_callback, replace_keyword)
 
             # 替换函数关键字
             if line.count(m) > 0:
@@ -4653,7 +4650,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                     replace_keyword = f"[method {klass}.{name}]"
 
                 line = line.replace(m, replace_keyword)
-                print("rp m: ", typename, m, replace_keyword)
+                # print("rp m: ", typename, m, replace_keyword)
 
         for em in __get_sorted_descending_keys(doc_keyword_map_enum_member):
             if line.count(em) <= 0:
@@ -4669,7 +4666,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                 replace_keyword = f"[constant {klass}.{name}]"
 
             line = line.replace(em, replace_keyword)
-            print("rp em: ", typename, em, replace_keyword)
+            # print("rp em: ", typename, em, replace_keyword)
 
         for e in __get_sorted_descending_keys(doc_keyword_map_enum):
             if line.count(e) <= 0:
@@ -4685,7 +4682,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                 replace_keyword = f"[enum {klass}.{name}]"
 
             line = line.replace(e, replace_keyword)
-            print("rp e: ", typename, e, replace_keyword)
+            # print("rp e: ", typename, e, replace_keyword)
 
         for c in __get_sorted_descending_keys(doc_keyword_map_constant):
             if line.count(c) <= 0:
@@ -4708,7 +4705,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
                     replace_keyword = f"[enum {klass}.{name}]"
 
             line = line.replace(c, replace_keyword)
-            print("rp c: ", typename, c, replace_keyword)
+            # print("rp c: ", typename, c, replace_keyword)
 
         for s in __get_sorted_descending_keys(doc_keyword_map_struct):
             if line.count(s) <= 0:
@@ -4716,7 +4713,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             mapped :dict = f"[{doc_keyword_map_struct[s]}]"
             line = line.replace(s, mapped)
-            print("rp s: ", typename, s, mapped)
+            # print("rp s: ", typename, s, mapped)
 
         lines.insert(insert_idx, line)
         insert_idx += 1
