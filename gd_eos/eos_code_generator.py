@@ -2502,12 +2502,12 @@ def _gen_method(
             static = False
         elif __is_callback_type(decayed_type):
             if method_name == "EOS_Logging_SetCallback":
-                declare_args.append(f"const Callable& p_{snake_name}")
+                declare_args.append(f"const Callable &p_{snake_name}")
                 bind_args.append(f'"{snake_name}"')
                 prepare_lines.append(f"\tEOS::get_log_message_callback() = p_{snake_name};")
             else:
                 # 回调参数
-                declare_args.append(f"const Callable& p_{snake_name} = {{}}")
+                declare_args.append(f"const Callable &p_{snake_name} = {{}}")
                 bind_args.append(f'"{snake_name}"')
 
                 if decayed_type in [
