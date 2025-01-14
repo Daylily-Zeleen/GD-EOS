@@ -5,7 +5,6 @@ import traceback
 
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
-# TODO: 对RTC的子句柄进行处理，避免硬编码 EOS_XXX_GetXXXInterface
 
 # TODO: 对文档提及的成员进行 GDS接口化
     # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
@@ -506,39 +505,33 @@ def gen_files(file_base_name: str, infos: dict):
 
     for m in infos["handles"][interface_handle]["methods"]:
         if m.endswith("Interface"):
-            interface = m.rsplit("_", 1)[1].removesuffix("Interface").removeprefix("Get")
+            splits: list[str] = m.split("_")
+            _assert(len(splits) == 3)
+            owner_handle_type = splits[1]
+            interface = splits[2].removesuffix("Interface").removeprefix("Get")
             interface_low = interface.lower()
 
             interface_handle_type = ""
-            if interface == "Audio":
-                interface_handle_type = "EOS_H" + "RTCAudio"
-            elif interface == "Data":
-                interface_handle_type = "EOS_H" + "RTCData"
-            else:
+            if owner_handle_type == "Platform":
+                # 从 Platform 获取的接口
                 interface_handle_type = "EOS_H" + interface
+            else:
+                # 从其他接口获取的子接口
+                interface_handle_type = "EOS_H" + owner_handle_type + interface
+                owner_sub_handles = handles["EOS_H" + owner_handle_type].get("sub_handles", {})
+                owner_sub_handles[interface_handle_type] = m
+                handles["EOS_H" + owner_handle_type]["sub_handles"] = owner_sub_handles
 
             _disabled_macro = _gen_disabled_macro(interface_handle_type)
 
-            if len(_disabled_macro) <= 0:
-                print("ERROR:", interface)
-                _print_stack_and_exit()
+            _assert(len(_disabled_macro) > 0)
+            if interface_low != "rtc" and (interface_low.startswith("rtc") or owner_handle_type == "RTC"):
+                # rtc 开头的命名特殊处理
+                interface_low = "rtc_" + interface_low.removeprefix("rtc")
 
-            if interface_low == "audio":
-                interface_low = "rtc_audio"
-            if interface_low == "data":
-                interface_low = "rtc_data"
-            if interface_low == "rtcadmin":
-                interface_low = "rtc_admin"
-
-            if interface_low == "rtc_data":
-                # 1.6.2 新增
-                # TODO: 考虑移除改宏，是否生成依赖于用户使用的SDK版本
-                interface_handle_cpp_lines.append(f"#if _EOS_VERSION_GREATER_THAN_1_6_1")
             interface_handle_cpp_lines.append(f"#ifndef {_disabled_macro}")
             interface_handle_cpp_lines.append(f"#include <interfaces/eos_{interface_low}_interface.h>")
             interface_handle_cpp_lines.append(f"#endif // {_disabled_macro}")
-            if interface_low == "rtc_data":
-                interface_handle_cpp_lines.append(f"#endif // _EOS_VERSION_GREATER_THAN_1_6_1")
     interface_handle_cpp_lines.append("")
 
     if file_base_name == "eos_common":
@@ -964,27 +957,20 @@ def _gen_handle(
         r_cpp_lines.append(f"}}")
 
     if not is_base_handle_type:
-        # 特殊处理，设置 EOS_HRTCAudio 句柄
         r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
         r_cpp_lines.append(f"\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
-        if handle_name == "EOS_HRTC":
-            # 特殊处理 RTCAudio
-            r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCAudio")}')
-            r_cpp_lines.append(f"\tif (m_handle) {{")
-            r_cpp_lines.append(f"\t\tauto rtc_audio_handle = EOS_RTC_GetAudioInterface(m_handle);")
-            r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCAudio")}::get_singleton()->set_handle(rtc_audio_handle);')
-            r_cpp_lines.append(f"\t}}")
-            r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCAudio")}')
 
-            # 特殊处理 RTCData
-            r_cpp_lines.append(f"#if _EOS_VERSION_GREATER_THAN_1_6_1")
-            r_cpp_lines.append(f'#ifndef {_gen_disabled_macro("EOS_HRTCData")}')
-            r_cpp_lines.append(f"\tif (m_handle) {{")
-            r_cpp_lines.append(f"\t\tauto rtc_data_handle = EOS_RTC_GetDataInterface(m_handle);")
-            r_cpp_lines.append(f'\t\t{_convert_handle_class_name("EOS_HRTCData")}::get_singleton()->set_handle(rtc_data_handle);')
-            r_cpp_lines.append(f"\t}}")
-            r_cpp_lines.append(f'#endif // {_gen_disabled_macro("EOS_HRTCData")}')
-            r_cpp_lines.append(f"#endif // _EOS_VERSION_GREATER_THAN_1_6_1")
+        if "sub_handles" in handles[handle_name]:
+            for sub_handle in handles[handle_name]["sub_handles"]:
+                get_method = handles[handle_name]["sub_handles"][sub_handle]
+                sub_handle_snake_name = to_snake_case(sub_handle.removeprefix("EOS_H")) + "_handle"
+                r_cpp_lines.append(f'#ifndef {_gen_disabled_macro(sub_handle)}')
+                r_cpp_lines.append(f"\tif (m_handle) {{")
+                r_cpp_lines.append(f"\t\tauto {sub_handle_snake_name} = {get_method}(m_handle);")
+                r_cpp_lines.append(f'\t\t{_convert_handle_class_name(sub_handle)}::get_singleton()->set_handle({sub_handle_snake_name});')
+                r_cpp_lines.append(f"\t}}")
+                r_cpp_lines.append(f'#endif // {_gen_disabled_macro(sub_handle)}')
+
         if len(setup_notifies_lines):
             for line in setup_notifies_lines:
                 r_cpp_lines.append(line)
@@ -4742,6 +4728,15 @@ def _print_stack_and_exit():
     for l in traceback.format_stack():
         print(l)
     exit(1)
+
+
+def _assert(condition: bool):
+    if condition:
+        return
+    for l in traceback.format_stack():
+        print(l)
+    exit(1)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
