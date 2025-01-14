@@ -59,7 +59,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         init_options.product_version = product_version
         var result_code: EOS.Result = EOS.initialize(init_options)
         if result_code != EOS.Success:
-            printerr("Initialize EOS faild: ", EOS.result_to_string(result_code))
+            printerr("Initialize EOS failed: ", EOS.result_to_string(result_code))
             return
 
         # Setup Logging.
@@ -137,14 +137,15 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
     More detail of compile commands, please refer to godot-cpp's compile system.
     **If you change the output library name by using compile options, please modify "demo/addons/gd-eos/gdeos.gdextension" to fit your library name.**
-5. Last, you can get the compiled addon which is localed at "demo/addons/gd-eos/".
+5. Last, you can get the compiled addon which is located at "demo/addons/gd-eos/".
 
 ## **Known issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
 2. About Android exporting, if you use precompiled binary library, you need to download `EOS-SDK-Android-32303053-v1.16.3`(pay attention to the version) from epic developer portal for getting "aar" file (again, I have not right to dispatch SDK).
-3. `XxxAttributeData.Key` will be converted to upper case when transfering to remote peer, you should not use lower charactors in your key.
+3. `XxxAttributeData.Key` will be converted to upper case when transferring to remote peer, you should not use lower characters in your key.
 4. It is not recommended to use `1.16.1` or previous version, because `1.16.2` fixed many bugs.
+5. Only the first user who use `EOSConnect` interface to login can use `EOSMultiplayerPeer` and `EOSMultiplayerMediator` (the EOS SDK allow multiple users to login in one process. You can see many APIs determine user by passing a `local_user_id` argument).
 
 ## Exporting for Android
 
@@ -159,9 +160,9 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
     After compiling, copy the plugin to your Godot Project.
 2. Follow the tutorial [Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html), generate an android project at `res://android/build`.
-3. Configurate your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
-   1. Add `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar`, assign its configuration as `implementation`, as dependency to your andoird project.
-   2. Add other dependencies which requeired by "EOS Andoird SDK".
+3. Configure your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
+   1. Add `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar`, assign its configuration as `implementation`, as dependency to your android project.
+   2. Add other dependencies which required by "EOS Andoird SDK".
         At last, the `dependencies` section in `build.gradle` file will like this:
 
         ```gradle

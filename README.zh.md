@@ -145,6 +145,7 @@
 2. 关于安卓导出，如果你使用预编译的二进制库，你需要在开发者门户上下载`EOS-SDK-Android-32303053-v1.16.3`(注意版本号)，以获取其中的aar包(再次说明，我没有二次分发的权利)。
 3. `XxxAttributeData` 的 `Key` 字段传输到远端时会被转为大写，因此你不应该使用小写字符作为键。
 4. 不建议使用1.16.1及以下的SDK（1.16.2修复了大量的bug）。
+5. 只有第一个使用`EOSConnect` 接口登录的用户能够正常使用 `EOSMultiplayerPeer` 与 `EOSMultiplayerMediator`（EOS SDK 允许同时登录多个账户，你可以随处见到需要传入 `local_user_id` 的 API，用以确定是哪个用户调用接口）。
 
 ## 安卓导出
 
