@@ -809,14 +809,14 @@ def _make_notify_code(
         _print_stack_and_exit()
 
     r_member_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
-    r_setup_lines.append("\t{")
+    r_setup_lines.append("\tif (m_handle){")
     r_setup_lines.append(f"\t\t{options_type} options;")
     r_setup_lines.append(f"\t\toptions.ApiVersion = {__get_api_latest_macro(options_type)};")
-    r_setup_lines.append(f"\t\tif (m_handle) {{ {id_identifier} = {add_notify_method}(m_handle, &options, this, {cb}); }}")
-    r_setup_lines.append(
-        f'\t\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ WARN_PRINT("EOS: Setup signal \\"{handle_class}.{signal_name}\\" failed, this signal is not working."); }}'
-    )
+    r_setup_lines.append(f"\t\t{id_identifier} = {add_notify_method}(m_handle, &options, this, {cb});")
     r_setup_lines.append("\t}")
+    r_setup_lines.append(
+        f'\tif ({id_identifier} == EOS_INVALID_NOTIFICATIONID) {{ WARN_PRINT("EOS: Setup signal \\"{handle_class}.{signal_name}\\" failed, this signal is not working."); }}'
+    )
     r_remove_lines.append(f"\tif ({id_identifier} != EOS_INVALID_NOTIFICATIONID) {remove_method}(m_handle, {id_identifier});")
 
 
