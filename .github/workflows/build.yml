@@ -143,7 +143,9 @@ jobs:
                   repository: godotengine/godot-cpp
                   path: godot-cpp
                   # 4.2-stable
-                  ref: 54136ee8357c5140a3775c54f08db5f7deda2058
+                  # ref: 54136ee8357c5140a3775c54f08db5f7deda2058
+                  # 4.3-stable
+                  ref: godot-4.3-stable
                   submodules: recursive
 
             - name: Checkout private EOS SDK repo

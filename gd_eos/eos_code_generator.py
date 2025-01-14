@@ -9,6 +9,8 @@ import traceback
 # TODO: 对文档提及的成员进行 GDS接口化
     # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
+# TODO: 添加生成参数，全局保存一个 EOS_ProductUserId 和一个 EOS_EpicAccountId, 自动将他们作为各API的 LocalUserId 入参。
+
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
 gen_dir = "gd_eos/gen/"
