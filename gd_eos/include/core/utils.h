@@ -468,7 +468,24 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
         if (p_in.is_valid()) {
             p_in->set_to_eos(r_out);
         } else {
+            // 清空
             memset(&r_out, 0, sizeof(r_out));
+        }
+    }
+}
+
+template <typename RefEOSData, typename Out, typename OutT = std::remove_const_t<Out>>
+inline void to_eos_data_witch_check(const RefEOSData &p_in, OutT &r_out, bool &r_success) {
+    if constexpr (std::is_pointer_v<Out>) {
+        r_out = p_in.is_valid() ? &p_in->to_eos(r_success) : nullptr;
+        r_success = true;
+    } else {
+        if (p_in.is_valid()) {
+            r_success = p_in->set_to_eos(r_out);
+        } else {
+            // 清空
+            memset(&r_out, 0, sizeof(r_out));
+            r_success = false;
         }
     }
 }
@@ -732,6 +749,11 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
 
+#define _TO_EOS_FIELD_STRUCT_WITH_CHECK(eos_field, gd_field)                                                         \
+    bool set_##gd_field##_success = false;                                                                           \
+    to_eos_data_witch_check<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field, (set_##gd_field##_success)); \
+    ERR_FAIL_COND_V(!(set_##gd_field##_success), {});
+
 template <typename GDFrom, typename EOSTo>
 inline void _convert_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
     p_to.resize(p_from.size());
@@ -742,6 +764,7 @@ inline void _convert_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, Loca
     }
 }
 
+// 目前没有含有 LocalFieldId 的数组字段
 #define _TO_EOS_FIELD_STRUCT_ARR(eos_field, gd_field, shadow_field, r_eos_field_count) \
     _convert_to_eos_struct_vector(gd_field, shadow_field);                             \
     r_eos_field_count = shadow_field.size();                                           \
@@ -893,6 +916,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 // EOS VERSION
 #define _EOS_GET_VERSION() \
     static String get_eos_version() { return EOS_GetVersion(); }
+
 #define _EOS_BING_VERSION_CONSTANTS() \
     BIND_CONSTANT(EOS_MAJOR_VERSION)  \
     BIND_CONSTANT(EOS_MINOR_VERSION)  \
@@ -1027,3 +1051,37 @@ void *get_platform_specific_options();
 void *get_system_initialize_options();
 
 } //namespace godot::eos
+
+#define _CODE_SNIPPET_LOCAL_ID_DECLARE(gd_id_type)                                                                        \
+private:                                                                                                                  \
+    static Ref<gd_id_type> local_user_id;                                                                                 \
+                                                                                                                          \
+public:                                                                                                                   \
+    _FORCE_INLINE_ static auto get_local() { return local_user_id; }                                                      \
+                                                                                                                          \
+    _FORCE_INLINE_ static void _set_local(decltype(gd_id_type::m_handle) p_other) { local_user_id->set_handle(p_other); } \
+    _FORCE_INLINE_ static auto _get_local_native() { return local_user_id->get_handle(); }                                \
+    _FORCE_INLINE_ static bool _is_valid_local_id(decltype(gd_id_type::m_handle) p_other) { return local_user_id->get_handle() == nullptr || local_user_id->get_handle() == p_other; }
+
+#define _CODE_SNIPPET_LOCAL_ID_DEFINE(eos_id_type) \
+    Ref<eos_id_type> eos_id_type::local_user_id = memnew(eos_id_type);
+
+#define _CODE_SNIPPET_BINE_GET_LOCAL_ID(eos_id_type) \
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local"), &eos:: eos_id_type ::get_local);
+
+#define _CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK(gd_id_type, eos_callback_info_type, signal_name, gd_callback_info_type)                                                                                          \
+    auto cb = [](const eos_callback_info_type *Data) {                                                                                                                                                               \
+        ERR_FAIL_COND_MSG(local_user_id::get_local_native() != nullptr && local_user_id::get_local_native() != Data->LocalUserId, "Unexpected: Receive login status changed event which not relate to local user."); \
+        if (Data->CurrentStatus != EOS_ELoginStatus::EOS_LS_NotLoggedIn) {                                                                                                                                           \
+            if (gd_id_type::_get_local_native() != Data->LocalUserId) {                                                                                                                                              \
+                gd_id_type::_set_local(nullptr);                                                                                                                                                                     \
+            }                                                                                                                                                                                                        \
+            gd_id_type::_set_local(Data->LocalUserId);                                                                                                                                                               \
+        } else {                                                                                                                                                                                                     \
+            gd_id_type::_set_local(nullptr);                                                                                                                                                                         \
+        }                                                                                                                                                                                                            \
+                                                                                                                                                                                                                     \
+        _EOS_NOTIFY_CALLBACK(const eos_callback_info_type *, data, signal_name, gd_callback_info_type)                                                                                                               \
+        (Data);                                                                                                                                                                                                      \
+    }
+;

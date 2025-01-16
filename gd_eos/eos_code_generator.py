@@ -853,6 +853,9 @@ def _gen_handle(
     klass = _convert_handle_class_name(handle_name)
     release_method: str = ""
 
+    if assume_only_one_local_user and handle_name in ["EOS_ProductUserId", "EOS_EpicAccountId"]:
+        r_cpp_lines.append(f"_CODE_SNIPPET_LOCAL_ID_DEFINE({klass})")
+
     if need_singleton:
         r_cpp_lines.append(f"{klass} *{klass}::singleton{{ nullptr }};")
 
@@ -1037,6 +1040,9 @@ def _gen_handle(
         # Platform自动Tick代码
         ret.append("\t_EOS_PLATFORM_SETUP_TICK()")
 
+    if assume_only_one_local_user and handle_name in ["EOS_ProductUserId", "EOS_EpicAccountId"]:
+        ret.append(f"\t_CODE_SNIPPET_LOCAL_ID_DECLARE({klass})")
+
     ret.append(f"}};")
     ret.append("} // namespace godot::eos")
 
@@ -1091,6 +1097,10 @@ def _gen_handle(
             r_cpp_lines.append(f'\t_BIND_CONSTANT({constant}, "{_convert_constant_name(constant)}")')
     if klass == "EOS":
         r_cpp_lines.append("\t_EOS_BING_VERSION_CONSTANTS()")
+
+    if assume_only_one_local_user and handle_name in ["EOS_ProductUserId", "EOS_EpicAccountId"]:
+        r_cpp_lines.append(f'\t_CODE_SNIPPET_BINE_GET_LOCAL_ID({klass});')
+
     r_cpp_lines.append(f"}}")
 
     # 注册宏
@@ -2189,7 +2199,12 @@ def __expand_input_struct(
                 r_prepare_lines.append(f"\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});")
             else:
                 r_prepare_lines.append(f"\tERR_FAIL_NULL(p_{snake_field});")
-            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({options_field}, p_{snake_field});")
+
+            if assume_only_one_local_user:
+                r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_WITH_CHECK({options_field}, p_{snake_field});")
+            else:
+                r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({options_field}, p_{snake_field});")
+
         elif _is_arr_field(field_type, field):
             r_declare_args.append(f"const {remap_type(field_type, field)} &p_{snake_field}")
             option_count_field = f"{arg_name}.{_find_count_field(field, fields.keys())}"
@@ -2472,6 +2487,8 @@ def _gen_method(
         return_type = f"BitField<{return_type}>"
         invalid_arg_return_val = f"{return_type}({{}})"
 
+    snake_method_name = __convert_method_name(method_name, handle_type)
+
     declare_args: list[str] = []
     call_args: list[str] = []
     bind_args: list[str] = []
@@ -2587,7 +2604,14 @@ def _gen_method(
             else:
                 prepare_lines.append(f"\tERR_FAIL_NULL(p_{snake_name});")
             declare_args.append(f"const {remap_type(decayed_type, name)}& p_{snake_name}")
-            prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
+
+            if assume_only_one_local_user:
+                prepare_lines.append(f"\tbool set_success = false;")
+                prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos(set_success);")
+                prepare_lines.append(f'\tERR_FAIL_COND_V_MSG(!set_success, {{}}, "Call \\"{handle_klass}.{snake_method_name}()\\" failed.");')
+            else:
+                prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
+            
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&{options_prepare_identifier}")
         elif __is_method_input_only_struct(decayed_type) and _is_expanded_struct(decayed_type):
@@ -2658,7 +2682,6 @@ def _gen_method(
             call_args.append(f"to_eos_type<gd_arg_t<{remap_type(type, name)}>, {type}>(p_{snake_name})")
         i += 1
 
-    snake_method_name = __convert_method_name(method_name, handle_type)
     # ======= 声明 ===============
     r_declare_lines.append(f'\t{"static " if static else ""}{return_type} {snake_method_name}({", ".join(declare_args)});')
     # ======= 定义 ===============
@@ -3271,7 +3294,7 @@ def _make_additional_method_requirements():
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
         fields = __get_struct_fields(struct_type)
-        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0)
+        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0) - (1 if assume_only_one_local_user and "LocalUserId" in fields else 0)
         if max_field_count_to_expand_of_input_options > 0 and field_count <= max_field_count_to_expand_of_input_options and __is_method_input_only_struct(struct_type):
             expanded_as_args_structs.append(struct_type)
         if max_field_count_to_expand_of_callback_info > 0 and field_count <= max_field_count_to_expand_of_callback_info and __is_callback_output_only_struct(struct_type):
@@ -3799,6 +3822,15 @@ def _is_audio_frames_type(type: str, field: str) -> bool:
     return type in map and field in map[type]
 
 
+def _is_local_user_id(field: str) -> bool:
+    return field == "LocalUserId"
+
+
+def _get_gd_type_of_local_user_id(field: str, eos_type: str) -> str:
+    _assert(_is_local_user_id(field))
+    return _convert_handle_class_name(_decay_eos_type(eos_type))
+
+
 def _is_enum_flags_type(type: str) -> bool:
     return _is_enum_type(type) and (type.endswith("Flags") or type.endswith("Combination"))
 
@@ -3880,6 +3912,12 @@ def _gen_struct_v2(
             continue  # 暴露的结构体不再含有 ClientData 字段
         elif __is_api_version_field(type, field):
             continue  # 不需要ApiVersion作为成员
+        elif assume_only_one_local_user and _is_local_user_id(field):
+            if struct_type == "EOS_Connect_LoginCallbackInfo":
+                # 特殊处理
+                setget_declare_lines.append(f'\tRef<class {_convert_handle_class_name(type)}> get_local_user_id() const;')
+                setget_define_lines.append(f'Ref<{_convert_handle_class_name(type)}> {__convert_to_struct_class(struct_type)}::get_local_user_id() const {{ return eos::{_get_gd_type_of_local_user_id(field, type)}::get_local(); }}')
+            continue # 假定只有一个本地用户时不生产该字段
         elif remapped_type == "bool":
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
             member_lines.append(f"\tbool {snake_field_name}{{}};")
@@ -4028,9 +4066,15 @@ def _gen_struct_v2(
     if additional_methods_requirements["from"]:
         lines.append(f"\tstatic Ref<{typename}> from_eos(const {struct_type} &p_origin);")
     if additional_methods_requirements["set_to"]:
-        lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
+        if assume_only_one_local_user:
+            lines.append(f"\tbool set_to_eos({struct_type} &p_origin);")
+        else:
+            lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
     if additional_methods_requirements["to"]:
-        lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
+        if assume_only_one_local_user:
+            lines.append(f"\t{struct_type} &to_eos(bool &r_success) {{r_success = set_to_eos(m_eos_data); return m_eos_data;}}")
+        else:
+            lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
     lines.append("protected:")
     lines.append("\tstatic void _bind_methods();")
     lines.append("};")
@@ -4059,6 +4103,7 @@ def _gen_struct_v2(
         r_structs_cpp.append(f"void {typename}::set_from_eos(const {struct_type} &p_origin) {{")
         for field in fields.keys():
             field_type = fields[field]["type"]
+            snake_case_field = to_snake_case(field)
 
             if is_deprecated_field(field):
                 continue
@@ -4087,51 +4132,58 @@ def _gen_struct_v2(
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
                 _print_stack_and_exit()
+            elif assume_only_one_local_user and _is_local_user_id(field):
+                # 假定只有一个本地用户时不生成该字段,仅做检查
+                r_structs_cpp.append(f'\tif(!{_get_gd_type_of_local_user_id(field, field_type)}::_is_valid_local_id(p_origin.{field})) {{ ERR_PRINT("The local user id in output struct is not compatible with existing local user!!"); }}')
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
                 if additional_methods_requirements["set_to"]:
-                    r_structs_cpp.append(f"\tmemcpy(&{to_snake_case(field)}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+                    r_structs_cpp.append(f"\tmemcpy(&{snake_case_field}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
                 else:
-                    r_structs_cpp.append(f"\t{to_snake_case(field)}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
-                    r_structs_cpp.append(f"\t{to_snake_case(field)} = p_origin.{field}->SocketName;")
+                    r_structs_cpp.append(f"\t{snake_case_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+                    r_structs_cpp.append(f"\t{snake_case_field} = p_origin.{field}->SocketName;")
             elif _is_str_type(field_type, field):
                 if field.startswith("SocketName"):
                     print("ERROR unreachable case: EOS_P2P_SocketId should not be wrap as a Godot class.")
                     _print_stack_and_exit()
                 else:
-                    r_structs_cpp.append(f"\t{to_snake_case(field)} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
+                    r_structs_cpp.append(f"\t{snake_case_field} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif _is_str_arr_type(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
+                r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({snake_case_field}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({to_snake_case(field)}, p_origin.{field});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({snake_case_field}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({to_snake_case(field)}, p_origin.{field});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({snake_case_field}, p_origin.{field});")
             elif field_type.startswith("Union"):
                 if _is_variant_union_type(field_type, field):
-                    r_structs_cpp.append(f"\t_FROM_EOS_FIELD_VARIANT_UNION({to_snake_case(field)}, p_origin.{field});")
+                    r_structs_cpp.append(f"\t_FROM_EOS_FIELD_VARIANT_UNION({snake_case_field}, p_origin.{field});")
                 else:
-                    r_structs_cpp.append(f"\t_FROM_EOS_FIELD_METRICS_ACCOUNT_ID_UNION({to_snake_case(field)}, p_origin.{field});")
+                    r_structs_cpp.append(f"\t_FROM_EOS_FIELD_METRICS_ACCOUNT_ID_UNION({snake_case_field}, p_origin.{field});")
             elif _is_handle_arr_type(field_type, ""):
                 r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_HANDLER_ARR({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
+                    f"\t_FROM_EOS_FIELD_HANDLER_ARR({snake_case_field}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
                 )
             elif _is_handle_type(_decay_eos_type(field_type), field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({to_snake_case(field)}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_HANDLER({snake_case_field}, {_convert_handle_class_name(_decay_eos_type(field_type))}, p_origin.{field});")
             elif _is_internal_struct_arr_field(field_type, field):
                 r_structs_cpp.append(
-                    f"\t_FROM_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, {to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
+                    f"\t_FROM_EOS_FIELD_STRUCT_ARR({__convert_to_struct_class(field_type)}, {snake_case_field}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});"
                 )
             elif _is_internal_struct_field(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_STRUCT({to_snake_case(field)}, p_origin.{field});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_STRUCT({snake_case_field}, p_origin.{field});")
             elif _is_arr_field(field_type, field):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ARR({to_snake_case(field)}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ARR({snake_case_field}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
             elif _is_enum_flags_type(field_type):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_FLAGS({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_FLAGS({snake_case_field}, p_origin.{field.split('[')[0]});")
             else:
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD({to_snake_case(field)}, p_origin.{field.split('[')[0]});")
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD({snake_case_field}, p_origin.{field.split('[')[0]});")
         r_structs_cpp.append("}")
 
     if additional_methods_requirements["set_to"]:
-        r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
+        if assume_only_one_local_user:
+            # 假定只有一个用户时才需要返回值检查是否设置成功
+            r_structs_cpp.append(f"bool {typename}::set_to_eos({struct_type} &p_data) {{")
+        else:
+            r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
         # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
 
         for field in fields.keys():
@@ -4156,7 +4208,12 @@ def _gen_struct_v2(
             elif field_type == "EOS_ReleaseMemoryFunc":
                 r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
             else:
-                if __is_api_version_field(field_type, field):
+                if assume_only_one_local_user and _is_local_user_id(field):
+                    # 假定只有一个本地用户时不生成该字段,从静态变量中查找
+                    interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(field_type) == "EOS_ProductUserId" else "EOS_HAuth")
+                    r_structs_cpp.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native(), false, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+                    r_structs_cpp.append(f"\tp_data.{field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
+                elif __is_api_version_field(field_type, field):
                     r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
                 elif _is_audio_frames_type(field_type, field):
                     r_structs_cpp.append(f"\t_packed_int32_to_audio_frames({snake_field_name}, _shadow_{snake_field_name});")
@@ -4214,7 +4271,10 @@ def _gen_struct_v2(
                         f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
                     )
                 elif _is_internal_struct_field(field_type, field) or _is_integrated_platform_init_option(field_type, field):
-                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
+                    if assume_only_one_local_user:
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT_WITH_CHECK(p_data.{field}, {snake_field_name});")
+                    else:
+                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
                 elif _is_arr_field(field_type, field):
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
                 elif _is_enum_flags_type(field_type):
@@ -4280,6 +4340,11 @@ def _gen_struct_v2(
                     r_structs_cpp.append("#endif")
                 else:
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
+
+        
+        if assume_only_one_local_user:
+            r_structs_cpp.append("\treturn true;")
+
         r_structs_cpp.append("}")
 
         insert_idx = 0
