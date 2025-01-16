@@ -63,6 +63,7 @@ generate_infos: dict = {}
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
 max_field_count_to_expand_of_input_options: int = 3
 max_field_count_to_expand_of_callback_info: int = 1
+assume_only_one_local_user :bool = False
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
@@ -80,6 +81,7 @@ def main(argv):
     # 处理生成选项
     global max_field_count_to_expand_of_input_options
     global max_field_count_to_expand_of_callback_info
+    global assume_only_one_local_user
     for arg in argv:
         if arg in ["-h", "--help"]:
             print("In order to reduce count of generated classes, here have 2 options:")
@@ -87,14 +89,16 @@ def main(argv):
             print("\t\tdefault:3")
             print("\tmax_field_count_to_expand_of_callback_info: The max field count to expand CallbackInfo structs.")
             print("\t\tdefault:1")
-            print("\tYou can override these option like this: max_field_count_to_expand_of_input_options=5")
+            print("\tassume_only_one_local_user: If true, the code generator will hide all \"LocalUserId\" filed/argument and automatically fill them internally.")
+            print("\t\tdefault:false")
+            print("\tYou can override these options like this: max_field_count_to_expand_of_input_options=5")
             exit()
         splits: list[str] = arg.split("=", 1)
         if (
             len(splits) != 2
             or not splits[1].isdecimal()
             or int(splits[1]) < 0
-            or not splits[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info"]
+            or not splits[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info", "assume_only_one_local_user"]
         ):
             print("Unsupported option:", arg)
             print('Use "-h" or "--help" to get help.')
@@ -103,6 +107,8 @@ def main(argv):
             max_field_count_to_expand_of_input_options = int(splits[1])
         elif splits[0] == "max_field_count_to_expand_of_callback_info":
             max_field_count_to_expand_of_callback_info = int(splits[1])
+        elif splits[0] == "assume_only_one_local_user":
+            assume_only_one_local_user = to_snake_case(splits[1]) in ["t", "true"]
 
     generator_eos_interfaces()
 
