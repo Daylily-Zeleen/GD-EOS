@@ -2119,11 +2119,15 @@ def __expand_input_struct(
             # 需要跳过的字段
             continue
 
-        r_required_arg_doc[field] = fields[field]["doc"]
         r_bind_args.append(f'"{snake_field}"')
 
         options_field = f"{arg_name}.{field}"
-        if _is_anticheat_client_handle_type(decay_field_type):
+        if assume_only_one_local_user and _is_local_user_id(field):
+            interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(field_type) == "EOS_ProductUserId" else "EOS_HAuth")
+            r_prepare_lines.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native(), {{}}, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+            r_prepare_lines.append(f"\t{options_field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
+            continue
+        elif _is_anticheat_client_handle_type(decay_field_type):
             r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({options_field}, p_{snake_field});")
         elif _is_audio_frames_type(arg_type, arg_name):
@@ -2219,6 +2223,8 @@ def __expand_input_struct(
         else:
             r_declare_args.append(f"gd_arg_t<{remap_type(field_type, field)}> p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD({options_field.split('[')[0]}, p_{snake_field});")
+
+        r_required_arg_doc[field] = fields[field]["doc"]
 
 
 def __make_packed_result(
