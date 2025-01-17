@@ -10,6 +10,7 @@ import traceback
     # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 # TODO: 添加生成参数，全局保存一个 EOS_ProductUserId 和一个 EOS_EpicAccountId, 自动将他们作为各API的 LocalUserId 入参。
+# TODO: 没有本地用户时不该直接返回，应该填充 nullptr
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -61,8 +62,10 @@ generate_infos: dict = {}
 
 # generate options
 # 是否将Options结构展开为输入参数的，除了 ApiVersion 以外的最大字段数量,减少需要注册的类，以减少编译后大小
-max_field_count_to_expand_of_input_options: int = 3
-max_field_count_to_expand_of_callback_info: int = 1
+min_field_count_to_expand_input_structs: int = 3
+min_field_count_to_expand_callback_structs: int = 1
+# 是否假定只有一个本地用户，将隐藏所有的 LocalUserId 字段/参数，并在需要时在内部进行填充。
+# 如果为非登录状态，则相关调用抛出错误并调用失败。
 assume_only_one_local_user :bool = False
 
 eos_data_class_h_file = "core/eos_data_class.h"
@@ -79,41 +82,46 @@ doc_keyword_map_struct : dict[str, str] = {} # src -> name
 
 def main(argv):
     # 处理生成选项
-    global max_field_count_to_expand_of_input_options
-    global max_field_count_to_expand_of_callback_info
-    global assume_only_one_local_user
     for arg in argv:
         if arg in ["-h", "--help"]:
             print("In order to reduce count of generated classes, here have 2 options:")
-            print('\tmax_field_count_to_expand_of_input_options: The max field count to expand input Options structs (except "ApiVersion" field).')
+            print('\tmin_field_count_to_expand_input_structs: The max field count to expand input Options structs (except "ApiVersion" field).')
             print("\t\tdefault:3")
-            print("\tmax_field_count_to_expand_of_callback_info: The max field count to expand CallbackInfo structs.")
+            print("\tmin_field_count_to_expand_callback_structs: The max field count to expand CallbackInfo structs.")
             print("\t\tdefault:1")
             print("\tassume_only_one_local_user: If true, the code generator will hide all \"LocalUserId\" filed/argument and automatically fill them internally.")
             print("\t\tdefault:false")
-            print("\tYou can override these options like this: max_field_count_to_expand_of_input_options=5")
+            print("\tYou can override these options like this: min_field_count_to_expand_input_structs=5")
             exit()
         splits: list[str] = arg.split("=", 1)
         if (
             len(splits) != 2
             or not splits[1].isdecimal()
             or int(splits[1]) < 0
-            or not splits[0] in ["max_field_count_to_expand_of_input_options", "max_field_count_to_expand_of_callback_info", "assume_only_one_local_user"]
+            or not splits[0] in ["min_field_count_to_expand_input_structs", "min_field_count_to_expand_callback_structs", "assume_only_one_local_user"]
         ):
             print("Unsupported option:", arg)
             print('Use "-h" or "--help" to get help.')
             exit()
-        if splits[0] == "max_field_count_to_expand_of_input_options":
-            max_field_count_to_expand_of_input_options = int(splits[1])
-        elif splits[0] == "max_field_count_to_expand_of_callback_info":
-            max_field_count_to_expand_of_callback_info = int(splits[1])
+        if splits[0] == "min_field_count_to_expand_input_structs":
+            field_count_to_expand_input_structs = int(splits[1])
+        elif splits[0] == "min_field_count_to_expand_callback_structs":
+            field_count_to_expand_callback_structs = int(splits[1])
         elif splits[0] == "assume_only_one_local_user":
-            assume_only_one_local_user = to_snake_case(splits[1]) in ["t", "true"]
+            only_one_local_user = to_snake_case(splits[1]) in ["t", "true"]
 
-    generator_eos_interfaces()
+    generator_eos_interfaces(field_count_to_expand_input_structs, field_count_to_expand_callback_structs, only_one_local_user)
 
 
-def generator_eos_interfaces() -> None:
+def generator_eos_interfaces(p_min_field_count_to_expand_input_structs: int = 3, p_min_field_count_to_expand_callback_structs: int = 1, p_assume_only_one_local_user: bool = False) -> None:
+    global min_field_count_to_expand_input_structs
+    global min_field_count_to_expand_callback_structs
+    global assume_only_one_local_user
+
+    min_field_count_to_expand_input_structs = p_min_field_count_to_expand_input_structs
+    min_field_count_to_expand_callback_structs = p_min_field_count_to_expand_callback_structs
+    assume_only_one_local_user = p_assume_only_one_local_user
+
     # make dir
     for base_dir in [gen_include_dir, gen_src_dir]:
         if not os.path.exists(base_dir):
@@ -3322,9 +3330,9 @@ def _make_additional_method_requirements():
     for struct_type in structs:
         fields = __get_struct_fields(struct_type)
         field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0) - (1 if assume_only_one_local_user and "LocalUserId" in fields else 0)
-        if max_field_count_to_expand_of_input_options > 0 and field_count <= max_field_count_to_expand_of_input_options and __is_method_input_only_struct(struct_type):
+        if min_field_count_to_expand_input_structs > 0 and field_count <= min_field_count_to_expand_input_structs and __is_method_input_only_struct(struct_type):
             expanded_as_args_structs.append(struct_type)
-        if max_field_count_to_expand_of_callback_info > 0 and field_count <= max_field_count_to_expand_of_callback_info and __is_callback_output_only_struct(struct_type):
+        if min_field_count_to_expand_callback_structs > 0 and field_count <= min_field_count_to_expand_callback_structs and __is_callback_output_only_struct(struct_type):
             expanded_as_args_structs.append(struct_type)
 
 
