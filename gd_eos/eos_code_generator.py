@@ -2000,11 +2000,14 @@ def _gen_callback(
                 # 接口与回调不再含有 ClientData
                 continue
 
+            snake_case_field = to_snake_case(field)
+            if assume_only_one_local_user and _is_local_user_id(field):
+                continue # 不需要绑定该参数
+
             if not ret.endswith(",\n\t\t\t"):
                 ret += ",\n\t\t\t"
                 signal_bind_args += ", "
 
-            snake_case_field = to_snake_case(field)
             if _is_enum_type(field_type):
                 if _is_enum_flags_type(field_type):
                     ret += f"_EXPAND_TO_GODOT_VAL_FLAGS({remap_type(field_type)}, data->{field})"
@@ -2173,15 +2176,16 @@ def __expand_input_struct(
             # 需要跳过的字段
             continue
 
-        r_bind_args.append(f'"{snake_field}"')
-
         options_field = f"{arg_name}.{field}"
         if assume_only_one_local_user and _is_local_user_id(field):
             interface_class = _get_login_interface_of_local_user_id(field, field_type)
             r_prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
             r_prepare_lines.append(f"\t{options_field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
-            continue
-        elif _is_anticheat_client_handle_type(decay_field_type):
+            continue # 不需要绑定该参数
+
+        r_bind_args.append(f'"{snake_field}"')
+
+        if _is_anticheat_client_handle_type(decay_field_type):
             r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({options_field}, p_{snake_field});")
         elif _is_audio_frames_type(arg_type, arg_name):
