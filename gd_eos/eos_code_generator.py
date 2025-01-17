@@ -3644,6 +3644,9 @@ def _optimize_doc(doc: list[str]) -> list[str]:
                 elif _is_expanded_struct(see_type):
                     # 跳过被展开的结构体类型说明
                     continue
+            elif assume_only_one_local_user and line.startswith("@param LocalUserId"):
+                # 假定只有一个本地用户时不需要该项说明
+                continue
 
         if len(ret) <= 0:
             # 首行
