@@ -3,6 +3,8 @@
 import os, sys
 import traceback
 
+from SCons.Variables import BoolVariable
+
 # TODO: 解析废弃成员避免硬编码
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
@@ -84,14 +86,8 @@ def main(argv):
     # 处理生成选项
     for arg in argv:
         if arg in ["-h", "--help"]:
-            print("In order to reduce count of generated classes, here have 2 options:")
-            print('\tmin_field_count_to_expand_input_structs: The max field count to expand input Options structs (except "ApiVersion" field).')
-            print("\t\tdefault:3")
-            print("\tmin_field_count_to_expand_callback_structs: The max field count to expand CallbackInfo structs.")
-            print("\t\tdefault:1")
-            print("\tassume_only_one_local_user: If true, the code generator will hide all \"LocalUserId\" filed/argument and automatically fill them internally.")
-            print("\t\tdefault:false")
-            print("\tYou can override these options like this: min_field_count_to_expand_input_structs=5")
+            print_help()
+            print("You can override these options like this: min_field_count_to_expand_input_structs=5")
             exit()
         splits: list[str] = arg.split("=", 1)
         if (
@@ -111,6 +107,38 @@ def main(argv):
             only_one_local_user = to_snake_case(splits[1]) in ["t", "true"]
 
     generator_eos_interfaces(field_count_to_expand_input_structs, field_count_to_expand_callback_structs, only_one_local_user)
+
+
+def add_scons_options(opts, env):
+    opts.Add(
+        "min_field_count_to_expand_input_structs",
+        "The min field count to expand input EOS Options structs (except 'ApiVersion' field).",
+        "3"
+    )
+    opts.Add(
+        "min_field_count_to_expand_callback_structs",
+        "The min field count to expand EOS CallbackInfo structs.",
+        "3"
+    )
+    opts.Add(
+        BoolVariable(
+            key="assume_only_one_local_user",
+            help="If true, the code generator will hide all \"LocalUserId\" of EOS API's filed/argument and automatically fill them internally.",
+            default=False,
+        )
+    )
+
+
+def print_help():
+    print('min_field_count_to_expand_input_structs: The min field count to expand input Options structs (except "ApiVersion" field).')
+    print("\tdefault:3")
+    print("")
+    print("min_field_count_to_expand_callback_structs: The min field count to expand CallbackInfo structs.")
+    print("\tdefault:1")
+    print("")
+    print("assume_only_one_local_user: If true, the code generator will hide all \"LocalUserId\" filed/argument and automatically fill them internally.")
+    print("\tdefault:false")
+    print("")
 
 
 def generator_eos_interfaces(p_min_field_count_to_expand_input_structs: int = 3, p_min_field_count_to_expand_callback_structs: int = 1, p_assume_only_one_local_user: bool = False) -> None:

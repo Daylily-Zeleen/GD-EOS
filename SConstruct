@@ -6,10 +6,18 @@ import build_version
 
 import gd_eos.eos_code_generator as eos_code_generator
 
-# Generate
-eos_code_generator.generator_eos_interfaces()
-
 env = SConscript("godot-cpp/SConstruct")
+
+
+# 帮助
+opts = Variables()
+eos_code_generator.add_scons_options(opts=opts, env=env)
+opts.Update(env)
+Help(opts.GenerateHelpText(env))
+
+# 生成
+eos_code_generator.generator_eos_interfaces(int(env["min_field_count_to_expand_input_structs"]), int(env["min_field_count_to_expand_callback_structs"]), env["assume_only_one_local_user"])
+
 lib_name = "libgdeos"
 
 plugin_bin_folder = "demo/addons/gd-eos/bin"
