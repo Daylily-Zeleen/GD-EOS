@@ -2093,6 +2093,8 @@ def __get_str_arr_element_type(str_arr_type: str) -> str:
 
 
 def __expand_input_struct(
+    handle_klass: str, 
+    snake_method_name: str,
     arg_type: str,
     arg_name: str,
     invalid_arg_return_value: str,
@@ -2147,8 +2149,8 @@ def __expand_input_struct(
 
         options_field = f"{arg_name}.{field}"
         if assume_only_one_local_user and _is_local_user_id(field):
-            interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(field_type) == "EOS_ProductUserId" else "EOS_HAuth")
-            r_prepare_lines.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native(), {{}}, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+            interface_class = _get_login_interface_of_local_user_id(field, field_type)
+            r_prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
             r_prepare_lines.append(f"\t{options_field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
             continue
         elif _is_anticheat_client_handle_type(decay_field_type):
@@ -2228,10 +2230,7 @@ def __expand_input_struct(
             else:
                 r_prepare_lines.append(f"\tERR_FAIL_NULL(p_{snake_field});")
 
-            if assume_only_one_local_user:
-                r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_WITH_CHECK({options_field}, p_{snake_field});")
-            else:
-                r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({options_field}, p_{snake_field});")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT({options_field}, p_{snake_field});")
 
         elif _is_arr_field(field_type, field):
             r_declare_args.append(f"const {remap_type(field_type, field)} &p_{snake_field}")
@@ -2623,8 +2622,8 @@ def _gen_method(
             else:
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
         elif assume_only_one_local_user and _is_local_user_id(name):
-            interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(type) == "EOS_ProductUserId" else "EOS_HAuth")
-            prepare_lines.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(name, type)}::_get_local_native(), {{}}, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+            interface_class = _get_login_interface_of_local_user_id(name, type)
+            prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(name, type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
             prepare_lines.append(f"\t{type} {name} = {_get_gd_type_of_local_user_id(name, type)}::_get_local_native();")
             call_args.append(name)
         elif __is_method_input_only_struct(decayed_type) and not _is_expanded_struct(decayed_type):
@@ -2639,12 +2638,7 @@ def _gen_method(
                 prepare_lines.append(f"\tERR_FAIL_NULL(p_{snake_name});")
             declare_args.append(f"const {remap_type(decayed_type, name)}& p_{snake_name}")
 
-            if assume_only_one_local_user:
-                prepare_lines.append(f"\tbool set_success = false;")
-                prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos(set_success);")
-                prepare_lines.append(f'\tERR_FAIL_COND_V_MSG(!set_success, {{}}, "Call \\"{handle_klass}.{snake_method_name}()\\" failed.");')
-            else:
-                prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
+            prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
             
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&{options_prepare_identifier}")
@@ -2654,7 +2648,7 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expand_input_struct(type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_def_vals, expended_args_doc)
+            __expand_input_struct(handle_klass, snake_method_name, type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_def_vals, expended_args_doc)
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -3864,6 +3858,16 @@ def _is_local_user_id(field: str) -> bool:
     return field == "LocalUserId"
 
 
+def _get_login_interface_of_local_user_id(field: str, eos_type: str) -> str:
+    _assert(_is_local_user_id(field))
+    interface_lower :str = ""
+    if _decay_eos_type(eos_type) == "EOS_ProductUserId":
+        interface_lower = "eos_connect"
+    else:
+        interface_lower = "eos_auth"
+    return _convert_interface_class_name(interface_lower)
+
+
 def _get_gd_type_of_local_user_id(field: str, eos_type: str) -> str:
     _assert(_is_local_user_id(field))
     return _convert_handle_class_name(_decay_eos_type(eos_type))
@@ -4104,15 +4108,9 @@ def _gen_struct_v2(
     if additional_methods_requirements["from"]:
         lines.append(f"\tstatic Ref<{typename}> from_eos(const {struct_type} &p_origin);")
     if additional_methods_requirements["set_to"]:
-        if assume_only_one_local_user:
-            lines.append(f"\tbool set_to_eos({struct_type} &p_origin);")
-        else:
-            lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
+        lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
     if additional_methods_requirements["to"]:
-        if assume_only_one_local_user:
-            lines.append(f"\t{struct_type} &to_eos(bool &r_success) {{r_success = set_to_eos(m_eos_data); return m_eos_data;}}")
-        else:
-            lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
+        lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
     lines.append("protected:")
     lines.append("\tstatic void _bind_methods();")
     lines.append("};")
@@ -4217,11 +4215,7 @@ def _gen_struct_v2(
         r_structs_cpp.append("}")
 
     if additional_methods_requirements["set_to"]:
-        if assume_only_one_local_user:
-            # 假定只有一个用户时才需要返回值检查是否设置成功
-            r_structs_cpp.append(f"bool {typename}::set_to_eos({struct_type} &p_data) {{")
-        else:
-            r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
+        r_structs_cpp.append(f"void {typename}::set_to_eos({struct_type} &p_data) {{")
         # r_structs_cpp.append(f"\tmemset(&p_data, 0, sizeof(p_data));")
 
         for field in fields.keys():
@@ -4248,8 +4242,8 @@ def _gen_struct_v2(
             else:
                 if assume_only_one_local_user and _is_local_user_id(field):
                     # 假定只有一个本地用户时不生成该字段,从静态变量中查找
-                    interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(field_type) == "EOS_ProductUserId" else "EOS_HAuth")
-                    r_structs_cpp.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native(), false, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+                    interface_class = _get_login_interface_of_local_user_id(field, type)
+                    r_structs_cpp.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Setup \\"{typename}\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
                     r_structs_cpp.append(f"\tp_data.{field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
                 elif __is_api_version_field(field_type, field):
                     r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
@@ -4309,10 +4303,7 @@ def _gen_struct_v2(
                         f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{_find_count_field(field, fields.keys())});"
                     )
                 elif _is_internal_struct_field(field_type, field) or _is_integrated_platform_init_option(field_type, field):
-                    if assume_only_one_local_user:
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT_WITH_CHECK(p_data.{field}, {snake_field_name});")
-                    else:
-                        r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_STRUCT(p_data.{field}, {snake_field_name});")
                 elif _is_arr_field(field_type, field):
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_ARR(p_data.{field}, {snake_field_name}, p_data.{_find_count_field(field, fields.keys())});")
                 elif _is_enum_flags_type(field_type):
@@ -4378,10 +4369,6 @@ def _gen_struct_v2(
                     r_structs_cpp.append("#endif")
                 else:
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
-
-        
-        if assume_only_one_local_user:
-            r_structs_cpp.append("\treturn true;")
 
         r_structs_cpp.append("}")
 

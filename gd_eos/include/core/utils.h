@@ -474,22 +474,6 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     }
 }
 
-template <typename RefEOSData, typename Out, typename OutT = std::remove_const_t<Out>>
-inline void to_eos_data_witch_check(const RefEOSData &p_in, OutT &r_out, bool &r_success) {
-    if constexpr (std::is_pointer_v<Out>) {
-        r_out = p_in.is_valid() ? &p_in->to_eos(r_success) : nullptr;
-        r_success = true;
-    } else {
-        if (p_in.is_valid()) {
-            r_success = p_in->set_to_eos(r_out);
-        } else {
-            // 清空
-            memset(&r_out, 0, sizeof(r_out));
-            r_success = false;
-        }
-    }
-}
-
 template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
 inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionType &r_union_type, CharString &r_str_cache) {
     if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
@@ -748,11 +732,6 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
     }
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
-
-#define _TO_EOS_FIELD_STRUCT_WITH_CHECK(eos_field, gd_field)                                                           \
-    bool set_##gd_field##_success = false;                                                                             \
-    to_eos_data_witch_check<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field, (set_##gd_field##_success)); \
-    ERR_FAIL_COND_V(!(set_##gd_field##_success), {});
 
 template <typename GDFrom, typename EOSTo>
 inline void _convert_to_eos_struct_vector(const TypedArray<GDFrom> &p_from, LocalVector<EOSTo> &p_to) {
