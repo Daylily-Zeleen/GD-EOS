@@ -1361,11 +1361,17 @@ def parse_all_file():
         interface_doc :list[str] = file_lower2infos[il]["interface_doc"]
         if len(interface_doc):
             interface_handle_type :str = ""
-            for l in interface_doc:
+            for i in range(len(interface_doc)):
+                l :str = interface_doc[i]
                 if l.startswith("@see EOS_Platform_Get") and l.strip().endswith("Interface"):
                     interface_handle_type = l.removeprefix("@see EOS_Platform_Get").strip().removesuffix("Interface")
                     if interface_handle_type != "EOS":
                         interface_handle_type = "EOS_H" + interface_handle_type
+
+                    # 移除该行与上一空行
+                    interface_doc.pop(i)
+                    if len(interface_doc[i - 1].strip()) <= 0:
+                        interface_doc.pop(i - 1)
                     break
             if interface_handle_type in _handles:
                 _handles[interface_handle_type]["doc"] = interface_doc
