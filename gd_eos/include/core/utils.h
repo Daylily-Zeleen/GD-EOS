@@ -1043,7 +1043,7 @@ public:                                                                         
     _FORCE_INLINE_ static bool _is_valid_local_id(decltype(gd_id_type::m_handle) p_other) { return local_user_id->get_handle() == nullptr || local_user_id->get_handle() == p_other; }
 
 #define _CODE_SNIPPET_LOCAL_ID_DEFINE(eos_id_type) \
-    Ref<eos_id_type> eos_id_type::local_user_id = memnew(eos_id_type);
+    Ref<eos_id_type> eos_id_type::local_user_id;
 
 #define _CODE_SNIPPET_BINE_GET_LOCAL_ID(eos_id_type) \
     ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local"), &eos::eos_id_type ::get_local);

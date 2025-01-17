@@ -48,6 +48,11 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 
     GDREGISTER_CLASS(godot::eos::EOSMultiplayerPeer);
 #endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
+
+#ifdef EOS_ASSUME_ONLY_ONE_USER
+    eos::EOSProductUserId::get_local().instantiate();
+    eos::EOSEpicAccountId::get_local().instantiate();
+#endif // EOS_ASSUME_ONLY_ONE_USER
 }
 
 void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
