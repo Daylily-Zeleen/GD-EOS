@@ -749,8 +749,8 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 #define _TO_EOS_FIELD_STRUCT(eos_field, gd_field) \
     to_eos_data<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field)
 
-#define _TO_EOS_FIELD_STRUCT_WITH_CHECK(eos_field, gd_field)                                                         \
-    bool set_##gd_field##_success = false;                                                                           \
+#define _TO_EOS_FIELD_STRUCT_WITH_CHECK(eos_field, gd_field)                                                           \
+    bool set_##gd_field##_success = false;                                                                             \
     to_eos_data_witch_check<decltype(gd_field), decltype(eos_field)>(gd_field, eos_field, (set_##gd_field##_success)); \
     ERR_FAIL_COND_V(!(set_##gd_field##_success), {});
 
@@ -1067,21 +1067,21 @@ public:                                                                         
     Ref<eos_id_type> eos_id_type::local_user_id = memnew(eos_id_type);
 
 #define _CODE_SNIPPET_BINE_GET_LOCAL_ID(eos_id_type) \
-    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local"), &eos:: eos_id_type ::get_local);
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_local"), &eos::eos_id_type ::get_local);
 
-#define _CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK(gd_id_type, eos_callback_info_type, signal_name, gd_callback_info_type)                                                                                          \
-    auto cb = [](const eos_callback_info_type *Data) {                                                                                                                                                               \
-        ERR_FAIL_COND_MSG(local_user_id::get_local_native() != nullptr && local_user_id::get_local_native() != Data->LocalUserId, "Unexpected: Receive login status changed event which not relate to local user."); \
-        if (Data->CurrentStatus != EOS_ELoginStatus::EOS_LS_NotLoggedIn) {                                                                                                                                           \
-            if (gd_id_type::_get_local_native() != Data->LocalUserId) {                                                                                                                                              \
-                gd_id_type::_set_local(nullptr);                                                                                                                                                                     \
-            }                                                                                                                                                                                                        \
-            gd_id_type::_set_local(Data->LocalUserId);                                                                                                                                                               \
-        } else {                                                                                                                                                                                                     \
-            gd_id_type::_set_local(nullptr);                                                                                                                                                                         \
-        }                                                                                                                                                                                                            \
-                                                                                                                                                                                                                     \
-        _EOS_NOTIFY_CALLBACK(const eos_callback_info_type *, data, signal_name, gd_callback_info_type)                                                                                                               \
-        (Data);                                                                                                                                                                                                      \
+#define _CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK(gd_id_type, m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                                                                                         \
+    [](m_callback_info_ty m_callback_identifier) {                                                                                                                                                                                \
+        ERR_FAIL_COND_MSG(gd_id_type::_get_local_native() != nullptr && gd_id_type::_get_local_native() != m_callback_identifier->LocalUserId, "Unexpected: Receive login status changed event which not relate to local user."); \
+        if (m_callback_identifier->CurrentStatus != EOS_ELoginStatus::EOS_LS_NotLoggedIn) {                                                                                                                                       \
+            if (gd_id_type::_get_local_native() != m_callback_identifier->LocalUserId) {                                                                                                                                          \
+                gd_id_type::_set_local(nullptr);                                                                                                                                                                                  \
+            }                                                                                                                                                                                                                     \
+            gd_id_type::_set_local(m_callback_identifier->LocalUserId);                                                                                                                                                           \
+        } else {                                                                                                                                                                                                                  \
+            gd_id_type::_set_local(nullptr);                                                                                                                                                                                      \
+        }                                                                                                                                                                                                                         \
+                                                                                                                                                                                                                                  \
+        if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) {                                                                                                               \
+            obj->emit_signal(SNAME(m_callback_signal), m_arg_type::from_eos(*m_callback_identifier));                                                                                                                             \
+        }                                                                                                                                                                                                                         \
     }
-;

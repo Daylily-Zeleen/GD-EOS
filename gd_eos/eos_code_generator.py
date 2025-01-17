@@ -813,7 +813,11 @@ def _make_notify_code(
     # Hack
     cb = _gen_callback(_decay_eos_type(callback_type), [])
     if "_EOS_METHOD_CALLBACK" in cb:
-        cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
+        if assume_only_one_local_user and _decay_eos_type(callback_type) in ["EOS_Connect_OnLoginStatusChangedCallback", "EOS_Auth_OnLoginStatusChangedCallback"]:
+            gd_id_type = _get_gd_type_of_local_user_id("LocalUserId", "EOS_ProductUserId" if _decay_eos_type(callback_type) == "EOS_Connect_OnLoginStatusChangedCallback" else "EOS_EpicAccountId")
+            cb = cb.replace("_EOS_METHOD_CALLBACK(", f"_CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK({gd_id_type}, ")
+        else:
+            cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
     elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
         cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPANDED")
     else:
@@ -3110,7 +3114,8 @@ def _is_expanded_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
-        "EOS_Connect_LoginCallbackInfo",  # PackedPeerMediator 中使用
+        "EOS_Connect_LoginCallbackInfo", # PackedPeerMediator 中使用
+        "EOS_Auth_LoginCallbackInfo",
     ]:
         return False
     if struct_type in ["EOS_LogMessage"]:
