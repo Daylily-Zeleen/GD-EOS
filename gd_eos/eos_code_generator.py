@@ -1918,6 +1918,31 @@ def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
     return ret
 
 
+# 结构体，被展开的结构体
+def _need_ignore_local_user_id_struct(struct_type: str) -> bool:
+    struct_type = _decay_eos_type(struct_type)
+    for prefix in [
+        "EOS_Achievements_", # 服务端可空 （TODO: 再看看， 如果不能查别人的就挪到下面去）
+        "EOS_Connect_", # 需要管理产品id的关联
+        "EOS_Auth_", # 需要管理账号的关联
+        ]:
+        if struct_type.startswith(prefix):
+            return False
+    return True
+
+
+def _need_check_null_local_user_id_struct(struct_type: str) -> bool:
+    struct_type = _decay_eos_type(struct_type)
+    return not struct_type in [
+        "EOS_AntiCheatServer_BeginSessionOptions", # 服务器为空
+
+        "EOS_Connect_QueryProductUserIdMappingsOptions", # 服务器为空
+        "EOS_Stats_IngestStatOptions", # 服务器可空
+        "EOS_Stats_QueryStatsOptions", # 服务器可空
+    ] and not struct_type.startswith("EOS_TitleStorage_")\
+        and not struct_type.startswith("EOS_Achievements_")
+
+
 def __convert_to_struct_class(struct_type: str) -> str:
     return _decay_eos_type(struct_type).replace("EOS_", "EOS")
 
@@ -2001,7 +2026,7 @@ def _gen_callback(
                 continue
 
             snake_case_field = to_snake_case(field)
-            if assume_only_one_local_user and _is_local_user_id(field):
+            if assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=arg_type):
                 continue # 不需要绑定该参数
 
             if not ret.endswith(",\n\t\t\t"):
@@ -2177,9 +2202,10 @@ def __expand_input_struct(
             continue
 
         options_field = f"{arg_name}.{field}"
-        if assume_only_one_local_user and _is_local_user_id(field):
+        if assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(decayed_type):
             interface_class = _get_login_interface_of_local_user_id(field, field_type)
-            r_prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
+            if _need_check_null_local_user_id_struct(field_type):
+                r_prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
             r_prepare_lines.append(f"\t{options_field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
             continue # 不需要绑定该参数
 
@@ -3356,7 +3382,7 @@ def _make_additional_method_requirements():
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
         fields = __get_struct_fields(struct_type)
-        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0) - (1 if assume_only_one_local_user and "LocalUserId" in fields else 0)
+        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0) - (1 if assume_only_one_local_user and "LocalUserId" in fields and _need_ignore_local_user_id_struct(struct_type) else 0)
         if min_field_count_to_expand_input_structs > 0 and field_count <= min_field_count_to_expand_input_structs and __is_method_input_only_struct(struct_type):
             expanded_as_args_structs.append(struct_type)
         if min_field_count_to_expand_callback_structs > 0 and field_count <= min_field_count_to_expand_callback_structs and __is_callback_output_only_struct(struct_type):
@@ -3987,7 +4013,7 @@ def _gen_struct_v2(
             continue  # 暴露的结构体不再含有 ClientData 字段
         elif __is_api_version_field(type, field):
             continue  # 不需要ApiVersion作为成员
-        elif assume_only_one_local_user and _is_local_user_id(field):
+        elif assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=struct_type):
             if struct_type == "EOS_Connect_LoginCallbackInfo":
                 # 特殊处理
                 setget_declare_lines.append(f'\tRef<class {_convert_handle_class_name(type)}> get_local_user_id() const;')
@@ -4201,9 +4227,10 @@ def _gen_struct_v2(
             elif _is_nullable_float_pointer_field(field_type, field):
                 print("ERROR:", field)
                 _print_stack_and_exit()
-            elif assume_only_one_local_user and _is_local_user_id(field):
+            elif assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=struct_type):
                 # 假定只有一个本地用户时不生成该字段,仅做检查
-                r_structs_cpp.append(f'\tif(!{_get_gd_type_of_local_user_id(field, field_type)}::_is_valid_local_id(p_origin.{field})) {{ ERR_PRINT("The local user id in output struct is not compatible with existing local user!!"); }}')
+                if _need_check_null_local_user_id_struct(struct_type):
+                    r_structs_cpp.append(f'\tif(!{_get_gd_type_of_local_user_id(field, field_type)}::_is_valid_local_id(p_origin.{field})) {{ ERR_PRINT("The local user id in output struct is not compatible with existing local user!!"); }}')
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
                 if additional_methods_requirements["set_to"]:
                     r_structs_cpp.append(f"\tmemcpy(&{snake_case_field}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
@@ -4273,10 +4300,11 @@ def _gen_struct_v2(
             elif field_type == "EOS_ReleaseMemoryFunc":
                 r_structs_cpp.append(f"\tp_data.ReleaseMemoryFunction = &internal::_memrelease;")
             else:
-                if assume_only_one_local_user and _is_local_user_id(field):
+                if assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=struct_type):
                     # 假定只有一个本地用户时不生成该字段,从静态变量中查找
                     interface_class = _get_login_interface_of_local_user_id(field, type)
-                    r_structs_cpp.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Setup \\"{typename}\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
+                    if _need_check_null_local_user_id_struct(struct_type):
+                        r_structs_cpp.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Setup \\"{typename}\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
                     r_structs_cpp.append(f"\tp_data.{field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
                 elif __is_api_version_field(field_type, field):
                     r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
