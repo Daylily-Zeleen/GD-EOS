@@ -118,7 +118,7 @@ def add_scons_options(opts, env):
     opts.Add(
         "min_field_count_to_expand_callback_structs",
         "The min field count to expand EOS CallbackInfo structs.",
-        "3"
+        "1"
     )
     opts.Add(
         BoolVariable(
@@ -3151,6 +3151,7 @@ def _is_expanded_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
         "EOS_Connect_LoginCallbackInfo", # PackedPeerMediator 中使用
+        "EOS_Connect_LoginStatusChangedCallbackInfo", # EOSPacketPeerMediator 中使用
         "EOS_Auth_LoginCallbackInfo",
     ]:
         return False
