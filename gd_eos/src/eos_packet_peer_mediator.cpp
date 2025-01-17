@@ -349,6 +349,7 @@ void EOS_CALL EOSPacketPeerMediator::_on_peer_connection_interrupted(const EOS_P
  * the socket id provided in the data.
  ****************************************/
 void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_OnRemoteConnectionClosedInfo *data) {
+    ERR_FAIL_COND(EOSMultiplayerPeer::get_local_user_id() == data->LocalUserId);
     String socket_name = data->SocketId->SocketName;
     //Check if any connection requests need to be removed.
     List<ConnectionRequestData>::Element *e = singleton->pending_connection_requests.front();
@@ -375,10 +376,13 @@ void EOS_CALL EOSPacketPeerMediator::_on_remote_connection_closed(const EOS_P2P_
  * If there is, forward the connection request to that multiplayer instance.
  ****************************************/
 void EOS_CALL EOSPacketPeerMediator::_on_incoming_connection_request(const EOS_P2P_OnIncomingConnectionRequestInfo *data) {
+    ERR_FAIL_COND(EOSMultiplayerPeer::get_local_user_id() == data->LocalUserId);
     ConnectionRequestData request_data{
-        data->LocalUserId,
-        data->RemoteUserId,
         data->SocketId->SocketName,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+        data->LocalUserId,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+        data->RemoteUserId,
     };
 
     if (!singleton->active_peers.has(request_data.socket_name)) {

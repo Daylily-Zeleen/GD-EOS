@@ -411,6 +411,12 @@ def gen_files(file_base_name: str, infos: dict):
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f'#include <packed_results/{file_base_name + ".packed_results.h"}>')
+
+        if assume_only_one_local_user and file_base_name == "eos_common":
+            # 假定只有一个用户时定义 EOS_ASSUME_ONLY_ONE_USER 宏
+            additional_include_lines.append("")
+            additional_include_lines.append("#define EOS_ASSUME_ONLY_ONE_USER")
+
         handles_hpp_lines: list[str] = gen_handles(interface_handle, additional_include_lines, sub_handles, handles_cpp_lines)
 
         if len(handles_hpp_lines):
@@ -2598,7 +2604,11 @@ def _gen_method(
                     call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
             else:
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
-
+        elif assume_only_one_local_user and _is_local_user_id(name):
+            interface_class = _convert_interface_class_name("EOS_HConnect" if _decay_eos_type(type) == "EOS_ProductUserId" else "EOS_HAuth")
+            prepare_lines.append(f'\tERR_FAIL_NULL_V_MSG({_get_gd_type_of_local_user_id(name, type)}::_get_local_native(), {{}}, "Has not local user, please login by using \\"{interface_class}.login()\\" first.");')
+            prepare_lines.append(f"\t{type} {name} = {_get_gd_type_of_local_user_id(name, type)}::_get_local_native();")
+            call_args.append(name)
         elif __is_method_input_only_struct(decayed_type) and not _is_expanded_struct(decayed_type):
             if name.endswith("Options"):
                 options_type = decayed_type

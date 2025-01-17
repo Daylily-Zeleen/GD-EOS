@@ -9,9 +9,11 @@
 
 namespace godot::eos {
 struct ConnectionRequestData {
-    EOS_ProductUserId local_user_id;
-    EOS_ProductUserId remote_user_id;
     String socket_name;
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+    EOS_ProductUserId local_user_id;
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+    EOS_ProductUserId remote_user_id;
 };
 
 class EOSMultiPlayerConnectionInfo : public RefCounted {
@@ -20,7 +22,9 @@ class EOSMultiPlayerConnectionInfo : public RefCounted {
     // 暴露给 gds 不区分 SocketId 与 SocketName
     String socket_id;
     Ref<EOSProductUserId> remote_user_id;
+#ifndef EOS_ASSUME_ONLY_ONE_USER
     Ref<EOSProductUserId> local_user_id;
+#endif // !EOS_ASSUME_ONLY_ONE_USER
 
 protected:
     static void _bind_methods();
@@ -28,9 +32,15 @@ protected:
 public:
     _DECLARE_SETGET(socket_id);
     _DECLARE_SETGET(remote_user_id);
+#ifndef EOS_ASSUME_ONLY_ONE_USER
     _DECLARE_SETGET(local_user_id);
+#endif // !EOS_ASSUME_ONLY_ONE_USER
 
+#ifndef EOS_ASSUME_ONLY_ONE_USER
     static Ref<EOSMultiPlayerConnectionInfo> make(const String &p_socket_id, EOS_ProductUserId p_local_user_id, EOS_ProductUserId p_remote_user_id);
+#else // EOS_ASSUME_ONLY_ONE_USER
+    static Ref<EOSMultiPlayerConnectionInfo> make(const String &p_socket_id, EOS_ProductUserId p_remote_user_id);
+#endif // !EOS_ASSUME_ONLY_ONE_USER
     static Ref<EOSMultiPlayerConnectionInfo> make(const ConnectionRequestData &p_from);
 
     static PropertyInfo make_property_info(const String &p_property_name = "connection_info");

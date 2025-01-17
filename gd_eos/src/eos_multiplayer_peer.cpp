@@ -29,29 +29,45 @@ namespace godot::eos {
 
 _DEFINE_SETGET(EOSMultiPlayerConnectionInfo, socket_id)
 _DEFINE_SETGET(EOSMultiPlayerConnectionInfo, remote_user_id)
+#ifndef EOS_ASSUME_ONLY_ONE_USER
 _DEFINE_SETGET(EOSMultiPlayerConnectionInfo, local_user_id)
+#endif // !EOS_ASSUME_ONLY_ONE_USER
 
 void EOSMultiPlayerConnectionInfo::_bind_methods() {
     _BIND_BEGIN(EOSMultiPlayerConnectionInfo);
     _BIND_PROP_STR(socket_id);
+#ifndef EOS_ASSUME_ONLY_ONE_USER
     _BIND_PROP_OBJ(local_user_id, EOSProductUserId);
+#endif // !EOS_ASSUME_ONLY_ONE_USER
     _BIND_PROP_OBJ(remote_user_id, EOSProductUserId);
     _BIND_END();
 }
 
-Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(const String &p_socket_id, EOS_ProductUserId p_local_user_id, EOS_ProductUserId p_remote_user_id) {
+Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(
+        const String &p_socket_id,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+        EOS_ProductUserId p_local_user_id,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+        EOS_ProductUserId p_remote_user_id) {
     Ref<EOSMultiPlayerConnectionInfo> ret;
     ret.instantiate();
     ret->socket_id = p_socket_id;
+#ifndef EOS_ASSUME_ONLY_ONE_USER
     ret->local_user_id.instantiate();
     ret->local_user_id->set_handle(p_local_user_id);
+#endif // !EOS_ASSUME_ONLY_ONE_USER
     ret->remote_user_id.instantiate();
     ret->remote_user_id->set_handle(p_remote_user_id);
     return ret;
 }
 
 Ref<EOSMultiPlayerConnectionInfo> EOSMultiPlayerConnectionInfo::make(const ConnectionRequestData &p_from) {
-    return make(p_from.socket_name, p_from.local_user_id, p_from.remote_user_id);
+    return make(
+            p_from.socket_name,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+            p_from.local_user_id,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+            p_from.remote_user_id);
 }
 
 PropertyInfo EOSMultiPlayerConnectionInfo::make_property_info(const String &p_property_name) {
@@ -1140,7 +1156,12 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
     }
 
     emit_signal(SNAME("peer_connection_established"),
-            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId),
+            EOSMultiPlayerConnectionInfo::make(
+                    data->SocketId->SocketName,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+                    data->LocalUserId,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+                    data->RemoteUserId),
             data->ConnectionType, data->NetworkType);
 }
 
@@ -1185,7 +1206,12 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
     }
 
     emit_signal(SNAME("peer_connection_closed"),
-            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId),
+            EOSMultiPlayerConnectionInfo::make(
+                    data->SocketId->SocketName,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+                    data->LocalUserId,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+                    data->RemoteUserId),
             data->Reason);
 }
 
@@ -1198,7 +1224,12 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_interrupted_callback(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
     emit_signal(SNAME("peer_connection_interrupted"),
-            EOSMultiPlayerConnectionInfo::make(data->SocketId->SocketName, data->LocalUserId, data->RemoteUserId));
+            EOSMultiPlayerConnectionInfo::make(
+                    data->SocketId->SocketName,
+#ifndef EOS_ASSUME_ONLY_ONE_USER
+                    data->LocalUserId,
+#endif // !EOS_ASSUME_ONLY_ONE_USER
+                    data->RemoteUserId));
 }
 
 /****************************************
