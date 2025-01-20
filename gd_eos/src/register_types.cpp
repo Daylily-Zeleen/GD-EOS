@@ -50,8 +50,8 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 #endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
 #ifdef EOS_ASSUME_ONLY_ONE_USER
-    eos::EOSProductUserId::get_local().instantiate();
-    eos::EOSEpicAccountId::get_local().instantiate();
+    eos::EOSProductUserId::_init_local();
+    eos::EOSEpicAccountId::_init_local();
 #endif // EOS_ASSUME_ONLY_ONE_USER
 }
 
@@ -65,6 +65,11 @@ void uninitialize_gdeos_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }
+
+#ifdef EOS_ASSUME_ONLY_ONE_USER
+    eos::EOSProductUserId::_deinit_local();
+    eos::EOSEpicAccountId::_deinit_local();
+#endif // EOS_ASSUME_ONLY_ONE_USER
 
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
     Engine::get_singleton()->unregister_singleton(godot::eos::EOSPacketPeerMediator::get_class_static());
