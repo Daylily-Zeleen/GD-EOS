@@ -64,11 +64,14 @@ sources = Glob(os.path.join(base_dir, "src", "*.cpp"))
 gather_sources_recursively(os.path.join(base_dir, "src"))
 gather_sources_recursively(os.path.join(base_dir, "gen", "src"))
 
+compatibility_minimum = 4.2
+
 # doc (godot-cpp 4.3 以上)
 if env["target"] in ["editor", "template_debug"]:
     try:
         doc_data = env.GodotCPPDocData("gd_eos/gen/src/doc_data.gen.cpp", source=Glob("doc_classes/*.xml"))
         sources.append(doc_data)
+        compatibility_minimum = 4.3
     except AttributeError:
         print("Not including class reference as we're targeting a pre-4.3 baseline.")
 
@@ -175,6 +178,8 @@ def update_extension_version():
     for i in range(len(lines)):
         if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
             lines[i] = f'version = "{build_version.version}"\n'
+        if lines[i].startswith("compatibility_minimum") and lines[i].endswith('"\n'):
+            lines[i] = f'compatibility_minimum = "{compatibility_minimum}"\n'
             break
 
     f = open(extension_file, "w", encoding="utf8")
