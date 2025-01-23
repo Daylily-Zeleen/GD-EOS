@@ -147,7 +147,7 @@ jobs:
                   scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
 
             - name: (4.3 && Debug && Windows) Download Godot and generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
               shell: sh
               run: |
                 @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
@@ -158,15 +158,15 @@ jobs:
                 $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug && Macos) Download Godot and generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
               run: |
                 wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
                 unzip -a Godot.zip
                 # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-                $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
+                $(pwd)/Godot.app/Contents/MacOS/Godot --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug && Other) Download Godot
-              if: ${{ matrix.compatibility_minimum == 4.3 && target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
               run: |
                 wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
                 unzip -a Godot.zip
@@ -174,12 +174,12 @@ jobs:
                 echo "GODOT=$(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}" >> $GITHUB_ENV
 
             - name: (4.3 && Debug && other) Generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
               run: |
                 $GODOT --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug) Compile extension with documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
               shell: sh
               env:
                   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
