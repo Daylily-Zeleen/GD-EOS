@@ -157,13 +157,13 @@ jobs:
                 chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
                 $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
 
-            # - name: (4.3 && Debug && Macos) Download Godot and generate documents
-            #   if: ${{ matrix.compatibility_minimum == 4.3 && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
-            #   run: |
-            #     wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
-            #     unzip -a Godot.zip
-            #     # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-            #     $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
+            - name: (4.3 && Debug && Macos) Download Godot and generate documents
+              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
+              run: |
+                wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
+                unzip -a Godot.zip
+                # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
+                $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug && Other) Download Godot
               if: ${{ matrix.compatibility_minimum == 4.3 && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
