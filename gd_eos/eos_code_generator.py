@@ -9,10 +9,7 @@ from SCons.Variables import BoolVariable
 # TODO: 为有Callable参数的方法生成强类型的回调版本供cpp使用
 
 # TODO: 对文档提及的成员进行 GDS接口化
-    # TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
-
-# TODO: 添加生成参数，全局保存一个 EOS_ProductUserId 和一个 EOS_EpicAccountId, 自动将他们作为各API的 LocalUserId 入参。
-# TODO: 没有本地用户时不该直接返回，应该填充 nullptr
+# TODO: @param @return @details 描述对象的处理 （低优先级，能用就行！
 
 sdk_include_dir = "thirdparty/eos-sdk/SDK/Include"
 
@@ -21,7 +18,7 @@ gen_include_dir = os.path.join(gen_dir, "include")
 gen_src_dir = os.path.join(gen_dir, "src")
 
 # 解析结果
-struct2additional_method_requirements: dict[str, dict[str, bool]] = {} # dict[str, dict[str, bool]] 
+struct2additional_method_requirements: dict[str, dict[str, bool]] = {}  # dict[str, dict[str, bool]]
 expanded_as_args_structs: list[str] = []  # 需要被展开为参数形式的结构体
 
 interfaces: dict[str, dict] = {
@@ -68,18 +65,18 @@ min_field_count_to_expand_input_structs: int = 3
 min_field_count_to_expand_callback_structs: int = 1
 # 是否假定只有一个本地用户，将隐藏所有的 LocalUserId 字段/参数，并在需要时在内部进行填充。
 # 如果为非登录状态，则相关调用抛出错误并调用失败。
-assume_only_one_local_user :bool = False
+assume_only_one_local_user: bool = False
 
 eos_data_class_h_file = "core/eos_data_class.h"
 
 # 以下成员按替换顺序排序
 # src -> {class: str, name: str}
-doc_keyword_map_method :dict[str, dict[str, str]] = {}
-doc_keyword_map_enum_member :dict[str, dict[str, str]] = {}
-doc_keyword_map_enum :dict[str, dict[str, str]] = {}
-doc_keyword_map_constant :dict[str, dict] = {} # src -> {class: str, name: str, as_method: str}
-doc_keyword_map_callback :dict[str, dict[str, str]] = {}
-doc_keyword_map_struct : dict[str, str] = {} # src -> name
+doc_keyword_map_method: dict[str, dict[str, str]] = {}
+doc_keyword_map_enum_member: dict[str, dict[str, str]] = {}
+doc_keyword_map_enum: dict[str, dict[str, str]] = {}
+doc_keyword_map_constant: dict[str, dict] = {}  # src -> {class: str, name: str, as_method: str}
+doc_keyword_map_callback: dict[str, dict[str, str]] = {}
+doc_keyword_map_struct: dict[str, str] = {}  # src -> name
 
 
 def main(argv):
@@ -110,20 +107,12 @@ def main(argv):
 
 
 def add_scons_options(opts, env):
-    opts.Add(
-        "min_field_count_to_expand_input_structs",
-        "The min field count to expand input EOS Options structs (except 'ApiVersion' field).",
-        "3"
-    )
-    opts.Add(
-        "min_field_count_to_expand_callback_structs",
-        "The min field count to expand EOS CallbackInfo structs.",
-        "1"
-    )
+    opts.Add("min_field_count_to_expand_input_structs", "The min field count to expand input EOS Options structs (except 'ApiVersion' field).", "3")
+    opts.Add("min_field_count_to_expand_callback_structs", "The min field count to expand EOS CallbackInfo structs.", "1")
     opts.Add(
         BoolVariable(
             key="assume_only_one_local_user",
-            help="If true, the code generator will hide all \"LocalUserId\" of EOS API's filed/argument and automatically fill them internally.",
+            help='If true, the code generator will hide all "LocalUserId" of EOS API\'s filed/argument and automatically fill them internally.',
             default=False,
         )
     )
@@ -136,12 +125,14 @@ def print_help():
     print("min_field_count_to_expand_callback_structs: The min field count to expand CallbackInfo structs.")
     print("\tdefault:1")
     print("")
-    print("assume_only_one_local_user: If true, the code generator will hide all \"LocalUserId\" filed/argument and automatically fill them internally.")
+    print('assume_only_one_local_user: If true, the code generator will hide all "LocalUserId" filed/argument and automatically fill them internally.')
     print("\tdefault:false")
     print("")
 
 
-def generator_eos_interfaces(p_min_field_count_to_expand_input_structs: int = 3, p_min_field_count_to_expand_callback_structs: int = 1, p_assume_only_one_local_user: bool = False) -> None:
+def generator_eos_interfaces(
+    p_min_field_count_to_expand_input_structs: int = 3, p_min_field_count_to_expand_callback_structs: int = 1, p_assume_only_one_local_user: bool = False
+) -> None:
     global min_field_count_to_expand_input_structs
     global min_field_count_to_expand_callback_structs
     global assume_only_one_local_user
@@ -205,42 +196,39 @@ def _preprocess_docs():
         h_class = _convert_handle_class_name(h)
         for m in h_info["methods"]:
             doc_keyword_map_method[m] = {
-                "class" : h_class,
-                "name" : __convert_method_name(m, h),
+                "class": h_class,
+                "name": __convert_method_name(m, h),
             }
 
         for e in h_info["enums"]:
             doc_keyword_map_enum[e] = {
-                "class" : h_class,
-                "name" : _convert_enum_type(e),
+                "class": h_class,
+                "name": _convert_enum_type(e),
             }
 
             for e_member in h_info["enums"][e]["members"]:
                 doc_keyword_map_enum_member[e_member["name"]] = {
-                    "class" : h_class,
-                    "name" : _convert_enum_value(e_member["name"]),
+                    "class": h_class,
+                    "name": _convert_enum_value(e_member["name"]),
                 }
 
         for c in h_info["constants"]:
             as_method = _is_string_constant(c)
             doc_keyword_map_constant[c] = {
-                "class" : h_class,
-                "name" : _convert_constant_as_method_name(c) if as_method else _convert_constant_name(c),
+                "class": h_class,
+                "name": _convert_constant_as_method_name(c) if as_method else _convert_constant_name(c),
                 "as_method": as_method,
             }
 
         for cb in h_info["callbacks"]:
-            doc_keyword_map_callback[cb] = {
-                "class" : h_class,
-                "name" : __convert_to_signal_name(cb)
-            }
+            doc_keyword_map_callback[cb] = {"class": h_class, "name": __convert_to_signal_name(cb)}
 
     for s in structs:
         doc_keyword_map_struct[s] = __convert_to_struct_class(s)
 
     # 优化文档
     for struct in structs:
-        struct_info :dict = structs[struct]
+        struct_info: dict = structs[struct]
         struct_info["doc"] = _optimize_doc(struct_info["doc"])
 
         for field in struct_info["fields"]:
@@ -248,7 +236,7 @@ def _preprocess_docs():
             field_info["doc"] = _optimize_doc(field_info["doc"])
 
     for h in handles:
-        handle_info :dict = handles[h]
+        handle_info: dict = handles[h]
         handle_info["doc"] = _optimize_doc(handle_info["doc"])
 
         for m in handle_info["methods"]:
@@ -268,7 +256,6 @@ def _preprocess_docs():
         for c in handle_info["constants"]:
             c_info = handle_info["constants"][c]
             c_info["doc"] = _optimize_doc(c_info["doc"])
-
 
 
 def __remove_backslash_of_last_line(lines: list[str]) -> None:
@@ -689,7 +676,6 @@ def gen_enums(macro_suffix: str, handle_class: str, enums: dict) -> str:
         __remove_backslash_of_last_line(lines)
         lines.append("")
 
-
     # Bind macro
     lines.append(f"#define _BIND_ENUMS_{macro_suffix}()\\")
     for enum_type in enums:
@@ -850,7 +836,9 @@ def _make_notify_code(
     cb = _gen_callback(_decay_eos_type(callback_type), [])
     if "_EOS_METHOD_CALLBACK" in cb:
         if assume_only_one_local_user and _decay_eos_type(callback_type) in ["EOS_Connect_OnLoginStatusChangedCallback", "EOS_Auth_OnLoginStatusChangedCallback"]:
-            gd_id_type = _get_gd_type_of_local_user_id("LocalUserId", "EOS_ProductUserId" if _decay_eos_type(callback_type) == "EOS_Connect_OnLoginStatusChangedCallback" else "EOS_EpicAccountId")
+            gd_id_type = _get_gd_type_of_local_user_id(
+                "LocalUserId", "EOS_ProductUserId" if _decay_eos_type(callback_type) == "EOS_Connect_OnLoginStatusChangedCallback" else "EOS_EpicAccountId"
+            )
             cb = cb.replace("_EOS_METHOD_CALLBACK(", f"_CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK({gd_id_type}, ")
         else:
             cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
@@ -982,7 +970,7 @@ def _gen_handle(
     for constant in infos["constants"]:
         const_value = infos["constants"][constant]["value"]
         if _is_string_constant(const_value):
-            method_define_lines.append(f'\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}')
+            method_define_lines.append(f"\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}")
             has_string_constants = True
             _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"], {})
     if has_string_constants:
@@ -1021,12 +1009,12 @@ def _gen_handle(
             for sub_handle in handles[handle_name]["sub_handles"]:
                 get_method = handles[handle_name]["sub_handles"][sub_handle]
                 sub_handle_snake_name = to_snake_case(sub_handle.removeprefix("EOS_H")) + "_handle"
-                r_cpp_lines.append(f'#ifndef {_gen_disabled_macro(sub_handle)}')
+                r_cpp_lines.append(f"#ifndef {_gen_disabled_macro(sub_handle)}")
                 r_cpp_lines.append(f"\tif (m_handle) {{")
                 r_cpp_lines.append(f"\t\tauto {sub_handle_snake_name} = {get_method}(m_handle);")
-                r_cpp_lines.append(f'\t\t{_convert_handle_class_name(sub_handle)}::get_singleton()->set_handle({sub_handle_snake_name});')
+                r_cpp_lines.append(f"\t\t{_convert_handle_class_name(sub_handle)}::get_singleton()->set_handle({sub_handle_snake_name});")
                 r_cpp_lines.append(f"\t}}")
-                r_cpp_lines.append(f'#endif // {_gen_disabled_macro(sub_handle)}')
+                r_cpp_lines.append(f"#endif // {_gen_disabled_macro(sub_handle)}")
 
         if len(setup_notifies_lines):
             for line in setup_notifies_lines:
@@ -1145,13 +1133,12 @@ def _gen_handle(
         r_cpp_lines.append("\t_EOS_BING_VERSION_CONSTANTS()")
 
     if assume_only_one_local_user and handle_name in ["EOS_ProductUserId", "EOS_EpicAccountId"]:
-        r_cpp_lines.append(f'\t_CODE_SNIPPET_BINE_GET_LOCAL_ID({klass});')
+        r_cpp_lines.append(f"\t_CODE_SNIPPET_BINE_GET_LOCAL_ID({klass});")
 
     r_cpp_lines.append(f"}}")
 
     # 注册宏
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
-
 
     _insert_doc_class_brief(klass, infos["doc"])
     _insert_doc_class_description(klass)
@@ -1276,18 +1263,9 @@ def parse_all_file():
         "structs": {},
         "handles": {},
         "constants": {},
-        "interface_doc": []
+        "interface_doc": [],
     }
-    file_lower2infos["platform"] = {
-        "file": "eos_sdk",
-        "enums": {},
-        "methods": {},
-        "callbacks": {},
-        "structs": {},
-        "handles": {},
-        "constants": {},
-        "interface_doc": []
-    }
+    file_lower2infos["platform"] = {"file": "eos_sdk", "enums": {}, "methods": {}, "callbacks": {}, "structs": {}, "handles": {}, "constants": {}, "interface_doc": []}
 
     for f in os.listdir(sdk_include_dir):
         fp = os.path.join(sdk_include_dir, f)
@@ -1318,7 +1296,7 @@ def parse_all_file():
                 "structs": {},  # 最终为空
                 "handles": {},  # 最终为空
                 "constants": {},  # 最终为空
-                "interface_doc": [] # 最终为空
+                "interface_doc": [],  # 最终为空
             }
         _parse_file(interface_lower, fp, file_lower2infos)
 
@@ -1394,11 +1372,11 @@ def parse_all_file():
                 infos["methods"].pop(m)
 
         # 处理接口句柄文档
-        interface_doc :list[str] = file_lower2infos[il]["interface_doc"]
+        interface_doc: list[str] = file_lower2infos[il]["interface_doc"]
         if len(interface_doc):
-            interface_handle_type :str = ""
+            interface_handle_type: str = ""
             for i in range(len(interface_doc)):
-                l :str = interface_doc[i]
+                l: str = interface_doc[i]
                 if l.startswith("@see EOS_Platform_Get") and l.strip().endswith("Interface"):
                     interface_handle_type = l.removeprefix("@see EOS_Platform_Get").strip().removesuffix("Interface")
                     if interface_handle_type != "EOS":
@@ -1893,7 +1871,7 @@ def __get_struct_fields(type: str) -> dict[str, dict]:
 def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
     if len(method_name) <= 0:
         for infos in handles.values():
-            methods = infos["methods"] 
+            methods = infos["methods"]
             for m in methods:
                 for a in methods[m]["args"]:
                     if _decay_eos_type(a["type"]) == callback_type:
@@ -1922,10 +1900,10 @@ def __convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
 def _need_ignore_local_user_id_struct(struct_type: str) -> bool:
     struct_type = _decay_eos_type(struct_type)
     for prefix in [
-        "EOS_Achievements_", # 服务端可空 （TODO: 再看看， 如果不能查别人的就挪到下面去）
-        "EOS_Connect_", # 需要管理产品id的关联
-        "EOS_Auth_", # 需要管理账号的关联
-        ]:
+        "EOS_Achievements_",  # 服务端可空 （TODO: 再看看， 如果不能查别人的就挪到下面去）
+        "EOS_Connect_",  # 需要管理产品id的关联
+        "EOS_Auth_",  # 需要管理账号的关联
+    ]:
         if struct_type.startswith(prefix):
             return False
     return True
@@ -1933,14 +1911,17 @@ def _need_ignore_local_user_id_struct(struct_type: str) -> bool:
 
 def _need_check_null_local_user_id_struct(struct_type: str) -> bool:
     struct_type = _decay_eos_type(struct_type)
-    return not struct_type in [
-        "EOS_AntiCheatServer_BeginSessionOptions", # 服务器为空
-
-        "EOS_Connect_QueryProductUserIdMappingsOptions", # 服务器为空
-        "EOS_Stats_IngestStatOptions", # 服务器可空
-        "EOS_Stats_QueryStatsOptions", # 服务器可空
-    ] and not struct_type.startswith("EOS_TitleStorage_")\
+    return (
+        not struct_type
+        in [
+            "EOS_AntiCheatServer_BeginSessionOptions",  # 服务器为空
+            "EOS_Connect_QueryProductUserIdMappingsOptions",  # 服务器为空
+            "EOS_Stats_IngestStatOptions",  # 服务器可空
+            "EOS_Stats_QueryStatsOptions",  # 服务器可空
+        ]
+        and not struct_type.startswith("EOS_TitleStorage_")
         and not struct_type.startswith("EOS_Achievements_")
+    )
 
 
 def __convert_to_struct_class(struct_type: str) -> str:
@@ -1988,7 +1969,7 @@ def _gen_callback(
         else:
             ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
 
-        additional_doc :list[str] = []
+        additional_doc: list[str] = []
         if len(method) and signal_name.startswith("on_"):
             additional_doc.append(f"Callback of [method {method}].\n")
         _insert_doc_signal(handle, signal_name, infos["doc"], {}, additional_doc)
@@ -1997,7 +1978,7 @@ def _gen_callback(
         fields: dict[str, str] = __get_struct_fields(_decay_eos_type(arg_type))
 
         ## 检出不需要成为参数的字段
-        count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(_decay_eos_type(arg_type))
+        count_and_variant_type_fields: list[str] = __find_count_and_variant_type_fields_in_struct(_decay_eos_type(arg_type))
 
         ##
         ret: str = ""
@@ -2027,7 +2008,7 @@ def _gen_callback(
 
             snake_case_field = to_snake_case(field)
             if assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=arg_type):
-                continue # 不需要绑定该参数
+                continue  # 不需要绑定该参数
 
             if not ret.endswith(",\n\t\t\t"):
                 ret += ",\n\t\t\t"
@@ -2076,8 +2057,8 @@ def _gen_callback(
         # if len(signal_bind_args):
         #     signal_bind_args = ", " + signal_bind_args
         r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}"{signal_bind_args}));')
-        
-        additional_doc :list[str] = []
+
+        additional_doc: list[str] = []
         if len(method) and signal_name.startswith("on_"):
             additional_doc.append(f"Callback of [method {method}].\n")
         _insert_doc_signal(handle, signal_name, infos["doc"], expanded_args_doc, additional_doc)
@@ -2149,7 +2130,7 @@ def __get_str_arr_element_type(str_arr_type: str) -> str:
 
 
 def __expand_input_struct(
-    handle_klass: str, 
+    handle_klass: str,
     snake_method_name: str,
     arg_type: str,
     arg_name: str,
@@ -2160,7 +2141,7 @@ def __expand_input_struct(
     r_prepare_lines: list[str],
     r_after_call_lines: list[str],
     r_bind_def_vals: list[str],
-    r_required_arg_doc: dict[str, list[str]], # 字段 -> 文档
+    r_required_arg_doc: dict[str, list[str]],  # 字段 -> 文档
 ):
     decayed_type = _decay_eos_type(arg_type)
 
@@ -2205,9 +2186,11 @@ def __expand_input_struct(
         if assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(decayed_type):
             interface_class = _get_login_interface_of_local_user_id(field, field_type)
             if _need_check_null_local_user_id_struct(field_type):
-                r_prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
+                r_prepare_lines.append(
+                    f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}'
+                )
             r_prepare_lines.append(f"\t{options_field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
-            continue # 不需要绑定该参数
+            continue  # 不需要绑定该参数
 
         r_bind_args.append(f'"{snake_field}"')
 
@@ -2594,7 +2577,7 @@ def _gen_method(
 
     bind_def_vals: list[str] = []
 
-    expended_args_doc: dict[str, list[str]] = {}# 字段 -> doc
+    expended_args_doc: dict[str, list[str]] = {}  # 字段 -> doc
     additional_doc: list[str] = []
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
@@ -2681,7 +2664,9 @@ def _gen_method(
                 call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
         elif assume_only_one_local_user and _is_local_user_id(name):
             interface_class = _get_login_interface_of_local_user_id(name, type)
-            prepare_lines.append(f'\tif({_get_gd_type_of_local_user_id(name, type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
+            prepare_lines.append(
+                f'\tif({_get_gd_type_of_local_user_id(name, type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Call \\"{handle_klass}.{snake_method_name}()\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}'
+            )
             prepare_lines.append(f"\t{type} {name} = {_get_gd_type_of_local_user_id(name, type)}::_get_local_native();")
             call_args.append(name)
         elif __is_method_input_only_struct(decayed_type) and not _is_expanded_struct(decayed_type):
@@ -2697,7 +2682,7 @@ def _gen_method(
             declare_args.append(f"const {remap_type(decayed_type, name)}& p_{snake_name}")
 
             prepare_lines.append(f"\tauto &{options_prepare_identifier} = p_{snake_name}->to_eos();")
-            
+
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"&{options_prepare_identifier}")
         elif __is_method_input_only_struct(decayed_type) and _is_expanded_struct(decayed_type):
@@ -2706,7 +2691,20 @@ def _gen_method(
                 options_input_identifier = f"p_{snake_name} "
                 options_prepare_identifier = f"{name}"
             # 被展开的输入结构体（Options）
-            __expand_input_struct(handle_klass, snake_method_name, type, name, invalid_arg_return_val, declare_args, call_args, bind_args, prepare_lines, after_call_lines, bind_def_vals, expended_args_doc)
+            __expand_input_struct(
+                handle_klass,
+                snake_method_name,
+                type,
+                name,
+                invalid_arg_return_val,
+                declare_args,
+                call_args,
+                bind_args,
+                prepare_lines,
+                after_call_lines,
+                bind_def_vals,
+                expended_args_doc,
+            )
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             # Out 参数
             converted_return_type: list[str] = []
@@ -2880,67 +2878,64 @@ def _gen_method(
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_include_dir, "eos_result.h"), "r")
-    lines :list[str] = f.readlines()
+    lines: list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = {
-        "doc" : "",
-        "members" : []
-    }
+    r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"] = {"doc": "", "members": []}
 
     for i in range(len(lines)):
-        line :str = lines[i]
+        line: str = lines[i]
         if not line.startswith("EOS_RESULT_VALUE"):
             continue
-        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"]["members"].append({
-            "doc": _extract_doc(lines, i - 1),
-            "name": line.split("(", 1)[1].split(", ", 1)[0],
-        })
+        r_file_lower2infos[_convert_to_interface_lower("eos_common.h")]["enums"]["EOS_EResult"]["members"].append(
+            {
+                "doc": _extract_doc(lines, i - 1),
+                "name": line.split("(", 1)[1].split(", ", 1)[0],
+            }
+        )
 
     f.close()
 
 
 def _get_EOS_UI_EKeyCombination(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_include_dir, "eos_ui_keys.h"), "r")
-    lines :list[str] = f.readlines()
+    lines: list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = {
-        "doc" : "",
-        "members" : []
-    }
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"] = {"doc": "", "members": []}
 
     for i in range(len(lines)):
-        line :str = lines[i]
+        line: str = lines[i]
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splits = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"]["members"].append({
-            "doc" : _extract_doc(lines, i - 1),
-            "name" : splits[0] + splits[1],
-        })
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EKeyCombination"]["members"].append(
+            {
+                "doc": _extract_doc(lines, i - 1),
+                "name": splits[0] + splits[1],
+            }
+        )
 
     f.close()
 
 
 def _get_EOS_UI_EInputStateButtonFlags(r_file_lower2infos: list[str]):
     f = open(os.path.join(sdk_include_dir, "eos_ui_buttons.h"), "r")
-    lines :list[str] = f.readlines()
+    lines: list[str] = f.readlines()
 
-    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = {
-        "doc" : "",
-        "members" : []
-    }
+    r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"] = {"doc": "", "members": []}
 
     for i in range(len(lines)):
-        line :str = lines[i]
+        line: str = lines[i]
         if not line.startswith("EOS_UI_KEY_"):
             continue
 
         splits = line.split("(", 1)[1].rsplit(")")[0].split(", ")
-        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"]["members"].append({
-            "doc" : _extract_doc(lines, i - 1),
-            "name" : splits[0] + splits[1],
-        })
+        r_file_lower2infos[_convert_to_interface_lower("eos_ui_types.h")]["enums"]["EOS_UI_EInputStateButtonFlags"]["members"].append(
+            {
+                "doc": _extract_doc(lines, i - 1),
+                "name": splits[0] + splits[1],
+            }
+        )
 
     f.close()
 
@@ -3180,8 +3175,8 @@ def _is_expanded_struct(struct_type: str) -> bool:
         "EOS_PlayerDataStorage_WriteFileOptions",
         "EOS_PlayerDataStorage_ReadFileOptions",
         "EOS_TitleStorage_ReadFileOptions",
-        "EOS_Connect_LoginCallbackInfo", # PackedPeerMediator 中使用
-        "EOS_Connect_LoginStatusChangedCallbackInfo", # EOSPacketPeerMediator 中使用
+        "EOS_Connect_LoginCallbackInfo",  # PackedPeerMediator 中使用
+        "EOS_Connect_LoginStatusChangedCallbackInfo",  # EOSPacketPeerMediator 中使用
         "EOS_Auth_LoginCallbackInfo",
     ]:
         return False
@@ -3382,7 +3377,12 @@ def _make_additional_method_requirements():
     # 检出应该被展开为参数的结构体
     for struct_type in structs:
         fields = __get_struct_fields(struct_type)
-        field_count = len(fields) - (1 if "ClientData" in fields else 0) - (1 if "ApiVersion" in fields else 0) - (1 if assume_only_one_local_user and "LocalUserId" in fields and _need_ignore_local_user_id_struct(struct_type) else 0)
+        field_count = (
+            len(fields)
+            - (1 if "ClientData" in fields else 0)
+            - (1 if "ApiVersion" in fields else 0)
+            - (1 if assume_only_one_local_user and "LocalUserId" in fields and _need_ignore_local_user_id_struct(struct_type) else 0)
+        )
         if min_field_count_to_expand_input_structs > 0 and field_count <= min_field_count_to_expand_input_structs and __is_method_input_only_struct(struct_type):
             expanded_as_args_structs.append(struct_type)
         if min_field_count_to_expand_callback_structs > 0 and field_count <= min_field_count_to_expand_callback_structs and __is_callback_output_only_struct(struct_type):
@@ -3431,7 +3431,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                             break
 
                     if len(lines[j].strip()) == 0:
-                        doc :list[str] = _extract_doc(lines, j - 1)
+                        doc: list[str] = _extract_doc(lines, j - 1)
                         if len(doc) <= 0:
                             # 非文档尾随空行，跳出
                             break
@@ -3445,7 +3445,6 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         i = j
                         r_file_lower2infos[interface_lower]["interface_doc"] = doc
                         break
-
 
         # ApiVersion 宏
         if line.startswith("#define EOS_") and "_API_LATEST" in line:
@@ -3466,10 +3465,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                 for j in range(len(splits)):
                     splits[j] = splits[j].strip()
                 if not _is_deprecated_constant(splits[0]) and not _is_need_skip_constant(splits[0]):
-                    r_file_lower2infos[interface_lower]["constants"][splits[0]] = {
-                        "doc": _extract_doc(lines, i - 1),
-                        "value": splits[1]
-                    }
+                    r_file_lower2infos[interface_lower]["constants"][splits[0]] = {"doc": _extract_doc(lines, i - 1), "value": splits[1]}
 
         # 句柄类型
         if "typedef struct " in line:  #  and "Handle*" in line
@@ -3492,10 +3488,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
         ]:
             enum_type = line.split("(")[1].rsplit(",")[0]
 
-            r_file_lower2infos[interface_lower]["enums"][enum_type] = {
-                "doc": _extract_doc(lines, i - 1),
-                "members": []
-            }
+            r_file_lower2infos[interface_lower]["enums"][enum_type] = {"doc": _extract_doc(lines, i - 1), "members": []}
 
             i += 1
             while not lines[i].startswith(");"):
@@ -3505,10 +3498,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     continue
 
                 splits = line.split(" = ")
-                r_file_lower2infos[interface_lower]["enums"][enum_type]["members"].append({
-                    "doc": _extract_doc(lines, i - 1),
-                    "name": splits[0]
-                })
+                r_file_lower2infos[interface_lower]["enums"][enum_type]["members"].append({"doc": _extract_doc(lines, i - 1), "name": splits[0]})
                 i += 1
 
             i += 1
@@ -3576,10 +3566,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
         # 结构体
         elif line.startswith("EOS_STRUCT"):
             struct_name = line.lstrip("EOS_STRUCT").lstrip("(").rstrip("\n").rstrip(", (")
-            r_file_lower2infos[interface_lower]["structs"][struct_name] = {
-                "doc": _extract_doc(lines, i - 1),
-                "fields": {}
-            }
+            r_file_lower2infos[interface_lower]["structs"][struct_name] = {"doc": _extract_doc(lines, i - 1), "fields": {}}
 
             i += 1
 
@@ -3615,10 +3602,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                     union_type = union_type.rstrip(" ").rstrip(",") + "}"
 
                     field = lines[i].lstrip("\t").lstrip("}").lstrip(" ").rstrip("\n").rstrip(";")
-                    r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][field] = {
-                        "doc": doc,
-                        "type": union_type
-                    }
+                    r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][field] = {"doc": doc, "type": union_type}
                 else:
                     # Regular
                     splits = line.rsplit(" ", 1)
@@ -3626,10 +3610,7 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
                         print(f"ERROR: {fp}:{i}\n")
                         print(f"{lines[i]}")
                     else:
-                        r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][splits[1]] = {
-                            "doc": doc,
-                            "type": splits[0]
-                        }
+                        r_file_lower2infos[interface_lower]["structs"][struct_name]["fields"][splits[1]] = {"doc": doc, "type": splits[0]}
 
                 i += 1
 
@@ -3646,9 +3627,9 @@ def _parse_file(interface_lower: str, fp: str, r_file_lower2infos: dict[str, dic
 
 
 def _extract_doc(lines: list[str], idx: int) -> list[str]:
-    doc :list[str] = []
+    doc: list[str] = []
     while idx >= 0:
-        line :str = lines[idx].lstrip("\t")
+        line: str = lines[idx].lstrip("\t")
 
         valid = False
         for prefix in [" */", "//", "/**", " *"]:
@@ -3697,14 +3678,14 @@ def _extract_doc(lines: list[str], idx: int) -> list[str]:
 
 def _optimize_doc(doc: list[str]) -> list[str]:
     # 拼接: TODO 在所有信息处理后再进行(需要判断 _Options是否被展开)
-    ret :list[str] = []
-    in_details :bool = False
+    ret: list[str] = []
+    in_details: bool = False
     for i in range(len(doc)):
         # 特殊处理
         if doc[i].lstrip().startswith("@"):
             line = doc[i].lstrip()
             if line.startswith("@see"):
-                see_type :str =  line.removeprefix("@see").strip()
+                see_type: str = line.removeprefix("@see").strip()
                 if see_type.endswith("_Release"):
                     # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
                     continue
@@ -3919,7 +3900,7 @@ def _is_local_user_id(field: str) -> bool:
 
 def _get_login_interface_of_local_user_id(field: str, eos_type: str) -> str:
     _assert(_is_local_user_id(field))
-    interface_lower :str = ""
+    interface_lower: str = ""
     if _decay_eos_type(eos_type) == "EOS_ProductUserId":
         interface_lower = "eos_connect"
     else:
@@ -3937,7 +3918,7 @@ def _is_enum_flags_type(type: str) -> bool:
 
 
 def __find_count_and_variant_type_fields_in_struct(struct_type: bool) -> list[str]:
-    ret :list[str] = []
+    ret: list[str] = []
     fields: dict[str, dict[str, str]] = structs[struct_type]["fields"]
     for field in fields.keys():
         if is_deprecated_field(field):
@@ -3971,7 +3952,7 @@ def _gen_struct_v2(
     bind_lines: list[str] = []
 
     #
-    count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(struct_type)
+    count_and_variant_type_fields: list[str] = __find_count_and_variant_type_fields_in_struct(struct_type)
 
     additional_methods_requirements = struct2additional_method_requirements[struct_type]
 
@@ -4016,9 +3997,11 @@ def _gen_struct_v2(
         elif assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=struct_type):
             if struct_type == "EOS_Connect_LoginCallbackInfo":
                 # 特殊处理
-                setget_declare_lines.append(f'\tRef<class {_convert_handle_class_name(type)}> get_local_user_id() const;')
-                setget_define_lines.append(f'Ref<{_convert_handle_class_name(type)}> {__convert_to_struct_class(struct_type)}::get_local_user_id() const {{ return eos::{_get_gd_type_of_local_user_id(field, type)}::get_local(); }}')
-            continue # 假定只有一个本地用户时不生产该字段
+                setget_declare_lines.append(f"\tRef<class {_convert_handle_class_name(type)}> get_local_user_id() const;")
+                setget_define_lines.append(
+                    f"Ref<{_convert_handle_class_name(type)}> {__convert_to_struct_class(struct_type)}::get_local_user_id() const {{ return eos::{_get_gd_type_of_local_user_id(field, type)}::get_local(); }}"
+                )
+            continue  # 假定只有一个本地用户时不生产该字段
         elif remapped_type == "bool":
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_field_name})")
             member_lines.append(f"\tbool {snake_field_name}{{}};")
@@ -4230,7 +4213,9 @@ def _gen_struct_v2(
             elif assume_only_one_local_user and _is_local_user_id(field) and _need_ignore_local_user_id_struct(struct_type=struct_type):
                 # 假定只有一个本地用户时不生成该字段,仅做检查
                 if _need_check_null_local_user_id_struct(struct_type):
-                    r_structs_cpp.append(f'\tif(!{_get_gd_type_of_local_user_id(field, field_type)}::_is_valid_local_id(p_origin.{field})) {{ ERR_PRINT("The local user id in output struct is not compatible with existing local user!!"); }}')
+                    r_structs_cpp.append(
+                        f'\tif(!{_get_gd_type_of_local_user_id(field, field_type)}::_is_valid_local_id(p_origin.{field})) {{ ERR_PRINT("The local user id in output struct is not compatible with existing local user!!"); }}'
+                    )
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
                 if additional_methods_requirements["set_to"]:
                     r_structs_cpp.append(f"\tmemcpy(&{snake_case_field}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
@@ -4304,7 +4289,9 @@ def _gen_struct_v2(
                     # 假定只有一个本地用户时不生成该字段,从静态变量中查找
                     interface_class = _get_login_interface_of_local_user_id(field, type)
                     if _need_check_null_local_user_id_struct(struct_type):
-                        r_structs_cpp.append(f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Setup \\"{typename}\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}')
+                        r_structs_cpp.append(
+                            f'\tif({_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native() == nullptr) {{ ERR_PRINT("Setup \\"{typename}\\" failed: has not local user, please login by using \\"{interface_class}.login()\\" first."); }}'
+                        )
                     r_structs_cpp.append(f"\tp_data.{field} = {_get_gd_type_of_local_user_id(field, field_type)}::_get_local_native();")
                 elif __is_api_version_field(field_type, field):
                     r_structs_cpp.append(f"\tp_data.{field} = {__get_api_latest_macro(struct_type)};")
@@ -4390,13 +4377,11 @@ def _gen_struct_v2(
                         r_structs_cpp.append(
                             f"\t\t\treturn godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data, r_data_buffer, r_data_written);"
                         )
-                    elif field_type ==  "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
+                    elif field_type == "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
                         r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
                     elif field_type == "EOS_TitleStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);"
-                        )
-                    elif field_type ==  "EOS_TitleStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_TitleStorage_OnFileTransferProgressCallback":
                         r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
                     else:
                         print("ERROR: ", field_type)
@@ -4405,13 +4390,9 @@ def _gen_struct_v2(
                     r_structs_cpp.append("#else")
 
                     if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                     elif field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\tp_data.{field} = ({field_type})&godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
-                        )
+                        r_structs_cpp.append(f"\tp_data.{field} = ({field_type})&godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                     elif field_type == "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
                         r_structs_cpp.append(
                             f"\tp_data.{field} = ({field_type})&godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;"
@@ -4461,14 +4442,14 @@ def _get_callback_infos(callback_type: str) -> dict:
 
 
 def _get_callback_infos_v2(callback_type: str) -> tuple[dict, str, str]:
-    info :dict = []
-    handle :str = ""
-    method :str = ""
+    info: dict = []
+    handle: str = ""
+    method: str = ""
     for h in handles:
         callbacks = handles[h]["callbacks"]
         for cb in callbacks:
             if cb == callback_type:
-                info =  callbacks[cb]
+                info = callbacks[cb]
                 handle = h
                 break
         if len(handle):
@@ -4490,7 +4471,7 @@ def _get_callback_infos_v2(callback_type: str) -> tuple[dict, str, str]:
 
 def __make_callback_doc(callback_type: str) -> list[str]:
     info = _get_callback_infos(callback_type)
-    ret :list[str] = []
+    ret: list[str] = []
 
     for arg in info["args"]:
         name = arg["name"]
@@ -4503,14 +4484,14 @@ def __make_callback_doc(callback_type: str) -> list[str]:
         else:
             arg_fields = __get_struct_fields(decayed_type)
 
-            count_and_variant_type_fields :list[str] = __find_count_and_variant_type_fields_in_struct(decayed_type)
+            count_and_variant_type_fields: list[str] = __find_count_and_variant_type_fields_in_struct(decayed_type)
             for f in arg_fields:
                 if _is_client_data_field(type, f):
-                    continue # 跳过这个特殊字段
+                    continue  # 跳过这个特殊字段
                 # 处理要跳过的字段
                 if f in count_and_variant_type_fields:
                     # 跳过其中Godot不需要的字段
-                    continue 
+                    continue
                 info = arg_fields[f]
                 f_type = _decay_eos_type(info["type"])
                 ret.append(f"{f}: {f_type}\n")
@@ -4521,19 +4502,19 @@ def __make_callback_doc(callback_type: str) -> list[str]:
 
 
 def _insert_doc_class_description(typename: str, doc: list[str] = []):
-    lines :list[str] = __get_doc_file(typename=typename)
+    lines: list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
 
-    insert_idx : int = -1
-    indent_count : int = 0 
+    insert_idx: int = -1
+    indent_count: int = 0
     for i in range(len(lines)):
         line = lines[i]
         indent_count = 0
         while line.startswith("\t"):
             indent_count += 1
             line = line.removeprefix("\t")
-        if line.startswith(f'<description>'):
+        if line.startswith(f"<description>"):
             insert_idx = i + 1
             indent_count += 1
             break
@@ -4559,19 +4540,19 @@ def _insert_doc_class_description(typename: str, doc: list[str] = []):
 
 
 def _insert_doc_class_brief(typename: str, doc: list[str]):
-    lines :list[str] = __get_doc_file(typename=typename)
+    lines: list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
 
-    insert_idx : int = -1
-    indent_count : int = 0 
+    insert_idx: int = -1
+    indent_count: int = 0
     for i in range(len(lines)):
         line = lines[i]
         indent_count = 0
         while line.startswith("\t"):
             indent_count += 1
             line = line.removeprefix("\t")
-        if line.startswith(f'<brief_description>'):
+        if line.startswith(f"<brief_description>"):
             insert_idx = i + 1
             indent_count += 1
             break
@@ -4592,12 +4573,12 @@ def _insert_doc_class_brief(typename: str, doc: list[str]):
 
 
 def _insert_doc_property(typename: str, prop: str, doc: list[str]):
-    lines :list[str] = __get_doc_file(typename=typename)
+    lines: list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
 
-    insert_idx : int = -1
-    indent_count : int = 0 
+    insert_idx: int = -1
+    indent_count: int = 0
     for i in range(len(lines)):
         line = lines[i]
         indent_count = 0
@@ -4625,12 +4606,12 @@ def _insert_doc_property(typename: str, prop: str, doc: list[str]):
 
 
 def _insert_doc_constant(typename: str, constant: str, doc: list[str]):
-    lines :list[str] = __get_doc_file(typename=typename)
+    lines: list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
 
-    insert_idx : int = -1
-    indent_count : int = 0 
+    insert_idx: int = -1
+    indent_count: int = 0
     for i in range(len(lines)):
         line = lines[i]
 
@@ -4668,12 +4649,12 @@ def _insert_doc_signal(typename: str, signal: str, doc: list[str], additional_ar
 
 
 def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str], additional_args_doc: dict[str, list[str]], additional_doc: list[str] = []):
-    lines :list[str] = __get_doc_file(typename=typename)
+    lines: list[str] = __get_doc_file(typename=typename)
     if len(lines) == 0:
         return
 
-    insert_idx : int = -1
-    indent_count : int = 0 
+    insert_idx: int = -1
+    indent_count: int = 0
     for i in range(len(lines)):
         line = lines[i]
         if line.lstrip("\t").startswith(f'<{tag} name="{name}"'):
@@ -4731,12 +4712,12 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
 
 
 def __get_sorted_descending_keys(d) -> list[str]:
-    ret : list[str] = []
+    ret: list[str] = []
     for k in d:
         ret.append(k)
 
     ret.sort(key=len, reverse=True)
-    return ret        
+    return ret
 
 
 def __convert_prefix_tab(line: str) -> str:
@@ -4756,26 +4737,26 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             # 替换选项类关键字
             m_options = m + "Options"
             if line.count(m_options) > 0:
-                mapped :dict = f"[{doc_keyword_map_struct[m_options]}]"
+                mapped: dict = f"[{doc_keyword_map_struct[m_options]}]"
                 line = line.replace(m_options, mapped)
                 # print("rp s: ", typename, m_options, mapped)
 
             # 替换回调参数信息
             m_callback_info = m + "CallbackInfo"
             if line.count(m_callback_info) > 0:
-                mapped :dict = f"[{doc_keyword_map_struct[m_callback_info]}]"
+                mapped: dict = f"[{doc_keyword_map_struct[m_callback_info]}]"
                 line = line.replace(m_callback_info, mapped)
                 # print("rp cb_info: ", typename, m_callback_info, mapped)
 
             # 替换回调关键字
             splits = m.split("_")
-            splits[len(splits) -1] = "On" + splits[len(splits) -1] + "Callback"
+            splits[len(splits) - 1] = "On" + splits[len(splits) - 1] + "Callback"
             m_callback = "_".join(splits)
             if line.count(m_callback) > 0:
-                data :dict[str, str]= doc_keyword_map_callback[m_callback]
-                klass :str = data["class"]
-                name :str = data["name"]
-                replace_keyword :str = ""
+                data: dict[str, str] = doc_keyword_map_callback[m_callback]
+                klass: str = data["class"]
+                name: str = data["name"]
+                replace_keyword: str = ""
                 if klass == typename:
                     replace_keyword = f"[signal {name}]"
                 else:
@@ -4785,10 +4766,10 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 
             # 替换函数关键字
             if line.count(m) > 0:
-                data :dict[str, str]= doc_keyword_map_method[m]
-                klass :str = data["class"]
-                name :str = data["name"]
-                replace_keyword :str = ""
+                data: dict[str, str] = doc_keyword_map_method[m]
+                klass: str = data["class"]
+                name: str = data["name"]
+                replace_keyword: str = ""
                 if klass == typename:
                     replace_keyword = f"[method {name}]"
                 else:
@@ -4801,10 +4782,10 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             if line.count(em) <= 0:
                 continue
 
-            data :dict[str, str] = doc_keyword_map_enum_member[em]
-            klass :str = data["class"]
-            name :str = data["name"]
-            replace_keyword :str = ""
+            data: dict[str, str] = doc_keyword_map_enum_member[em]
+            klass: str = data["class"]
+            name: str = data["name"]
+            replace_keyword: str = ""
             if klass == typename:
                 replace_keyword = f"[constant {name}]"
             else:
@@ -4817,10 +4798,10 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             if line.count(e) <= 0:
                 continue
 
-            data : dict[str, str] = doc_keyword_map_enum[e]
-            klass :str = data["class"]
-            name :str = data["name"]
-            replace_keyword :str = ""
+            data: dict[str, str] = doc_keyword_map_enum[e]
+            klass: str = data["class"]
+            name: str = data["name"]
+            replace_keyword: str = ""
             if klass == typename:
                 replace_keyword = f"[enum {name}]"
             else:
@@ -4833,11 +4814,11 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             if line.count(c) <= 0:
                 continue
 
-            data :dict = doc_keyword_map_constant[c]
-            klass :str = data["class"]
-            name :str = data["name"]
-            as_method:str = data["as_method"]
-            replace_keyword :str = ""
+            data: dict = doc_keyword_map_constant[c]
+            klass: str = data["class"]
+            name: str = data["name"]
+            as_method: str = data["as_method"]
+            replace_keyword: str = ""
             if as_method:
                 if klass == typename:
                     replace_keyword = f"[method {name}]"
@@ -4856,7 +4837,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
             if line.count(s) <= 0:
                 continue
 
-            mapped :dict = f"[{doc_keyword_map_struct[s]}]"
+            mapped: dict = f"[{doc_keyword_map_struct[s]}]"
             line = line.replace(s, mapped)
             # print("rp s: ", typename, s, mapped)
 
@@ -4867,7 +4848,7 @@ def __insert_doc_to(typename: str, lines: list[str], insert_idx: int, doc: list[
 def __get_doc_file(typename: str) -> list[str]:
     try:
         f = open(os.path.join("./doc_classes", typename) + ".xml", "r", encoding="utf-8")
-        ret :list[str] = f.readlines()
+        ret: list[str] = f.readlines()
         f.close()
         return ret
     except:

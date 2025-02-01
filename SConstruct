@@ -16,7 +16,9 @@ opts.Update(env)
 Help(opts.GenerateHelpText(env))
 
 # 生成
-eos_code_generator.generator_eos_interfaces(int(env["min_field_count_to_expand_input_structs"]), int(env["min_field_count_to_expand_callback_structs"]), env["assume_only_one_local_user"])
+eos_code_generator.generator_eos_interfaces(
+    int(env["min_field_count_to_expand_input_structs"]), int(env["min_field_count_to_expand_callback_structs"]), env["assume_only_one_local_user"]
+)
 
 lib_name = "libgdeos"
 
