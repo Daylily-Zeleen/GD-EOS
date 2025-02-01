@@ -1,23 +1,40 @@
 name: 🛠️ Builds
+
 on:
-    workflow_dispatch:
-    push:
-        branches:
-            - main
+  workflow_call:
+    secrets:
+      PRIVATE_EOS_SDK_TOKEN:
+        description: 'A token passed from the caller workflow'
+        required: true
+    inputs:
+      compatibility_minimum:
+        description: The minimum godot version, ('4.2' is fine, but use '4.3' will add editor help).
+        default: '4.3'
+        required: true
+        type: string
+      additional_sconsflags:
+        description: Additional compile flags to use with scons.
+        default: ''
+        required: false
+        type: string
+      artifact_suffix:
+        description: Additional artifact suffix.
+        default: ''
+        required: false
+        type: string
 
 env:
   GODOT_BRANCH_FOR_GENERATE_DOCUMENTS: 4.3-stable
 
 jobs:
     build:
-        name: ${{ matrix.icon }} ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ matrix.compatibility_minimum }})
+        name: ${{ matrix.icon }} ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ inputs.compatibility_minimum }})
         runs-on: ${{ matrix.runner }}
         strategy:
             fail-fast: false
             matrix:
                 identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64, 🏁Windows-x86, 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
                 target: [debug, release]
-                compatibility_minimum: [4.2, 4.3]
                 include:
                     - identifier: 🐧Linux-x64
                       runner: ubuntu-20.04
@@ -88,12 +105,12 @@ jobs:
               run: |
                 python build_version.py >> $env:GITHUB_ENV
 
-            - name: Checkout godot-cpp (${{ matrix.compatibility_minimum }})
+            - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
               uses: actions/checkout@v4
               with:
                   repository: godotengine/godot-cpp
                   path: godot-cpp
-                  ref: godot-${{ matrix.compatibility_minimum }}-stable
+                  ref: godot-${{ inputs.compatibility_minimum }}-stable
                   submodules: recursive
 
             - name: Checkout private EOS SDK repo
@@ -144,10 +161,10 @@ jobs:
                   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
                   SCONS_CACHE_LIMIT: 7168
               run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
+                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }}
 
             - name: (4.3 && Debug && Windows) Download Godot and generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
+              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
               shell: sh
               run: |
                 @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
@@ -158,7 +175,7 @@ jobs:
                 $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug && Macos) Download Godot and generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
+              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
               run: |
                 wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
                 unzip -a Godot.zip
@@ -166,7 +183,7 @@ jobs:
                 $(pwd)/Godot.app/Contents/MacOS/Godot --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug && Other) Download Godot
-              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
               run: |
                 wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
                 unzip -a Godot.zip
@@ -174,52 +191,44 @@ jobs:
                 echo "GODOT=$(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}" >> $GITHUB_ENV
 
             - name: (4.3 && Debug && other) Generate documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
               run: |
                 $GODOT --path demo --doctool .. --gdextension-docs
 
             - name: (4.3 && Debug) Compile extension with documents
-              if: ${{ matrix.compatibility_minimum == 4.3 && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
+              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
               shell: sh
               env:
                   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
                   SCONS_CACHE_LIMIT: 7168
               run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}'
+                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }}
 
-            - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}
+            - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
               shell: sh
               run: |
-                  mkdir -p '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}/artifact/${{ github.event.repository.name }}/'
+                  mkdir -p '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
 
             - name: Create artifact folder for all in one.
               shell: sh
               run: |
-                  mkdir -p '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
+                  mkdir -p '${{ github.workspace }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
 
-            - name: Copy addons folder to artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}
+            - name: Copy addons folder to artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
               shell: sh
               run: |
-                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}/artifact/${{ github.event.repository.name }}/'
+                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
 
             - name: Copy addons folder to artifact folder
               shell: sh
               run: |
-                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/artifact/${{ github.event.repository.name }}/'
+                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
 
-            - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}
-              uses: actions/upload-artifact@v3
+            - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
+              uses: actions/upload-artifact@v4
               with:
-                  name: ${{ github.event.repository.name }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ env.BUILD_VERSION }}(min-godot-${{ matrix.compatibility_minimum }})-${{ github.sha }}
+                  name: ${{ github.event.repository.name }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ env.BUILD_VERSION }}(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ github.sha }}
                   path: |
-                      ${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ matrix.compatibility_minimum }}/artifact/
+                      ${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/
                   retention-days: 14
 
-            - name: Upload artifact
-              uses: actions/upload-artifact@v3
-              with:
-                  name: ${{ github.event.repository.name }}-all-platforms-${{ env.BUILD_VERSION }}(min-godot-${{ matrix.compatibility_minimum }})-${{ github.sha }}
-                  path: |
-                      ${{ github.workspace }}/artifact/
-                  retention-days: 14
-                  if-no-files-found: error
