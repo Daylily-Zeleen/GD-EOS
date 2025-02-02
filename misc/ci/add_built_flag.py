@@ -6,6 +6,10 @@ import sys, os
 if __name__ == "__main__":
     args = sys.argv[1:]
 
-    flag_count: int = 0
+    os.makedirs(args[0], 0o777, True)
 
-    os.open(os.path.join(args[0], f"{args[1]}.built_flag"))
+    flag_count: int = 0
+    flag_file = args[1] + "_built_flag.txt"
+    flag_file = os.path.join(args[0], flag_file)
+
+    open(flag_file, "w").close()

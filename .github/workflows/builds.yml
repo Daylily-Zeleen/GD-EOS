@@ -30,10 +30,14 @@ jobs:
     build:
         name: ${{ matrix.icon }} ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ inputs.compatibility_minimum }})
         runs-on: ${{ matrix.runner }}
+        defaults:
+          run:
+            working-directory: ${{ github.workspace }}
+
         strategy:
             fail-fast: false
             matrix:
-                identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64, 🏁Windows-x86, 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
+                identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
                 target: [debug, release]
                 include:
                     - identifier: 🐧Linux-x64
@@ -46,16 +50,17 @@ jobs:
                       platform: macos
                       arch: universal
                       godot_editor_suffix: macos.universal
-                    - identifier: 🏁Windows-x64
+                    - identifier: 🏁Windows-x64 (clang)
                       runner: windows-latest
                       platform: windows
+                      flags: use_clang_cl=yes
                       arch: x86_64
                       godot_editor_suffix: win64.exe
-                    - identifier: 🏁Windows-x86
+                    - identifier: 🏁Windows-x86 (msvc)
                       runner: windows-latest
                       platform: windows
                       arch: x86_32
-                      godot_editor_suffix:
+                      godot_editor_suffix: ''
                     - identifier: 🤖Android-arm64
                       runner: ubuntu-20.04
                       platform: android
@@ -95,16 +100,6 @@ jobs:
               with:
                   submodules: false
 
-            - name: Setup version
-              if: ${{ matrix.platform != 'windows' }}
-              run: |
-                python build_version.py >> $GITHUB_ENV
-
-            - name: Setup version (Windows)
-              if: ${{ matrix.platform == 'windows' }}
-              run: |
-                python build_version.py >> $env:GITHUB_ENV
-
             - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
               uses: actions/checkout@v4
               with:
@@ -120,11 +115,6 @@ jobs:
                   repository: Daylily-Zeleen/eos-sdk
                   path: thirdparty/eos-sdk
                   ref: main
-
-            - name: (Windows) Install mingw64
-              if: ${{ matrix.platform == 'windows' }}
-              # change to egor-tensin/setup-mingw@v2 once pr #16 is merged
-              uses: e-t-l/setup-mingw@patch-1
 
             - name: (Linux) Install dependencies
               if: ${{ matrix.platform == 'linux' }}
@@ -147,21 +137,18 @@ jobs:
             - name: Setup build cache
               uses: actions/cache@v4
               with:
-                  path: ${{ github.workspace }}/.scons-cache/
-                  key: ${{ matrix.identifier }}-${{ matrix.target }}
-                  #   key: ${{ matrix.identifier }}-${{ github.ref }}
-                  restore-keys: |
-                      #   ${{ matrix.identifier }}-${{ matrix.target }}-${{ github.ref }}
-                        ${{ matrix.identifier }}-${{ matrix.target }}
+                  path: ./.scons-cache/
+                  key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
+                  restore-keys: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
               continue-on-error: true
 
             - name: Compile extension
               shell: sh
               env:
-                  SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
+                  SCONS_CACHE: ./.scons-cache/
                   SCONS_CACHE_LIMIT: 7168
               run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }}
+                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
             - name: (4.3 && Debug && Windows) Download Godot and generate documents
               if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
@@ -202,33 +189,30 @@ jobs:
                   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
                   SCONS_CACHE_LIMIT: 7168
               run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }}
-
-            - name: Create artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
-              shell: sh
-              run: |
-                  mkdir -p '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
-
-            - name: Create artifact folder for all in one.
-              shell: sh
-              run: |
-                  mkdir -p '${{ github.workspace }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
-
-            - name: Copy addons folder to artifact folder ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
-              shell: sh
-              run: |
-                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
-
-            - name: Copy addons folder to artifact folder
-              shell: sh
-              run: |
-                  cp -n -r '${{ github.workspace }}/demo/addons' '${{ github.workspace }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/${{ github.event.repository.name }}/'
+                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
             - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
               uses: actions/upload-artifact@v4
               with:
-                  name: ${{ github.event.repository.name }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ env.BUILD_VERSION }}(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ github.sha }}
+                  name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+                  include-hidden-files: true
                   path: |
-                      ${{ github.workspace }}/${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}/
+                    ./demo/addons/
+                    # ./${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact/${{ github.event.repository.name }}/*
                   retention-days: 14
 
+    merge_artifacts:
+      runs-on: ubuntu-latest
+      needs: build
+      steps:
+        - name: Setup version
+          run: |
+            python ./build_version.py >> $GITHUB_ENV
+
+        - name: Merge Artifacts to all in one
+          uses: actions/upload-artifact/merge@v4
+          with:
+              name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ env.BUILD_VERSION }}
+              pattern: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}*
+              delete-merged: true
+              retention-days: 90
