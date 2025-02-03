@@ -28,191 +28,196 @@ env:
 
 jobs:
     build:
-        name: ${{ matrix.icon }} ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ inputs.compatibility_minimum }})
-        runs-on: ${{ matrix.runner }}
-        defaults:
-          run:
-            working-directory: ${{ github.workspace }}
+      name: ${{ matrix.icon }} ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ inputs.compatibility_minimum }})
+      runs-on: ${{ matrix.runner }}
+      defaults:
+        run:
+          working-directory: ${{ github.workspace }}
 
-        strategy:
-            fail-fast: false
-            matrix:
-                identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
-                target: [debug, release]
-                include:
-                    - identifier: 🐧Linux-x64
-                      runner: ubuntu-20.04
-                      platform: linux
-                      arch: x86_64
-                      godot_editor_suffix: linux.x86_64
-                    - identifier: 🍎Macos-Universal
-                      runner: macos-latest
-                      platform: macos
-                      arch: universal
-                      godot_editor_suffix: macos.universal
-                    - identifier: 🏁Windows-x64 (clang)
-                      runner: windows-latest
-                      platform: windows
-                      flags: use_clang_cl=yes
-                      arch: x86_64
-                      godot_editor_suffix: win64.exe
-                    - identifier: 🏁Windows-x86 (msvc)
-                      runner: windows-latest
-                      platform: windows
-                      arch: x86_32
-                      godot_editor_suffix: ''
-                    - identifier: 🤖Android-arm64
-                      runner: ubuntu-20.04
-                      platform: android
-                      arch: arm64
-                      godot_editor_suffix: linux.x86_64
-                    - identifier: 🤖Android-x86_64
-                      runner: ubuntu-20.04
-                      platform: android
-                      arch: x86_64
-                      godot_editor_suffix: linux.x86_64
-                    - identifier: 🤖Android-arm32
-                      runner: ubuntu-20.04
-                      platform: android
-                      arch: arm32
-                      godot_editor_suffix: linux.x86_64
-                    - identifier: 🤖Android-x86_32
-                      runner: ubuntu-20.04
-                      platform: android
-                      arch: x86_32
-                      godot_editor_suffix: linux.x86_64
+      strategy:
+          fail-fast: false
+          matrix:
+              identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
+              target: [debug, release]
+              include:
+                  - identifier: 🐧Linux-x64
+                    runner: ubuntu-20.04
+                    platform: linux
+                    arch: x86_64
+                    godot_editor_suffix: linux.x86_64
+                  - identifier: 🍎Macos-Universal
+                    runner: macos-latest
+                    platform: macos
+                    arch: universal
+                    godot_editor_suffix: macos.universal
+                  - identifier: 🏁Windows-x64 (clang)
+                    runner: windows-latest
+                    platform: windows
+                    flags: use_clang_cl=yes
+                    arch: x86_64
+                    godot_editor_suffix: win64.exe
+                  - identifier: 🏁Windows-x86 (msvc)
+                    runner: windows-latest
+                    platform: windows
+                    arch: x86_32
+                    godot_editor_suffix: ''
+                  - identifier: 🤖Android-arm64
+                    runner: ubuntu-20.04
+                    platform: android
+                    arch: arm64
+                    godot_editor_suffix: linux.x86_64
+                  - identifier: 🤖Android-x86_64
+                    runner: ubuntu-20.04
+                    platform: android
+                    arch: x86_64
+                    godot_editor_suffix: linux.x86_64
+                  - identifier: 🤖Android-arm32
+                    runner: ubuntu-20.04
+                    platform: android
+                    arch: arm32
+                    godot_editor_suffix: linux.x86_64
+                  - identifier: 🤖Android-x86_32
+                    runner: ubuntu-20.04
+                    platform: android
+                    arch: x86_32
+                    godot_editor_suffix: linux.x86_64
 
-        steps:
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.x"
+      steps:
+        - name: Set up Python
+          uses: actions/setup-python@v5
+          with:
+              python-version: "3.x"
 
-            - name: Set up SCons
-              shell: bash
-              run: |
-                  python -c "import sys; print(sys.version)"
-                  python -m pip install scons
-                  scons --version
+        - name: Set up SCons
+          shell: bash
+          run: |
+              python -c "import sys; print(sys.version)"
+              python -m pip install scons
+              scons --version
 
-            - name: Checkout project
-              uses: actions/checkout@v4
-              with:
-                  submodules: false
+        - name: Checkout project
+          uses: actions/checkout@v4
+          with:
+              submodules: false
 
-            - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
-              uses: actions/checkout@v4
-              with:
-                  repository: godotengine/godot-cpp
-                  path: godot-cpp
-                  ref: godot-${{ inputs.compatibility_minimum }}-stable
-                  submodules: recursive
+        - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
+          uses: actions/checkout@v4
+          with:
+              repository: godotengine/godot-cpp
+              path: godot-cpp
+              ref: godot-${{ inputs.compatibility_minimum }}-stable
+              submodules: recursive
 
-            - name: Checkout private EOS SDK repo
-              uses: actions/checkout@v4
-              with:
-                  token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
-                  repository: Daylily-Zeleen/eos-sdk
-                  path: thirdparty/eos-sdk
-                  ref: main
+        - name: Checkout private EOS SDK repo
+          uses: actions/checkout@v4
+          with:
+              token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
+              repository: Daylily-Zeleen/eos-sdk
+              path: thirdparty/eos-sdk
+              ref: main
 
-            - name: (Linux) Install dependencies
-              if: ${{ matrix.platform == 'linux' }}
-              run: |
-                  sudo apt-get update -qq
-                  sudo apt-get install -qqq build-essential pkg-config
+        - name: (Linux) Install dependencies
+          if: ${{ matrix.platform == 'linux' }}
+          run: |
+              sudo apt-get update -qq
+              sudo apt-get install -qqq build-essential pkg-config
 
-            - name: (Linux32) Install dependencies
-              if: ${{ matrix.platform == 'linux' && matrix.arch == 'x86_32' }}
-              run: |
-                  sudo apt-get install gcc-multilib g++-multilib
+        - name: (Linux32) Install dependencies
+          if: ${{ matrix.platform == 'linux' && matrix.arch == 'x86_32' }}
+          run: |
+              sudo apt-get install gcc-multilib g++-multilib
 
-            - name: (Android) Install dependencies
-              if: ${{ matrix.platform == 'android' }}
-              uses: nttld/setup-ndk@v1
-              with:
-                ndk-version: r23c
-                link-to-sdk: true
+        - name: (Android) Install dependencies
+          if: ${{ matrix.platform == 'android' }}
+          uses: nttld/setup-ndk@v1
+          with:
+            ndk-version: r23c
+            link-to-sdk: true
 
-            - name: Setup build cache
-              uses: actions/cache@v4
-              with:
-                  path: ./.scons-cache/
-                  key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
-                  restore-keys: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
-              continue-on-error: true
+        - name: Setup build cache
+          uses: actions/cache@v4
+          with:
+              path: ./.scons-cache/
+              key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
+              restore-keys: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
+          continue-on-error: true
 
-            - name: Compile extension
-              shell: sh
-              env:
-                  SCONS_CACHE: ./.scons-cache/
-                  SCONS_CACHE_LIMIT: 7168
-              run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
+        - name: Compile extension
+          shell: sh
+          env:
+              SCONS_CACHE: ./.scons-cache/
+              SCONS_CACHE_LIMIT: 7168
+          run: |
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
-            - name: (4.3 && Debug && Windows) Download Godot and generate documents
-              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
-              shell: sh
-              run: |
-                @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-                choco install wget
-                wget https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip -O Godot.zip
-                unzip -a Godot.zip
-                chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-                $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
+        - name: (4.3 && Debug && Windows) Download Godot and generate documents
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
+          shell: sh
+          run: |
+            @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
+            choco install wget
+            wget https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip -O Godot.zip
+            unzip -a Godot.zip
+            chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
+            $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
 
-            - name: (4.3 && Debug && Macos) Download Godot and generate documents
-              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
-              run: |
-                wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
-                unzip -a Godot.zip
-                # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-                $(pwd)/Godot.app/Contents/MacOS/Godot --path demo --doctool .. --gdextension-docs
+        - name: (4.3 && Debug && Macos) Download Godot and generate documents
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
+          run: |
+            wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
+            unzip -a Godot.zip
+            # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
+            $(pwd)/Godot.app/Contents/MacOS/Godot --path demo --doctool .. --gdextension-docs
 
-            - name: (4.3 && Debug && Other) Download Godot
-              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
-              run: |
-                wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
-                unzip -a Godot.zip
-                chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-                echo "GODOT=$(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}" >> $GITHUB_ENV
+        - name: (4.3 && Debug && Other) Download Godot
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+          run: |
+            wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
+            unzip -a Godot.zip
+            chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
+            echo "GODOT=$(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}" >> $GITHUB_ENV
 
-            - name: (4.3 && Debug && other) Generate documents
-              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
-              run: |
-                $GODOT --path demo --doctool .. --gdextension-docs
+        - name: (4.3 && Debug && other) Generate documents
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
+          run: |
+            $GODOT --path demo --doctool .. --gdextension-docs
 
-            - name: (4.3 && Debug) Compile extension with documents
-              if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
-              shell: sh
-              env:
-                  SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
-                  SCONS_CACHE_LIMIT: 7168
-              run: |
-                  scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
+        - name: (4.3 && Debug) Compile extension with documents
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
+          shell: sh
+          env:
+              SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
+              SCONS_CACHE_LIMIT: 7168
+          run: |
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
-            - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
-              uses: actions/upload-artifact@v4
-              with:
-                  name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
-                  include-hidden-files: true
-                  path: |
-                    ./demo/addons/
-                    # ./${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact/${{ github.event.repository.name }}/*
-                  retention-days: 14
+        - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
+          uses: actions/upload-artifact@v4
+          with:
+              name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+              include-hidden-files: true
+              path: |
+                ./demo/addons/
+                # ./${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}/artifact/${{ github.event.repository.name }}/*
+              retention-days: 14
 
     merge_artifacts:
       runs-on: ubuntu-latest
       needs: build
       steps:
+        - name: Checkout project
+          uses: actions/checkout@v4
+          with:
+              submodules: false
+
         - name: Setup version
           run: |
-            python ./build_version.py >> $GITHUB_ENV
+            echo BUILD_VERSION=$(head -n 1 ./version) >> $GITHUB_ENV
 
         - name: Merge Artifacts to all in one
           uses: actions/upload-artifact/merge@v4
           with:
-              name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ env.BUILD_VERSION }}
+              name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-(min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }})
               pattern: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}*
               delete-merged: true
               retention-days: 90

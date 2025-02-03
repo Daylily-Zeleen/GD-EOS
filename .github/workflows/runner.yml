@@ -20,7 +20,7 @@ jobs:
     with:
       compatibility_minimum: '4.2'
       additional_sconsflags: assume_only_one_local_user=yes
-      artifact_suffix: -aoolu
+      artifact_suffix: _aoolu
 
   min-godot-v4_3:
     uses: ./.github/workflows/builds.yml
@@ -36,4 +36,4 @@ jobs:
     with:
       compatibility_minimum: '4.3'
       additional_sconsflags: assume_only_one_local_user=yes
-      artifact_suffix: -aoolu
+      artifact_suffix: _aoolu

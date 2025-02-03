@@ -2,8 +2,6 @@
 import os
 import shutil
 
-import build_version
-
 import gd_eos.eos_code_generator as eos_code_generator
 
 env = SConscript("godot-cpp/SConstruct")
@@ -177,9 +175,11 @@ def update_extension_version():
     lines = f.readlines()
     f.close()
 
+    version: str = open("version", "r").readline().strip()
+
     for i in range(len(lines)):
         if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
-            lines[i] = f'version = "{build_version.version}"\n'
+            lines[i] = f'version = "{version}"\n'
         if lines[i].startswith("compatibility_minimum") and lines[i].endswith('"\n'):
             lines[i] = f'compatibility_minimum = "{compatibility_minimum}"\n'
             break
