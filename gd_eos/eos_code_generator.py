@@ -159,9 +159,9 @@ def generator_eos_interfaces(
     print("Parsing...")
     parse_all_file()
     print("Parse finished")
-    # 预处理
-    preprocess()
-    print("Preprocess finished.")
+    # 预处理文档
+    _preprocess_docs()
+    print("preprocess documents finished.")
     # 生成接口
     for fbn in generate_infos:
         gen_files(fbn, generate_infos[fbn])
@@ -171,9 +171,18 @@ def generator_eos_interfaces(
     print("Generate Completed!")
 
 
+# 在编译前调用
 def preprocess():
+    eos_base_file = os.path.join(sdk_include_dir, "eos_base.h")
+    f = open(eos_base_file, "r")
+
+    # 备份 eos_base.h
+    bck = open(eos_base_file + ".bak", "w")
+    bck.write(f.read())
+    bck.close()
+
     # 除去 eos_base.h 中的 #define EOS_HAS_ENUM_CLASS, 影响枚举的绑定
-    f = open(os.path.join(sdk_include_dir, "eos_base.h"), "r")
+    f.seek(0)
     lines: list[str] = f.readlines()
     f.close()
 
@@ -182,11 +191,18 @@ def preprocess():
         if "#define EOS_HAS_ENUM_CLASS" in line and not line.startswith("//"):
             lines[i] = "//" + line
 
-    f = open(os.path.join(sdk_include_dir, "eos_base.h"), "w")
+    f = open(eos_base_file, "w")
     f.write("".join(lines))
     f.close()
 
-    _preprocess_docs()
+
+# 在编译后调用
+def postprocess():
+    eos_base_file = os.path.join(sdk_include_dir, "eos_base.h")
+    backup_file = eos_base_file + ".bak"
+    if os.path.exists(backup_file):
+        os.remove(eos_base_file)
+        os.rename(backup_file, eos_base_file)
 
 
 def _preprocess_docs():

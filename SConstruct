@@ -254,6 +254,11 @@ def on_complete(target, source, env):
     lines = f.readlines()
     f.close()
 
+    # 后处理
+    eos_code_generator.postprocess()
+
+# 预处理
+eos_code_generator.preprocess()
 
 # Disable scons cache for source files
 NoCache(sources)
