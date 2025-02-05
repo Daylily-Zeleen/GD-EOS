@@ -139,6 +139,29 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
     **If you change the output library name by using compile options, please modify "demo/addons/gd-eos/gdeos.gdextension" to fit your library name.**
 5. Last, you can get the compiled addon which is located at "demo/addons/gd-eos/".
 
+Additionally, if you compile with godot-cpp 4.3(or later version) and use Godot 4.3(or later version), you can generate and compile with editor documents:
+6. Run command below to generate/update document files of this plugin:
+
+``` shell
+Godot_v4.3-stable_win64.exe --path demo --doctool .. --gdextension-docs
+```
+You should replace "Godot_v4.3-stable_win64.exe" to your Godot editor's executable file.
+
+7. Compile again like **step 4**.
+8. Now，you can refer classes' document of this plugin in Godot editor help like native Godot classes.
+
+**NOTE**: the generated documents is extracted and modified procedurally from the source EOS-SDK, so **it may not be accurate, just for reference**.
+
+## **About AOOLU (Assume Only One Local User) Version**
+
+Since EOS-SDK allows multiple users to log in simultaneously, you will frequently encounter APIs that require passing in a `local_user_id` to determine which local user is calling the interface. However, in game developing, we generally only use one local user. To reduce this inconvenience, this plugin can be compiled with the `assume_only_one_local_user=yes` flag to create the AOOLU (Assume Only One Local User) version.
+
+In this version, apart from the `EOSAuth` and `EOSConnect` interfaces, the `local_user_id` parameter is hidden in most of the other APIs, and the parameter is filled internally when needed( the usage of the `EOSAuth` and `EOSConnect` interfaces is the same as in the non-AOOLU version, because you might need to manager the linkage between different accounts).
+
+To use this version, you must use`EOSConnect.login()` to set an `EOSProductUserId` as the local user ID internally, and use `EOSAuth.login()` to set an `EOSEpicAccountId` as the local user ID internally (if you log in with different accounts multiple times, the local user ID will be set to the last logged-in user). Otherwise, when calling other APIs, it will return `EOS.Result.InvalidParameters` and throw an appropriate error message as a prompt.
+
+By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get_local()` to get current local user id, **but don't release the return value of these interfaces manually!!**.
+
 ## **Known issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
