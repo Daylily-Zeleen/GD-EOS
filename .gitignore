@@ -36,3 +36,5 @@ build/
 .android_build_tmp/
 
 *.log
+
+/doc_classes
