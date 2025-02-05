@@ -1,17 +1,27 @@
 #!/usr/bin/env python
-import os
-import shutil
-
+import os, shutil
 import gd_eos.eos_code_generator as eos_code_generator
+from SCons.Variables import Variables
+from SCons.Script import SConscript
+from SCons.Environment import Environment
 
-env = SConscript("godot-cpp/SConstruct")
-
+env :Environment = SConscript("godot-cpp/SConstruct")
 
 # 帮助
-opts = Variables()
+opts = Variables(None, ARGUMENTS)
 eos_code_generator.add_scons_options(opts=opts, env=env)
 opts.Update(env)
 Help(opts.GenerateHelpText(env))
+
+# 提示
+hint = ""
+for k in ["min_field_count_to_expand_input_structs", "min_field_count_to_expand_callback_structs", "assume_only_one_local_user"]:
+    if k in ARGUMENTS:
+        if len(hint) > 0:
+            hint += ", "
+        hint += f"'{k}'"
+if len(hint) > 0:
+    print(f"HINT: You can Ignore warnings about {hint}.")
 
 # 生成
 eos_code_generator.generator_eos_interfaces(
