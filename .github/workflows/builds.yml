@@ -145,7 +145,7 @@ jobs:
         - name: Compile extension
           shell: sh
           run: |
-              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ inputs.additional_sconsflags }}
 
         - name: (4.3 && Debug && Windows) Download Godot and generate documents
           if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
@@ -183,7 +183,7 @@ jobs:
           if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
           shell: sh
           run: |
-              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ inputs.additional_sconsflags }}
 
         - name: Copy to artifacts directory
           shell: sh
@@ -195,8 +195,7 @@ jobs:
           uses: actions/upload-artifact@v4
           with:
               name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
-              include-hidden-files: true
-              path: ./artifacts/GD-EOS/addons/
+              path: ./artifacts/GD-EOS/
               retention-days: 14
 
     merge_artifacts:
