@@ -25,6 +25,7 @@ on:
 
 env:
   GODOT_BRANCH_FOR_GENERATE_DOCUMENTS: 4.3-stable
+  SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
 
 jobs:
     build:
@@ -134,19 +135,15 @@ jobs:
             ndk-version: r23c
             link-to-sdk: true
 
-        # - name: Setup build cache
-        #   uses: actions/cache@v4
-        #   with:
-        #       path: ./.scons-cache/
-        #       key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
-        #       restore-keys: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
-        #   continue-on-error: true
+        - name: Setup build cache
+          uses: actions/cache@v4
+          with:
+              path: ${{ env.SCONS_CACHE }}
+              key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
+          continue-on-error: true
 
         - name: Compile extension
           shell: sh
-          # env:
-          #     SCONS_CACHE: ./.scons-cache/
-          #     SCONS_CACHE_LIMIT: 7168
           run: |
               scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
@@ -185,9 +182,6 @@ jobs:
         - name: (4.3 && Debug) Compile extension with documents
           if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
           shell: sh
-          # env:
-          #     SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
-          #     SCONS_CACHE_LIMIT: 7168
           run: |
               scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ matrix.additional_sconsflags }}
 
