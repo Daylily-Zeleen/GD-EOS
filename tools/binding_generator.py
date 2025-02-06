@@ -103,19 +103,7 @@ def main(argv):
         elif splits[0] == "assume_only_one_local_user":
             only_one_local_user = to_snake_case(splits[1]) in ["t", "true"]
 
-    generator_eos_interfaces(field_count_to_expand_input_structs, field_count_to_expand_callback_structs, only_one_local_user)
-
-
-def add_scons_options(opts, env):
-    opts.Add("min_field_count_to_expand_input_structs", "The min field count to expand input EOS Options structs (except 'ApiVersion' field).", "3")
-    opts.Add("min_field_count_to_expand_callback_structs", "The min field count to expand EOS CallbackInfo structs.", "1")
-    opts.Add(
-        BoolVariable(
-            key="assume_only_one_local_user",
-            help='If true, the code generator will hide all "LocalUserId" of EOS API\'s filed/argument and automatically fill them internally.',
-            default=False,
-        )
-    )
+    generate_bindings(field_count_to_expand_input_structs, field_count_to_expand_callback_structs, only_one_local_user)
 
 
 def print_help():
@@ -130,7 +118,7 @@ def print_help():
     print("")
 
 
-def generator_eos_interfaces(
+def generate_bindings(
     p_min_field_count_to_expand_input_structs: int = 3, p_min_field_count_to_expand_callback_structs: int = 1, p_assume_only_one_local_user: bool = False
 ) -> None:
     global min_field_count_to_expand_input_structs
@@ -177,7 +165,7 @@ def preprocess():
     f = open(eos_base_file, "r")
 
     # 备份 eos_base.h
-    bck = open(eos_base_file + ".bak", "w")
+    bck = open("./.eos_base.h.bak", "w")
     bck.write(f.read())
     bck.close()
 
@@ -199,7 +187,7 @@ def preprocess():
 # 在编译后调用
 def postprocess():
     eos_base_file = os.path.join(sdk_include_dir, "eos_base.h")
-    backup_file = eos_base_file + ".bak"
+    backup_file = "./.eos_base.h.bak"
     if os.path.exists(backup_file):
         os.remove(eos_base_file)
         os.rename(backup_file, eos_base_file)
