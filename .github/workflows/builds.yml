@@ -12,7 +12,7 @@ on:
         default: '4.3'
         required: true
         type: string
-      additional_sconsflags:
+      sconsflags:
         description: Additional compile flags to use with scons.
         default: ''
         required: false
@@ -46,42 +46,55 @@ jobs:
                     platform: linux
                     arch: x86_64
                     godot_editor_suffix: linux.x86_64
+                    host_platform: linux
                   - identifier: 🍎Macos-Universal
                     runner: macos-latest
                     platform: macos
                     arch: universal
                     godot_editor_suffix: macos.universal
+                    host_platform: macos
                   - identifier: 🏁Windows-x64 (clang)
                     runner: windows-latest
                     platform: windows
-                    flags: use_clang_cl=yes
+                    additional_sconsflags: use_clang_cl=yes
                     arch: x86_64
+                    host_platform: windows
                     godot_editor_suffix: win64.exe
                   - identifier: 🏁Windows-x86 (msvc)
                     runner: windows-latest
                     platform: windows
                     arch: x86_32
-                    godot_editor_suffix: ''
+                    godot_editor_suffix: win64.exe
+                    host_platform: windows
+                    force_compile_for_docs: true
                   - identifier: 🤖Android-arm64
                     runner: ubuntu-20.04
                     platform: android
                     arch: arm64
                     godot_editor_suffix: linux.x86_64
+                    host_platform: linux
+                    force_compile_for_docs: true
                   - identifier: 🤖Android-x86_64
                     runner: ubuntu-20.04
                     platform: android
                     arch: x86_64
                     godot_editor_suffix: linux.x86_64
+                    host_platform: linux
+                    force_compile_for_docs: true
                   - identifier: 🤖Android-arm32
                     runner: ubuntu-20.04
                     platform: android
                     arch: arm32
                     godot_editor_suffix: linux.x86_64
+                    host_platform: linux
+                    force_compile_for_docs: true
                   - identifier: 🤖Android-x86_32
                     runner: ubuntu-20.04
                     platform: android
                     arch: x86_32
                     godot_editor_suffix: linux.x86_64
+                    host_platform: linux
+                    force_compile_for_docs: true
 
       steps:
         - name: Set up Python
@@ -145,51 +158,25 @@ jobs:
         - name: Compile extension
           shell: sh
           run: |
-              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ inputs.additional_sconsflags }}
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
 
-        - name: (4.3 && Debug && Windows) Download Godot and generate documents
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'windows' }}
-          shell: sh
-          run: |
-            @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
-            choco install wget
-            wget https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip -O Godot.zip
-            unzip -a Godot.zip
-            chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-            $(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }} --path demo --doctool .. --gdextension-docs
+        - name: (4.3 && Debug) Generate documents and recompile extension.
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && !contains(matrix.arch, '32') }}
+          uses: ./.github/actions/generate_documents_and_recompile
+          with:
+              godot_branch_for_generate_documents: ${{ env.GODOT_BRANCH_FOR_GENERATE_DOCUMENTS }}
+              godot_editor_suffix: ${{ matrix.godot_editor_suffix }}
+              sconsflags: ${{ matrix.additional_sconsflags}} ${{ inputs.sconsflags }}
+              host_platform: ${{ matrix.host_platform }}
+              force_compile: ${{ matrix.force_compile_for_docs }}
+              platform: ${{ matrix.platform }}
+              arch: ${{ matrix.arch }}
 
-        - name: (4.3 && Debug && Macos) Download Godot and generate documents
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform == 'macos' }}
-          run: |
-            wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
-            unzip -a Godot.zip
-            # chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-            $(pwd)/Godot.app/Contents/MacOS/Godot --path demo --doctool .. --gdextension-docs
-
-        - name: (4.3 && Debug && Other) Download Godot
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
-          run: |
-            wget "https://github.com/godotengine/godot-builds/releases/download/${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}.zip" -O Godot.zip
-            unzip -a Godot.zip
-            chmod +x Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}
-            echo "GODOT=$(pwd)/Godot_v${GODOT_BRANCH_FOR_GENERATE_DOCUMENTS}_${{ matrix.godot_editor_suffix }}" >> $GITHUB_ENV
-
-        - name: (4.3 && Debug && other) Generate documents
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != '' && matrix.platform != 'macos' && matrix.platform != 'windows' }}
-          run: |
-            $GODOT --path demo --doctool .. --gdextension-docs
-
-        - name: (4.3 && Debug) Compile extension with documents
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && matrix.godot_editor_suffix != ''  && matrix.platform != 'macos'}}
-          shell: sh
-          run: |
-              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.flags}} ${{ inputs.additional_sconsflags }}
-
+        # 不同平台的 cp 命令结果不同？？？
         - name: Copy to artifacts directory
-          shell: sh
+          shell: bash
           run: |
-              mkdir -p './artifacts/GD-EOS/addons/'
-              cp -n -r './demo/addons/' './artifacts/GD-EOS/addons/'
+              python ./misc/copy_dir.py ./demo/addons/ ./artifacts/GD-EOS/addons/
 
         - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
           uses: actions/upload-artifact@v4

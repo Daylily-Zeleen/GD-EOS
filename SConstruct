@@ -29,16 +29,15 @@ gd_eos_tool.generate(env)
 
 lib_name = "libgdeos"
 
-plugin_bin_folder = "demo/addons/gd-eos/bin"
+eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 output_bin_folder = "bin/"
 
-eos_sdk_folder = "thirdparty/eos-sdk/SDK/"
 base_dir = "gd_eos/"
+plugin_folder = "demo/addons/gd-eos/"
+extension_file = os.path.join(plugin_folder, "gdeos.gdextension")
+plugin_bin_folder = os.path.join(plugin_folder, "bin")
 
-extension_file = "demo/addons/gd-eos/gdeos.gdextension"
-plugin_folder = "./demo/addons/gd-eos/"
-
-eos_aar_dir = eos_sdk_folder + f"Bin/Android/static-stdc++/aar/"
+eos_aar_dir = os.path.join(eos_sdk_folder, "Bin/Android/static-stdc++/aar/")
 android_build_tmp_dir = "./.android_build_tmp/"
 
 
@@ -109,10 +108,11 @@ def _on_complete(target, source, env):
 
     copied_readme_file_path = os.path.join(plugin_folder, "README.md")
     copied_readme_zh_file_path = os.path.join(plugin_folder, "README.zh.md")
+    copied_license_file_path = os.path.join(plugin_folder, "LICENSE")
 
     _copy_file("README.md", copied_readme_file_path)
     _copy_file("README.zh.md", copied_readme_zh_file_path)
-    _copy_file("LICENSE", os.path.join(plugin_folder, "LICENSE"))
+    _copy_file("LICENSE", copied_license_file_path)
 
     # 替换 readme 中图片的路径
     for fp in [copied_readme_file_path, copied_readme_zh_file_path]:

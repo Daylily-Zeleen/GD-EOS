@@ -11,7 +11,7 @@ jobs:
     secrets: inherit
     with:
       compatibility_minimum: '4.2'
-      additional_sconsflags: ''
+      sconsflags: ''
       artifact_suffix: ''
 
   min-godot-v4_2-AOOLU:
@@ -19,7 +19,7 @@ jobs:
     secrets: inherit
     with:
       compatibility_minimum: '4.2'
-      additional_sconsflags: assume_only_one_local_user=yes
+      sconsflags: assume_only_one_local_user=yes
       artifact_suffix: _aoolu
 
   min-godot-v4_3:
@@ -27,7 +27,7 @@ jobs:
     secrets: inherit
     with:
       compatibility_minimum: '4.3'
-      additional_sconsflags: ''
+      sconsflags: ''
       artifact_suffix: ''
 
   min_godot-v4_3-AOOLU:
@@ -35,5 +35,5 @@ jobs:
     secrets: inherit
     with:
       compatibility_minimum: '4.3'
-      additional_sconsflags: assume_only_one_local_user=yes
+      sconsflags: assume_only_one_local_user=yes
       artifact_suffix: _aoolu

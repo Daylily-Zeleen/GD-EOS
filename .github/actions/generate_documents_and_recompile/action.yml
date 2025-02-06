@@ -1,0 +1,79 @@
+name: Generate Documents and recompile extension (4.3)
+description: (4.3) Generate Documents and recompile extension.
+
+inputs:
+  godot_branch_for_generate_documents:
+    description: Godot editor version to determine which executable to download.
+    required: true
+  godot_editor_suffix:
+    description: Godot editor suffix to determine which executable to download.
+    required: true
+  sconsflags:
+    description: Additional SCons flags.
+    default: ""
+    required: false
+  host_platform:
+    description: Host platform to determine need compile or not.
+    required: false
+  force_compile:
+    description: Force compile for host platform to generate documents.
+    default: false
+    required: false
+  platform:
+    description:  Target platform to recompile.
+    required: true
+  arch:
+    description: Target architecture to recompile.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Compile for generate documents.
+      if: ${{ inputs.force_compile }}
+      shell: sh
+      run: |
+        scons target=template_debug ${{ inputs.sconsflags }}
+
+    - name: (Windows) Download Godot and generate documents
+      if: ${{ inputs.host_platform == 'windows' }}
+      shell: sh
+      run: |
+        @powershell -NoProfile -ExecutionPolicy Bypass -Command "iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))" && SET "PATH=%PATH%;%ALLUSERSPROFILE%\chocolatey\bin"
+        choco install wget
+        wget https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot_branch_for_generate_documents }}/Godot_v${{ inputs.godot_branch_for_generate_documents }}_${{ inputs.godot_editor_suffix }}.zip -O Godot.zip
+        unzip -a Godot.zip
+        echo "GODOT=$(pwd)/Godot_v${{ inputs.godot_branch_for_generate_documents }}_${{ inputs.godot_editor_suffix }}" >> $GITHUB_ENV
+
+    - name: (Macos) Download Godot
+      if: ${{ inputs.host_platform == 'macos' }}
+      shell: sh
+      run: |
+        wget "https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot_branch_for_generate_documents }}/Godot_v${{ inputs.godot_branch_for_generate_documents }}_${{ inputs.godot_editor_suffix }}.zip" -O Godot.zip
+        unzip -a Godot.zip
+        echo "GODOT=$(pwd)/Godot.app/Contents/MacOS/Godot" >> $GITHUB_ENV
+
+    - name: (Other) Download Godot
+      if: ${{ inputs.host_platform != 'macos' && inputs.host_platform != 'windows' }}
+      shell: sh
+      run: |
+        wget "https://github.com/godotengine/godot-builds/releases/download/${{ inputs.godot_branch_for_generate_documents }}/Godot_v${{ inputs.godot_branch_for_generate_documents }}_${{ inputs.godot_editor_suffix }}.zip" -O Godot.zip
+        unzip -a Godot.zip
+        echo "GODOT=$(pwd)/Godot_v${{ inputs.godot_branch_for_generate_documents }}_${{ inputs.godot_editor_suffix }}" >> $GITHUB_ENV
+
+    - name: (Other) Generate documents
+      shell: sh
+      run: |
+        chmod +x $GODOT
+        $GODOT --path demo --import --headless --single-threaded-scene -v
+        $GODOT --path demo --doctool .. --gdextension-docs
+
+    - name: Test
+      shell: sh
+      run: |
+        ls ./doc_classes
+
+    - name: Compile extension with documents
+      shell: sh
+      run: |
+          scons target=template_debug platform=${{ inputs.platform }} arch=${{ inputs.arch }} ${{ inputs.sconsflags }}
