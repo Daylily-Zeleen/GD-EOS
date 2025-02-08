@@ -181,7 +181,7 @@ jobs:
         - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
           uses: actions/upload-artifact@v4
           with:
-              name: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+              name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
               path: ./artifacts/GD-EOS/
               retention-days: 14
 
@@ -201,7 +201,7 @@ jobs:
         - name: Merge Artifacts to all in one
           uses: actions/upload-artifact/merge@v4
           with:
-              name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-(min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }})
-              pattern: ${{ github.event.repository.name }}-(min-godot-${{ inputs.compatibility_minimum }})${{ inputs.artifact_suffix }}*
+              name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
+              pattern: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}*
               delete-merged: true
               retention-days: 90
