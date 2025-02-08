@@ -17,7 +17,17 @@ String eos_epic_account_id_to_string(EOS_EpicAccountId p_epic_account_id);
 template <typename T>
 using gd_arg_t = std::conditional_t<!std::is_trivial_v<T> || (sizeof(T) > 8), const T &, T>;
 
+template <typename T>
+using handle_int_t = std::conditional_t<sizeof(T) == 8, int64_t, int32_t>;
+
+template <typename T>
+T int_to_handle(handle_int_t<T> p_int) { return reinterpret_cast<T>(p_int); }
+
+template <typename T>
+handle_int_t<T> handle_to_int(T p_handle) { return reinterpret_cast<handle_int_t<T>>(p_handle); }
+
 #define _ARG_TYPE(arg) eos::gd_arg_t<decltype(arg)>
+
 } //namespace godot::eos
 
 namespace godot::eos::internal {
@@ -681,8 +691,8 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         e->set_handle(eos_field[i]);                                               \
         gd_field.push_back(e);                                                     \
     }
-#define _FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(gd_field, eos_field) \
-    gd_field = (decltype(gd_field))eos_field
+#define _FROM_EOS_FIELD_PURE_HANDLE(gd_field, eos_field) \
+    gd_field = ::godot::eos::handle_to_int<decltype(eos_field)>(eos_field)
 #define _FROM_EOS_FIELD_REQUESTED_CHANNEL(gd_field, eos_field) \
     static_assert(false, "不该发生")
 
@@ -764,8 +774,8 @@ inline void _convert_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Loca
     _convert_to_eos_handle_vector(gd_field, shadow_field);                              \
     r_eos_field_count = shadow_field.size();                                            \
     eos_field = shadow_field.ptr();
-#define _TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(eos_field, gd_field) \
-    eos_field = (void *)gd_field
+#define _TO_EOS_FIELD_PURE_HANDLE(eos_field, gd_field) \
+    eos_field = ::godot::eos::int_to_handle<decltype(eos_field)>(gd_field)
 #define _TO_EOS_FIELD_REQUESTED_CHANNEL(eos_field, gd_field) \
     eos_field = to_eos_requested_channel(gd_field)
 
@@ -831,7 +841,7 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
 #define _EXPAND_TO_GODOT_VAL_STRUCT_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_struct_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
 #define _EXPAND_TO_GODOT_VAL_HANDLER(m_gd_Ty, eos_field) _to_godot_handle<m_gd_Ty, decltype((eos_field))>((eos_field))
 #define _EXPAND_TO_GODOT_VAL_HANDLER_ARR(m_gd_Ty, eos_field, eos_filed_count) _to_godot_value_handle_arr<m_gd_Ty, decltype((eos_field)), decltype((eso_field_count))>((eos_field), (eos_filed_count))
-#define _EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE(m_gd_Ty, eos_field) (m_gd_Ty *)((eos_field))
+#define _EXPAND_TO_GODOT_VAL_PURE_HANDLE(eos_field) handle_to_int((eos_field))
 #define _EXPAND_TO_GODOT_VAL_REQUESTED_CHANNEL(gd_field, eos_field) static_assert(false, "不该发生")
 #define _EXPAND_TO_GODOT_VAL_UNION(m_gd_Ty, eos_field) _to_godot_val_from_union((eos_field), (eos_field##Type))
 

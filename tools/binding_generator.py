@@ -1028,8 +1028,13 @@ def _gen_handle(
 
     ret: list[str] = []
 
+    # 单例继承关系特殊处理
+    inherits = f"public {base_class}"
+    if base_class in [_convert_handle_class_name("EOS_HAntiCheatCommon")]:
+        base_class = "Object"
+
     ret.append("namespace godot::eos {")
-    ret.append(f"class {klass} : public {base_class} {{")
+    ret.append(f"class {klass} : {inherits} {{")
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
     if not is_base_handle_type:
@@ -1154,14 +1159,10 @@ def _is_base_handle_type(handle_type: str) -> str:
 
 
 def _get_base_class(handle_type: str) -> str:
-    if "EOS" == handle_type:
-        return "Object"
-    elif "EOS_HAntiCheatCommon" == handle_type:
-        return _convert_handle_class_name("EOS")
-    elif handle_type.startswith("EOS_HAntiCheat"):
+    if handle_type.startswith("EOS_HAntiCheat") and handle_type != "EOS_HAntiCheatCommon":
         return _convert_handle_class_name("EOS_HAntiCheatCommon")
-    elif handle_type.removeprefix("EOS_H") in interfaces:
-        return _convert_handle_class_name("EOS")
+    elif "EOS" == handle_type or "EOS_HAntiCheatCommon" == handle_type or handle_type.removeprefix("EOS_H") in interfaces:
+        return "Object"
     else:
         return "RefCounted"
 
@@ -1735,8 +1736,8 @@ def _gen_packed_result_type(
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {__convert_to_struct_class(decayed_type)})")
-        elif _is_anticheat_client_handle_type(decayed_type):
-            members_lines.append(f"\t{remap_type(decayed_type)} {snake_name}{{ nullptr }};")
+        elif _is_pure_handle_type(decayed_type):
+            members_lines.append(f"\t{remap_type(decayed_type)} {snake_name}{{ 0 }};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f'\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix("*")})')
@@ -1801,7 +1802,7 @@ def _gen_packed_result_type(
         i += 1
 
     # r_h_lines.append("namespace godot::eos {")
-    r_h_lines.append(f"class {typename}: public EOSPackedResult {{")
+    r_h_lines.append(f"class {typename} : public EOSPackedResult {{")
     r_h_lines.append(f"\tGDCLASS({typename}, EOSPackedResult)")
     r_h_lines.append(f"public:")
     if method_info["return"] == "EOS_EResult":
@@ -2024,9 +2025,9 @@ def _gen_callback(
                 else:
                     ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type)}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {_get_enum_owned_interface(field_type)}, {_convert_enum_type(field_type)})"
-            elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
-                ret += f"_EXPAND_TO_GODOT_VAL_ANTICHEAT_CLIENT_HANDLE({remap_type(field_type).removesuffix('*')}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type).removesuffix('*')}, {snake_case_field})"
+            elif _is_pure_handle_type(_decay_eos_type(field_type)):
+                ret += f"_EXPAND_TO_GODOT_VAL_PURE_HANDLE(data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type)}, {snake_case_field})"
             elif _is_socket_id_type(_decay_eos_type(field_type), field):
                 ret += f"String(data->{field}.SocketName)"
                 signal_bind_args += f'PropertyInfo(Variant::STRING, "{snake_case_field}")'
@@ -2124,7 +2125,7 @@ def __get_str_result_max_length_macro(method_name: str) -> str:
 
 def __get_str_arr_element_type(str_arr_type: str) -> str:
     if str_arr_type in ["const char**", "const char* const*"]:
-        return "const char*"
+        return "const char *"
     elif str_arr_type.endswith("EOS_EpicAccountId*"):
         return "EOS_EpicAccountId"
     elif str_arr_type.endswith("EOS_ProductUserId*"):
@@ -2198,9 +2199,9 @@ def __expand_input_struct(
 
         r_bind_args.append(f'"{snake_field}"')
 
-        if _is_anticheat_client_handle_type(decay_field_type):
+        if _is_pure_handle_type(decay_field_type):
             r_declare_args.append(f"{remap_type(decay_field_type, field)} p_{snake_field}")
-            r_prepare_lines.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({options_field}, p_{snake_field});")
+            r_prepare_lines.append(f"\t_TO_EOS_FIELD_PURE_HANDLE({options_field}, p_{snake_field});")
         elif _is_audio_frames_type(arg_type, arg_name):
             r_declare_args.append(f"const PackedInt32Array &p_{snake_field}")
             r_prepare_lines.append(f"\tLocalVector<int32_t> _shadow_{snake_field};")
@@ -3130,7 +3131,8 @@ def remap_type(type: str, field: str = "") -> str:
         "Union{EOS_AntiCheatCommon_ClientHandle : ClientHandle, const char* : String, uint32_t : UInt32, in, EOS_AntiCheatCommon_Vec3f : Vec3f, EOS_AntiCheatCommon_Quat : Quat}": "Variant",
         "Union{int64_t : AsInt64, double : AsDouble, EOS_Bool : AsBool, const char* : AsUtf8}": "Variant",
         "Union{EOS_EpicAccountId : Epic, const char* : External}": "String",
-        "EOS_AntiCheatCommon_ClientHandle": "EOSAntiCheatCommon_Client *",
+        # 纯句柄
+        "EOS_AntiCheatCommon_ClientHandle": "handle_int_t<EOS_AntiCheatCommon_ClientHandle>",
         #
     }
 
@@ -3762,8 +3764,8 @@ def _is_internal_struct_field(type: str, field: str) -> bool:
     return False
 
 
-def _is_anticheat_client_handle_type(type: str) -> bool:
-    return type == "EOS_AntiCheatCommon_ClientHandle"
+def _is_pure_handle_type(type: str) -> bool:
+    return type in ["EOS_AntiCheatCommon_ClientHandle"]
 
 
 def _is_variant_union_type(type: str, field: str) -> bool:
@@ -4085,11 +4087,11 @@ def _gen_struct_v2(
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{ -1.0 }};")
-        elif _is_anticheat_client_handle_type(decayed_type):
-            bind_lines.append(f'\t_BIND_PROP_OBJ({snake_field_name}, {remap_type(type, field).removesuffix("*")})')
+        elif _is_pure_handle_type(decayed_type):
+            bind_lines.append(f'\t_BIND_PROP({snake_field_name})')
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
-            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ nullptr }};")
+            member_lines.append(f"\t{remapped_type} {snake_field_name}{{ 0 }};")
         elif remapped_type.startswith("Ref") and not type.startswith("Ref<class ") and not decayed_type == "EOS_IntegratedPlatform_Steam_Options":
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
@@ -4138,7 +4140,7 @@ def _gen_struct_v2(
 
     # h
     lines: list[str] = [""]
-    lines.append(f"class {typename}: public EOSDataClass {{")
+    lines.append(f"class {typename} : public EOSDataClass {{")
     lines.append(f"\tGDCLASS({typename}, EOSDataClass)")
     lines.append("")
     lines += member_lines
@@ -4234,8 +4236,8 @@ def _gen_struct_v2(
                     r_structs_cpp.append(f"\t{snake_case_field} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif _is_str_arr_type(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({snake_case_field}, p_origin.{field}, p_origin.{_find_count_field(field, fields.keys())});")
-            elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
-                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE({snake_case_field}, p_origin.{field});")
+            elif _is_pure_handle_type(_decay_eos_type(field_type)):
+                r_structs_cpp.append(f"\t_FROM_EOS_FIELD_PURE_HANDLE({snake_case_field}, p_origin.{field});")
             elif _is_requested_channel_ptr_field(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_FIELD_REQUESTED_CHANNEL({snake_case_field}, p_origin.{field});")
             elif field_type.startswith("Union"):
@@ -4330,8 +4332,8 @@ def _gen_struct_v2(
                     r_structs_cpp.append(f"\tp_data.{field} = get_platform_specific_options();")
                 elif _is_system_initialize_options_filed(field, field_type):
                     r_structs_cpp.append(f"\tp_data.{field} = get_system_initialize_options();")
-                elif _is_anticheat_client_handle_type(_decay_eos_type(field_type)):
-                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_ANTICHEAT_CLIENT_HANDLE(p_data.{field}, {snake_field_name});")
+                elif _is_pure_handle_type(_decay_eos_type(field_type)):
+                    r_structs_cpp.append(f"\t_TO_EOS_FIELD_PURE_HANDLE(p_data.{field}, {snake_field_name});")
                 elif _is_requested_channel_ptr_field(field_type, field):
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_REQUESTED_CHANNEL(p_data.{field}, {snake_field_name});")
                 elif field_type.startswith("Union"):
