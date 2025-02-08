@@ -141,6 +141,8 @@ public:
 
     EOSPacketPeerMediator();
     ~EOSPacketPeerMediator();
+
+    String _to_string() const;
 };
 } //namespace godot::eos
 

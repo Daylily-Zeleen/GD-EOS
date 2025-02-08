@@ -44,6 +44,9 @@ public:
     static Ref<EOSMultiPlayerConnectionInfo> make(const ConnectionRequestData &p_from);
 
     static PropertyInfo make_property_info(const String &p_property_name = "connection_info");
+
+public:
+    String _to_string() const;
 };
 
 class EOSMultiplayerPeer : public MultiplayerPeerExtension {
@@ -324,6 +327,8 @@ public:
 
     EOSMultiplayerPeer() = default;
     ~EOSMultiplayerPeer();
+
+    String _to_string() const;
 };
 } //namespace godot::eos
 VARIANT_ENUM_CAST(godot::eos::EOSMultiplayerPeer::Mode);

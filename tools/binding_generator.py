@@ -974,7 +974,7 @@ def _gen_handle(
     for constant in infos["constants"]:
         const_value = infos["constants"][constant]["value"]
         if _is_string_constant(const_value):
-            method_define_lines.append(f"\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {const_value}; }}")
+            method_define_lines.append(f"\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {constant}; }}")
             has_string_constants = True
             _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"], {})
     if has_string_constants:
@@ -1106,7 +1106,7 @@ def _gen_handle(
         r_cpp_lines.append(f'\treturn vformat("[{klass}:%s]", str);')
         r_cpp_lines.append(f"}}")
     else:
-        r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("[{klass}:%d]", get_instance_id()); }}')
+        r_cpp_lines.append(f'String {klass}::_to_string() const {{ return vformat("<{klass}#%d>", get_instance_id()); }}')
     r_cpp_lines.append("")
 
     # bind

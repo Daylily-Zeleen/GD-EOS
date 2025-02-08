@@ -539,6 +539,10 @@ EOSPacketPeerMediator::~EOSPacketPeerMediator() {
     singleton = nullptr;
 }
 
+String EOSPacketPeerMediator::_to_string() const {
+    return vformat("<%s#%d>", get_class_static(), get_instance_id());
+}
+
 } //namespace godot::eos
 
 #endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)

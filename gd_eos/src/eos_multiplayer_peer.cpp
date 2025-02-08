@@ -74,6 +74,10 @@ PropertyInfo EOSMultiPlayerConnectionInfo::make_property_info(const String &p_pr
     return PropertyInfo(Variant::OBJECT, p_property_name, {}, "", {}, get_class_static());
 }
 
+String EOSMultiPlayerConnectionInfo::_to_string() const {
+    return vformat("<%s#%d>", get_class_static(), get_instance_id());
+}
+
 // =============
 
 EOS_ProductUserId EOSMultiplayerPeer::local_user_id{ nullptr };
@@ -1366,6 +1370,10 @@ bool EOSMultiplayerPeer::EOSSocket::_socket_id_is_valid(const String &socket_id)
         }
     }
     return true;
+}
+
+String EOSMultiplayerPeer::_to_string() const {
+    return vformat("<%s#%d>", get_class_static(), get_instance_id());
 }
 
 } //namespace godot::eos
