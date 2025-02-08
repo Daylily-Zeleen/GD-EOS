@@ -22,7 +22,7 @@ for k in ["min_field_count_to_expand_input_structs", "min_field_count_to_expand_
             hint += ", "
         hint += f"'{k}'"
 if len(hint) > 0:
-    print(f"HINT: You can Ignore warnings about {hint} safely.")
+    print(f"HINT: You can ignore warnings about {hint} safely.")
 
 gd_eos_tool.generate(env)
 
@@ -89,7 +89,7 @@ def _on_complete(target, source, env):
             shutil.rmtree(android_build_tmp_dir)
     #     _copy_file(eos_sdk_folder + f"Bin/Android/static-stdc++/libs/{eos_android_arch}/libEOSSDK.so", plugin_bin_folder + f"/android/{eos_android_arch}/libEOSSDK.so")
 
-    # 更新.gdextension中的版本信息
+    # 更新.gdextension
     with open(extension_file, "r", encoding="utf8") as f:
         lines = f.readlines()
         f.close()
@@ -99,7 +99,7 @@ def _on_complete(target, source, env):
         for i in range(len(lines)):
             if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
                 lines[i] = f'version = "{version}"\n'
-            if lines[i].startswith("compatibility_minimum") and lines[i].endswith('"\n'):
+            if lines[i].startswith("compatibility_minimum") and lines[i].endswith('\n'):
                 lines[i] = f'compatibility_minimum = "{_get_min_compatible_version()}"\n'
                 break
 
