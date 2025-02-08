@@ -12,7 +12,8 @@ jobs:
     with:
       compatibility_minimum: '4.2'
       sconsflags: ''
-      artifact_suffix: '_no_aoolu'
+      temporary_artifact_suffix: '_no_aoolu'
+      artifact_suffix: ''
 
   min-godot-v4_2-AOOLU:
     uses: ./.github/workflows/builds.yml
@@ -20,6 +21,7 @@ jobs:
     with:
       compatibility_minimum: '4.2'
       sconsflags: assume_only_one_local_user=yes
+      temporary_artifact_suffix: _aoolu
       artifact_suffix: _aoolu
 
   min-godot-v4_3:
@@ -28,7 +30,8 @@ jobs:
     with:
       compatibility_minimum: '4.3'
       sconsflags: ''
-      artifact_suffix: '_no_aoolu'
+      temporary_artifact_suffix: '_no_aoolu'
+      artifact_suffix: ''
 
   min_godot-v4_3-AOOLU:
     uses: ./.github/workflows/builds.yml
@@ -36,4 +39,5 @@ jobs:
     with:
       compatibility_minimum: '4.3'
       sconsflags: assume_only_one_local_user=yes
+      temporary_artifact_suffix: _aoolu
       artifact_suffix: _aoolu
