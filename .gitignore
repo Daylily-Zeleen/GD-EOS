@@ -21,3 +21,4 @@ thirdparty/
 compile_commands.json
 *.log
 *.pdb
+doc_classes/
