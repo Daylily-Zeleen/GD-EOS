@@ -12,7 +12,7 @@ jobs:
     with:
       compatibility_minimum: '4.2'
       sconsflags: ''
-      artifact_suffix: ''
+      artifact_suffix: '_no_aoolu'
 
   min-godot-v4_2-AOOLU:
     uses: ./.github/workflows/builds.yml
@@ -28,7 +28,7 @@ jobs:
     with:
       compatibility_minimum: '4.3'
       sconsflags: ''
-      artifact_suffix: ''
+      artifact_suffix: '_no_aoolu'
 
   min_godot-v4_3-AOOLU:
     uses: ./.github/workflows/builds.yml
