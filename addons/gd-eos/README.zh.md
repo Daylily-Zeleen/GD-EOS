@@ -139,12 +139,36 @@
     **如果你使用了其他将改变库名编译选项，注意修改"demo/addons/gd-eos/gdeos.gdextension"中相应的库名。**
 5. 在编译完成后，你将在 "demo/addons/gd-eos/"获得该插件。
 
+更进一步地，如果使用 godot-cpp 4.3(或以上) 进行编译并且使用 Godot 4.3(或以上) 的编辑器，你还可以生成该插件的编辑器文档进行编译：
+6. 运行以下命令生成/更新该插件的文档:
+
+``` shell
+    Godot_v4.3-stable_win64.exe --path demo --doctool .. --gdextension-docs
+```
+你需要将“Godot_v4.3-stable_win64.exe”替换为你的Godot编辑器的可执行文件路径。
+
+7. 像**第4步**中一样再次编译该插件。
+8. 现在，你将可以像普通的 Godot 类一样在编辑器中的帮助文档中查看该插件相关类的具体描述。
+
+**注意**: 生成的文档描述是程序化地从原始的 EOS-SDK 中提取并进行修改该的，因此**可能存在一些错误或不准确的地方，仅供参考**。
+
+## **关于 AOOLU( Assume Only One Local User) 版本**
+
+由于 EOS-SDK 本身是允许同时登录多用户的，你可以随处见到需要传入 `local_user_id` 的 API，以确定是哪个本地用户调用接口。但我们的游戏中一般只会使用一个本地用户，为了减少这一麻烦，该插件可以在编译时加入`assume_only_one_local_user=yes`标志来编译 AOOLU( Assume Only One Local User) 版本。
+
+该版本在除了 `EOSAuth` 与 `EOSConnect` 接口外，绝大部分接口的API均会隐藏 `local_user_id` 参数，并在需要时从内部填充该参数(`EOSAuth` 与 `EOSConnect` 接口的使用与非 AOOLU 版本相同，因为你可能需要管理不同账号之间的连接)。
+
+为了能够正常使用，你需要先使用 `EOSConnect.login()` 进行登录以在内部设置一个 `EOSProductUserId` 的本地用户ID，使用 `EOSAuth.login()` 进行登录以在内部设置一个 `EOSEpicAccountId` 的本地用户ID(多次登录不同账号时本地用户ID将被设置为最后一次登录的账号)，否则在调用其他接口的API时会返回 `EOS.Result.InvalidParameters` 并抛出相应的错误消息进行提示。
+
+顺便一提，你可以使用 `EOSProductUserId.get_local()` 与 `EOSEpicAccountId.get_local()` 获取当前对应的本地用户ID，**但是千万不要手动释放这两个接口的返回值！！**
+
 ## **已知注意事项**
 
 1. 如果你要使用覆层(仅Windows可用)，要注意渲染器的设置。
 2. 关于安卓导出，如果你使用预编译的二进制库，你需要在开发者门户上下载`EOS-SDK-Android-32303053-v1.16.3`(注意版本号)，以获取其中的aar包(再次说明，我没有二次分发的权利)。
 3. `XxxAttributeData` 的 `Key` 字段传输到远端时会被转为大写，因此你不应该使用小写字符作为键。
 4. 不建议使用1.16.1及以下的SDK（1.16.2修复了大量的bug）。
+5. 只有第一个使用`EOSConnect` 接口登录的用户能够正常使用 `EOSMultiplayerPeer` 与 `EOSMultiplayerMediator`（EOS SDK 允许同时登录多个账户，你可以随处见到需要传入 `local_user_id` 的 API，用以确定是哪个用户调用接口）。
 
 ## 安卓导出
 
