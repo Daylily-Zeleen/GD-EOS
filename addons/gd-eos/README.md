@@ -59,7 +59,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
         init_options.product_version = product_version
         var result_code: EOS.Result = EOS.initialize(init_options)
         if result_code != EOS.Success:
-            printerr("Initialize EOS faild: ", EOS.result_to_string(result_code))
+            printerr("Initialize EOS failed: ", EOS.result_to_string(result_code))
             return
 
         # Setup Logging.
@@ -104,7 +104,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 4. Run project with two instances to login:
    1. Set "External Credential Type" to "EPIC":
         1. Set "Login Credential Type" to "AccountPortal"：
-            - You should ensure your EPIC Account is added to your organization member, and hava a approprite role.
+            - You should ensure your EPIC Account is added to your organization member, and have a appropriate role.
             - The permissions of your application in Epic Account Services should enable "Basic Profile", "Online Presence", "Friend", **but "Country" should keep disabled**.
             Keep "Id" and "Token" empty, click "Login" button an jump to external browser to request authentification.
         2. Set "Login Credential Type" to "Developer"，you need to login your Epic Accounts with token in **DevAuthTool** which in the "Tools" folder of EOS SDK.
@@ -137,14 +137,38 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
     More detail of compile commands, please refer to godot-cpp's compile system.
     **If you change the output library name by using compile options, please modify "demo/addons/gd-eos/gdeos.gdextension" to fit your library name.**
-5. Last, you can get the compiled addon which is localed at "demo/addons/gd-eos/".
+5. Last, you can get the compiled addon which is located at "demo/addons/gd-eos/".
+
+Additionally, if you compile with godot-cpp 4.3(or later version) and use Godot 4.3(or later version), you can generate and compile with editor documents:
+6. Run command below to generate/update document files of this plugin:
+
+``` shell
+Godot_v4.3-stable_win64.exe --path demo --doctool .. --gdextension-docs
+```
+You should replace "Godot_v4.3-stable_win64.exe" to your Godot editor's executable file.
+
+7. Compile again like **step 4**.
+8. Now，you can refer classes' document of this plugin in Godot editor help like native Godot classes.
+
+**NOTE**: the generated documents is extracted and modified procedurally from the source EOS-SDK, so **it may not be accurate, just for reference**.
+
+## **About AOOLU (Assume Only One Local User) Version**
+
+Since EOS-SDK allows multiple users to log in simultaneously, you will frequently encounter APIs that require passing in a `local_user_id` to determine which local user is calling the interface. However, in game developing, we generally only use one local user. To reduce this inconvenience, this plugin can be compiled with the `assume_only_one_local_user=yes` flag to create the AOOLU (Assume Only One Local User) version.
+
+In this version, apart from the `EOSAuth` and `EOSConnect` interfaces, the `local_user_id` parameter is hidden in most of the other APIs, and the parameter is filled internally when needed( the usage of the `EOSAuth` and `EOSConnect` interfaces is the same as in the non-AOOLU version, because you might need to manager the linkage between different accounts).
+
+To use this version, you must use`EOSConnect.login()` to set an `EOSProductUserId` as the local user ID internally, and use `EOSAuth.login()` to set an `EOSEpicAccountId` as the local user ID internally (if you log in with different accounts multiple times, the local user ID will be set to the last logged-in user). Otherwise, when calling other APIs, it will return `EOS.Result.InvalidParameters` and throw an appropriate error message as a prompt.
+
+By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get_local()` to get current local user id, **but don't release the return value of these interfaces manually!!**.
 
 ## **Known issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
 2. About Android exporting, if you use precompiled binary library, you need to download `EOS-SDK-Android-32303053-v1.16.3`(pay attention to the version) from epic developer portal for getting "aar" file (again, I have not right to dispatch SDK).
-3. `XxxAttributeData.Key` will be converted to upper case when transfering to remote peer, you should not use lower charactors in your key.
+3. `XxxAttributeData.Key` will be converted to upper case when transferring to remote peer, you should not use lower characters in your key.
 4. It is not recommended to use `1.16.1` or previous version, because `1.16.2` fixed many bugs.
+5. Only the first user who use `EOSConnect` interface to login can use `EOSMultiplayerPeer` and `EOSMultiplayerMediator` (the EOS SDK allow multiple users to login in one process. You can see many APIs determine user by passing a `local_user_id` argument).
 
 ## Exporting for Android
 
@@ -159,9 +183,9 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
     After compiling, copy the plugin to your Godot Project.
 2. Follow the tutorial [Gradle builds for Andriod](https://docs.godotengine.org/en/stable/tutorials/export/android_gradle_build.html), generate an android project at `res://android/build`.
-3. Configurate your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
-   1. Add `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar`, assign its configuration as `implementation`, as dependency to your andoird project.
-   2. Add other dependencies which requeired by "EOS Andoird SDK".
+3. Configure your android project by following the [Epic Online Services document](https://dev.epicgames.com/docs/epic-online-services/platforms/android#4-add-the-eos-sdk-to-your-android-studio-project).
+   1. Add `SDK/Bin/Android/static-stdc++/aar/eossdk-StaticSTDC-release.aar`, assign its configuration as `implementation`, as dependency to your android project.
+   2. Add other dependencies which required by "EOS Andoird SDK".
         At last, the `dependencies` section in `build.gradle` file will like this:
 
         ```gradle
@@ -224,7 +248,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
             }
         ```
 
-4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other infomations if needs.
+4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other information if needs.
 5. You can export Android APK if there have not problem.
 
 ## **Cautious**
@@ -233,7 +257,7 @@ This repo is lack of testing. The name of Apis may be changed in later version.
 
 ## TODO
 
-1. Detect deprecated menbers instead of heard codeing.
+1. Detect deprecated members instead of hard coding.
 2. Generate typed callback apis for c++ user.
 3. Add ios build.
 
