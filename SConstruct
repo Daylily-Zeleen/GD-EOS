@@ -97,10 +97,10 @@ def _on_complete(target, source, env):
         version: str = open("version", "r").readline().strip()
 
         for i in range(len(lines)):
-            if lines[i].startswith('version = "') and lines[i].endswith('"\n'):
-                lines[i] = f'version = "{version}"\n'
+            if lines[i].startswith('version = ') and lines[i].endswith('\n'):
+                lines[i] = f'version = {version}\n'
             if lines[i].startswith("compatibility_minimum") and lines[i].endswith('\n'):
-                lines[i] = f'compatibility_minimum = "{_get_min_compatible_version()}"\n'
+                lines[i] = f'compatibility_minimum = {_get_min_compatible_version()}\n'
                 break
 
         with open(extension_file, "w", encoding="utf8") as f:
