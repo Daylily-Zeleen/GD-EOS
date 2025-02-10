@@ -1,6 +1,6 @@
 [infomation]
 name = "GD-EOS"
-version = "v0.2.0"
+version = v0.3.0
 decription = "A Epic Online Services plugin for Godot"
 author = "忘忧の (Daylily Zeleen)"
 email = "daylily-zeleen@foxmail.com"
@@ -12,7 +12,7 @@ others = "诚接Godot游戏开发，欢迎邮件联系。/ Receive game developm
 [configuration]
 
 entry_symbol = "gdeos_library_init"
-compatibility_minimum = 4.2
+compatibility_minimum = 4.3
 
 [libraries]
 linux.x86_64.debug = "bin/linux/libgdeos.linux.template_debug.x86_64.so"
