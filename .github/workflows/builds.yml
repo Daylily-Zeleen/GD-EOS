@@ -42,7 +42,7 @@ jobs:
       strategy:
           fail-fast: false
           matrix:
-              identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32]
+              identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32, 🍏ios-arm64]
               target: [debug, release]
               include:
                   - identifier: 🐧Linux-x64
@@ -99,6 +99,10 @@ jobs:
                     godot_editor_suffix: linux.x86_64
                     host_platform: linux
                     force_compile_for_docs: true
+                  - identifier: 🍏ios-arm64
+                    runner: macos-latest
+                    platform: ios
+                    arch: arm64
 
       steps:
         - name: Set up Python
@@ -159,13 +163,22 @@ jobs:
               key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
           continue-on-error: true
 
-        - name: Compile extension
+        - name: (Other) Compile extension
+          if : ${{ matrix.platform != 'ios' }}
           shell: sh
           run: |
               scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
 
+        - name: (IOS) Compile extension
+          if : ${{ matrix.platform == 'ios' }}
+          shell: sh
+          run: |
+              # scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ios_simulator=yes ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+              scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+              ./tool/postprocess_ios.sh target=${{ matrix.target }}
+
         - name: (4.3 && Debug) Generate documents and recompile extension.
-          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && !contains(matrix.arch, '32') }}
+          if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && !contains(matrix.arch, '32') && matrix.godot_editor_suffix != '' }}
           uses: ./.github/actions/generate_documents_and_recompile
           with:
               godot_branch_for_generate_documents: ${{ env.GODOT_BRANCH_FOR_GENERATE_DOCUMENTS }}

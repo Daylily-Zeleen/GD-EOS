@@ -1,3 +1,6 @@
+![Static Badge](https://img.shields.io/badge/Godot-4.x-blue?logo=godotengine&labelColor=white)
+![Static Badge](https://img.shields.io/badge/Epic_Online_Services-1.17.0-8A2BE2?logo=epic-games&labelColor=303030)
+
 # GD-EOS
 
 [点击查中文说明](README.zh.md)

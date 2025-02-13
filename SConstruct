@@ -153,6 +153,8 @@ def _build_gd_eos(env: Environment):
     _, generated_sources =  env.GD_EOS_GENERATE_BINDINGS()
     env.GD_EOS_PREPROCESS()
 
+    print(open("./gd_eos/gen/src/interfaces/eos_anticheatclient_interface.cpp", "r").read())
+
     # 头文件搜索路径
     env.Append(
         CPPPATH=[
@@ -237,6 +239,20 @@ def _build_gd_eos(env: Environment):
         lib_dir = os.path.join(android_build_tmp_dir, "jni", eos_android_arch)
         env.Append(LIBPATH=[lib_dir])
         env.Append(LIBS=["EOSSDK"])
+
+    elif env["platform"] == "ios":
+        if env["arch"] != "arm64":
+            raise Exception("Only arm64 is supported on iOS.")
+
+        shutil.rmtree(plugin_bin_folder + "/ios/EOSSDK.xcframework", ignore_errors=True)
+        shutil.copytree(eos_sdk_folder + "Bin/IOS/EOSSDK.xcframework", plugin_bin_folder + "/ios/EOSSDK.xcframework")
+
+        env.Append(LINKFLAGS=[
+            # "-F", plugin_bin_folder + f"/ios/EOSSDK.xcframework/ios-arm64{"-simulator" if env["ios_simulator"] else ""}",
+            "-F", plugin_bin_folder + f"/ios/EOSSDK.xcframework/ios-arm64",
+            '-framework', 'AuthenticationServices',
+            '-framework', 'EOSSDK',
+        ])
 
     if env["platform"] == "macos":
         library = env.SharedLibrary(
