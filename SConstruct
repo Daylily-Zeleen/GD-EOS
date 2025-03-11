@@ -34,7 +34,7 @@ output_bin_folder = "bin/"
 
 base_dir = "gd_eos/"
 plugin_folder = "demo/addons/gd-eos/"
-extension_file = os.path.join(plugin_folder, "gdeos.gdextension")
+extension_file = os.path.join(plugin_folder, "gd-eos.gdextension")
 plugin_bin_folder = os.path.join(plugin_folder, "bin")
 
 eos_aar_dir = os.path.join(eos_sdk_folder, "Bin/Android/static-stdc++/aar/")
@@ -98,7 +98,7 @@ def _on_complete(target, source, env):
 
         for i in range(len(lines)):
             if lines[i].startswith('version = ') and lines[i].endswith('\n'):
-                lines[i] = f'version = {version}\n'
+                lines[i] = f'version = "{version}"\n'
             if lines[i].startswith("compatibility_minimum") and lines[i].endswith('\n'):
                 lines[i] = f'compatibility_minimum = {_get_min_compatible_version()}\n'
                 break
@@ -152,8 +152,6 @@ def _build_gd_eos(env: Environment):
     # 绑定生成与预处理
     _, generated_sources =  env.GD_EOS_GENERATE_BINDINGS()
     env.GD_EOS_PREPROCESS()
-
-    print(open("./gd_eos/gen/src/interfaces/eos_anticheatclient_interface.cpp", "r").read())
 
     # 头文件搜索路径
     env.Append(
