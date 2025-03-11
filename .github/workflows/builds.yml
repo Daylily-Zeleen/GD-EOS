@@ -42,63 +42,63 @@ jobs:
       strategy:
           fail-fast: false
           matrix:
-              identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32, 🍏ios-arm64]
-              target: [debug, release]
+              identifier: [🍏ios-arm64] # [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32, 🍏ios-arm64]
+              target: [release] # debug, 
               include:
-                  - identifier: 🐧Linux-x64
-                    runner: ubuntu-20.04
-                    platform: linux
-                    arch: x86_64
-                    godot_editor_suffix: linux.x86_64
-                    host_platform: linux
-                  - identifier: 🍎Macos-Universal
-                    runner: macos-latest
-                    platform: macos
-                    arch: universal
-                    godot_editor_suffix: macos.universal
-                    host_platform: macos
-                  - identifier: 🏁Windows-x64 (clang)
-                    runner: windows-latest
-                    platform: windows
-                    additional_sconsflags: use_clang_cl=yes
-                    arch: x86_64
-                    host_platform: windows
-                    godot_editor_suffix: win64.exe
-                  - identifier: 🏁Windows-x86 (msvc)
-                    runner: windows-latest
-                    platform: windows
-                    arch: x86_32
-                    godot_editor_suffix: win64.exe
-                    host_platform: windows
-                    force_compile_for_docs: true
-                  - identifier: 🤖Android-arm64
-                    runner: ubuntu-20.04
-                    platform: android
-                    arch: arm64
-                    godot_editor_suffix: linux.x86_64
-                    host_platform: linux
-                    force_compile_for_docs: true
-                  - identifier: 🤖Android-x86_64
-                    runner: ubuntu-20.04
-                    platform: android
-                    arch: x86_64
-                    godot_editor_suffix: linux.x86_64
-                    host_platform: linux
-                    force_compile_for_docs: true
-                  - identifier: 🤖Android-arm32
-                    runner: ubuntu-20.04
-                    platform: android
-                    arch: arm32
-                    godot_editor_suffix: linux.x86_64
-                    host_platform: linux
-                    force_compile_for_docs: true
-                  - identifier: 🤖Android-x86_32
-                    runner: ubuntu-20.04
-                    platform: android
-                    arch: x86_32
-                    godot_editor_suffix: linux.x86_64
-                    host_platform: linux
-                    force_compile_for_docs: true
+                  # - identifier: 🐧Linux-x64
+                  #   runner: ubuntu-20.04
+                  #   platform: linux
+                  #   arch: x86_64
+                  #   godot_editor_suffix: linux.x86_64
+                  #   host_platform: linux
+                  # - identifier: 🍎Macos-Universal
+                  #   runner: macos-latest
+                  #   platform: macos
+                  #   arch: universal
+                  #   godot_editor_suffix: macos.universal
+                  #   host_platform: macos
+                  # - identifier: 🏁Windows-x64 (clang)
+                  #   runner: windows-latest
+                  #   platform: windows
+                  #   additional_sconsflags: use_clang_cl=yes
+                  #   arch: x86_64
+                  #   host_platform: windows
+                  #   godot_editor_suffix: win64.exe
+                  # - identifier: 🏁Windows-x86 (msvc)
+                  #   runner: windows-latest
+                  #   platform: windows
+                  #   arch: x86_32
+                  #   godot_editor_suffix: win64.exe
+                  #   host_platform: windows
+                  #   force_compile_for_docs: true
+                  # - identifier: 🤖Android-arm64
+                  #   runner: ubuntu-20.04
+                  #   platform: android
+                  #   arch: arm64
+                  #   godot_editor_suffix: linux.x86_64
+                  #   host_platform: linux
+                  #   force_compile_for_docs: true
+                  # - identifier: 🤖Android-x86_64
+                  #   runner: ubuntu-20.04
+                  #   platform: android
+                  #   arch: x86_64
+                  #   godot_editor_suffix: linux.x86_64
+                  #   host_platform: linux
+                  #   force_compile_for_docs: true
+                  # - identifier: 🤖Android-arm32
+                  #   runner: ubuntu-20.04
+                  #   platform: android
+                  #   arch: arm32
+                  #   godot_editor_suffix: linux.x86_64
+                  #   host_platform: linux
+                  #   force_compile_for_docs: true
+                  # - identifier: 🤖Android-x86_32
+                  #   runner: ubuntu-20.04
+                  #   platform: android
+                  #   arch: x86_32
+                  #   godot_editor_suffix: linux.x86_64
+                  #   host_platform: linux
+                  #   force_compile_for_docs: true
                   - identifier: 🍏ios-arm64
                     runner: macos-latest
                     platform: ios
@@ -175,7 +175,8 @@ jobs:
           run: |
               # scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ios_simulator=yes ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
               scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
-              ./tool/postprocess_ios.sh target=${{ matrix.target }}
+              chmod +x ./tools/postprocess_ios.sh
+              ./tools/postprocess_ios.sh target=${{ matrix.target }}
 
         - name: (4.3 && Debug) Generate documents and recompile extension.
           if: ${{ inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && !contains(matrix.arch, '32') && matrix.godot_editor_suffix != '' }}

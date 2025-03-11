@@ -2516,6 +2516,8 @@ def _gen_method(
     r_define_lines: list[str],
     r_bind_lines: list[str],
 ):
+    method_name = method_name.removeprefix("_")
+
     handle_klass = _convert_handle_class_name(handle_type)
 
     return_type: str = ""
@@ -2879,6 +2881,8 @@ def _gen_method(
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
     _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc, additional_doc)
+    if method_name == "EOS_AntiCheatClient_Reserved01":
+        print("\n".join(r_define_lines))
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
