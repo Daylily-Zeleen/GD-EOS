@@ -42,8 +42,8 @@ jobs:
       strategy:
           fail-fast: false
           matrix:
-              identifier: [🍏ios-arm64] # [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32, 🍏ios-arm64]
-              target: [release] # debug, 
+              identifier: [🐧Linux-x64, 🍎Macos-Universal, 🏁Windows-x64 (clang), 🏁Windows-x86 (msvc), 🤖Android-arm64, 🤖Android-x86_64, 🤖Android-arm32, 🤖Android-x86_32, 🍏ios-arm64]
+              target: [debug, release]
               include:
                   - identifier: 🐧Linux-x64
                     runner: ubuntu-20.04
