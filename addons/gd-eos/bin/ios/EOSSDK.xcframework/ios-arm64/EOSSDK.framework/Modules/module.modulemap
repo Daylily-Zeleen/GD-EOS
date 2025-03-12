@@ -1,0 +1,8 @@
+framework module EOSSDK [extern_c] {
+    requires c11
+    umbrella header "eos_umbrella.h"
+    textual header "eos_result.h"
+    textual header "eos_ui_keys.h"
+    textual header "eos_ui_buttons.h"
+    export *
+}
