@@ -2516,8 +2516,6 @@ def _gen_method(
     r_define_lines: list[str],
     r_bind_lines: list[str],
 ):
-    method_name = method_name.removeprefix("_")
-
     handle_klass = _convert_handle_class_name(handle_type)
 
     return_type: str = ""
@@ -2881,8 +2879,6 @@ def _gen_method(
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
     _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc, additional_doc)
-    if method_name == "EOS_AntiCheatClient_Reserved01":
-        print("\n".join(r_define_lines))
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
@@ -2983,7 +2979,7 @@ def _is_need_skip_struct(struct_type: str) -> bool:
         "EOS_P2P_SocketId",
         # 未使用
         "EOS_UI_Rect",
-    ]
+    ] or "_Reserved" in struct_type # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_callback(callback_type: str) -> bool:
@@ -3011,7 +3007,7 @@ def _is_need_skip_method(method_name: str) -> bool:
         "EOS_RTCAudio_SetAudioOutputSettings",
         # 废弃 NOT: This api is deprecated.
         "EOS_AntiCheatClient_PollStatus",
-    ]
+    ] or "_Reserved" in method_name # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_enum_type(ori_enum_type: str) -> bool:
@@ -3410,7 +3406,7 @@ def _is_deprecated_constant(name: str) -> bool:
 def _is_need_skip_constant(name: str) -> bool:
     return name in [
         "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
-    ]
+    ] or "_RESERVED" in name # 被保留的常量，不能被用户调用
 
 
 def _is_string_constant(val: str) -> bool:
