@@ -6,32 +6,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # min-godot-v4_2:
-  #   uses: ./.github/workflows/builds.yml
-  #   secrets: inherit
-  #   with:
-  #     compatibility_minimum: '4.2'
-  #     sconsflags: ''
-  #     temporary_artifact_suffix: '_no_aoolu'
-  #     artifact_suffix: ''
+  min-godot-v4_2:
+    uses: ./.github/workflows/builds.yml
+    secrets: inherit
+    with:
+      compatibility_minimum: '4.2'
+      sconsflags: ''
+      temporary_artifact_suffix: '_no_aoolu'
+      artifact_suffix: ''
 
-  # min-godot-v4_2-AOOLU:
-  #   uses: ./.github/workflows/builds.yml
-  #   secrets: inherit
-  #   with:
-  #     compatibility_minimum: '4.2'
-  #     sconsflags: assume_only_one_local_user=yes
-  #     temporary_artifact_suffix: _aoolu
-  #     artifact_suffix: _aoolu
+  min-godot-v4_2-AOOLU:
+    uses: ./.github/workflows/builds.yml
+    secrets: inherit
+    with:
+      compatibility_minimum: '4.2'
+      sconsflags: assume_only_one_local_user=yes
+      temporary_artifact_suffix: _aoolu
+      artifact_suffix: _aoolu
 
-  # min-godot-v4_3:
-  #   uses: ./.github/workflows/builds.yml
-  #   secrets: inherit
-  #   with:
-  #     compatibility_minimum: '4.3'
-  #     sconsflags: ''
-  #     temporary_artifact_suffix: '_no_aoolu'
-  #     artifact_suffix: ''
+  min-godot-v4_3:
+    uses: ./.github/workflows/builds.yml
+    secrets: inherit
+    with:
+      compatibility_minimum: '4.3'
+      sconsflags: ''
+      temporary_artifact_suffix: '_no_aoolu'
+      artifact_suffix: ''
 
   min_godot-v4_3-AOOLU:
     uses: ./.github/workflows/builds.yml
