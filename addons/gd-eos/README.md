@@ -1,3 +1,6 @@
+![Static Badge](https://img.shields.io/badge/Godot-4.x-blue?logo=godotengine&labelColor=white)
+![Static Badge](https://img.shields.io/badge/Epic_Online_Services-1.17.0-8A2BE2?logo=epic-games&labelColor=303030)
+
 # GD-EOS
 
 [点击查中文说明](README.zh.md)
@@ -11,6 +14,7 @@
 1. OOP and Godot Style, all APIs have been typed as far as possible.
 2. Almost APIs are generated from EOS C SDK, you can refer Epic Online Services document directly.
 3. `EOSMultiplayerPeer` for godot multiplayer.
+4. Support Windows, Linux, macOS, Android, iOS.
 
 ## Support Me
 
@@ -259,7 +263,6 @@ This repo is lack of testing. The name of Apis may be changed in later version.
 
 1. Detect deprecated members instead of hard coding.
 2. Generate typed callback apis for c++ user.
-3. Add ios build.
 
 ## Others
 
