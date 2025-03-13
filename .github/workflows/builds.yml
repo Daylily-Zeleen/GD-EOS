@@ -46,7 +46,7 @@ jobs:
               target: [debug, release]
               include:
                   - identifier: 🐧Linux-x64
-                    runner: ubuntu-20.04
+                    runner: ubuntu-latest
                     platform: linux
                     arch: x86_64
                     godot_editor_suffix: linux.x86_64
@@ -72,28 +72,28 @@ jobs:
                     host_platform: windows
                     force_compile_for_docs: true
                   - identifier: 🤖Android-arm64
-                    runner: ubuntu-20.04
+                    runner: ubuntu-latest
                     platform: android
                     arch: arm64
                     godot_editor_suffix: linux.x86_64
                     host_platform: linux
                     force_compile_for_docs: true
                   - identifier: 🤖Android-x86_64
-                    runner: ubuntu-20.04
+                    runner: ubuntu-latest
                     platform: android
                     arch: x86_64
                     godot_editor_suffix: linux.x86_64
                     host_platform: linux
                     force_compile_for_docs: true
                   - identifier: 🤖Android-arm32
-                    runner: ubuntu-20.04
+                    runner: ubuntu-latest
                     platform: android
                     arch: arm32
                     godot_editor_suffix: linux.x86_64
                     host_platform: linux
                     force_compile_for_docs: true
                   - identifier: 🤖Android-x86_32
-                    runner: ubuntu-20.04
+                    runner: ubuntu-latest
                     platform: android
                     arch: x86_32
                     godot_editor_suffix: linux.x86_64

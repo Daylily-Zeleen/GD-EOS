@@ -14,6 +14,7 @@
 1. Godot风格的面向对象,所有的接口均尽可能的类型化。
 2. 几乎所有的接口都是从 EOS 的 C SDK 生成，你可以直接查看 Epic Online Services 的文档。
 3. 用于Godot多人网络的`EOSMultiplayerPeer`。
+4. 支持 Windows, Linux, macOS, Android, iOS。
 
 ## 赞助
 
@@ -263,7 +264,6 @@
 
 1. 检测废弃成员代替目前生成器中的硬编码。
 2. 为c++开发者生成类型化的回调接口（代替直接使用Callable）。
-3. 添加IOS构建
 
 ## 其他
 
