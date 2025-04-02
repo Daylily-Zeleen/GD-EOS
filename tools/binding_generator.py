@@ -1039,7 +1039,7 @@ def _gen_handle(
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
     if not is_base_handle_type:
-        ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
+        ret.append(f"\tclass {handle_name} m_handle{{ nullptr }};")
         ret.append(f"")
     if len(notifies_member_lines):
         ret += notifies_member_lines
@@ -1102,7 +1102,8 @@ def _gen_handle(
         r_cpp_lines.append(f"\tif (m_handle) {{")
         r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
         r_cpp_lines.append(f"\t\tint32_t InOutBufferLength{{ {handle_name.upper()}_MAX_LENGTH + 1 }};")
-        r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
+        r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);")
+        r_cpp_lines.append(f"\t\tEOS::_set_last_result_code(result_code);")
         r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
         r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
         r_cpp_lines.append(f"\t\t}} else {{")
@@ -1690,6 +1691,8 @@ def _gen_packed_result_type(
     r_register_lines: list[str],
     r_need_convert_to_return_value: list[bool],
     get_type_name_only: bool = False,
+    # 返回 EOS_EResult 并且只有单个对象类型的返回参数 时重新映射的返回值类型。
+    r_remapped_result_type: list[str] = [],
 ) -> str:
     out_args: list[dict[str, str]] = []
     for i in range(len(method_info["args"])):
@@ -1711,6 +1714,17 @@ def _gen_packed_result_type(
                 r_need_convert_to_return_value.append[True]
                 return ""
 
+    if method_info["return"] == "EOS_EResult" and len(out_args) == 1:
+        arg_name: str = out_args[0]["name"]
+        arg_type: str = out_args[0]["type"]
+        decayed_type: str = _decay_eos_type(arg_type)
+        if _is_handle_type(decayed_type) and not _is_handle_arr_type(arg_type, arg_name):
+            r_remapped_result_type.append(f"Ref<{_convert_handle_class_name(decayed_type)}>")
+            return ""
+        if __is_struct_type(decayed_type):
+            r_remapped_result_type.append(f"Ref<{__convert_to_struct_class(decayed_type)}>")
+            return ""
+
     typename: str = _convert_result_type(method_name)
     if get_type_name_only:
         return typename
@@ -1723,7 +1737,7 @@ def _gen_packed_result_type(
         arg: dict[str, str] = out_args[i]
         arg_type: str = arg["type"]
         arg_name: str = arg["name"]
-        decayed_type: str = _decay_eos_type(arg["type"])
+        decayed_type: str = _decay_eos_type(arg_type)
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_arr_type(arg_type, arg_name):
             print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
@@ -2526,7 +2540,9 @@ def _gen_method(
     callback_signal = ""
 
     out_to_ret: list[bool] = []
-    packed_result_type = _gen_packed_result_type(method_name, info, [], [], [], out_to_ret, True)
+    _remapped_return_type_list: list[str] = []
+    packed_result_type: str = _gen_packed_result_type(method_name, info, [], [], [], out_to_ret, True, _remapped_return_type_list)
+    remapped_return_type: str = _remapped_return_type_list[0] if len(_remapped_return_type_list) > 0 else ""
     need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
@@ -2537,12 +2553,14 @@ def _gen_method(
                 callback_signal = __convert_to_signal_name(_decay_eos_type(a["type"]), method_name)
             break
 
-    if (return_type == "Signal") and len(packed_result_type):
+    if (return_type == "Signal") and (len(packed_result_type) or len(remapped_return_type)):
         print("ERROR 回调与打包返回冲突:", method_name)
         _print_stack_and_exit()
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
+    if len(remapped_return_type):
+        return_type = remapped_return_type
     elif _is_handle_type(_decay_eos_type(info["return"])):
         return_type = f'Ref<class {_convert_handle_class_name(_decay_eos_type(info["return"]))}>'
     elif return_type == "" and info["return"] != "void":
@@ -2715,29 +2733,51 @@ def _gen_method(
                 expended_args_doc,
             )
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
-            # Out 参数
-            converted_return_type: list[str] = []
-            __make_packed_result(
-                packed_result_type,
-                method_name,
-                info["return"] == "EOS_EResult",
-                options_prepare_identifier,
-                options_type,
-                i,
-                info["args"],
-                call_args,
-                prepare_lines,
-                after_call_lines,
-                converted_return_type,
-            )
-            if len(converted_return_type):
-                if len(converted_return_type) != 1:
-                    print("Error len(converted_return_type) != 1:", method_name)
-                    _print_stack_and_exit()
-                if return_type != "void":
-                    print("ERROR : ?")
-                    _print_stack_and_exit()
-                return_type = converted_return_type[1]
+            if len(remapped_return_type) == 0:
+                # Out 参数
+                converted_return_type: list[str] = []
+                __make_packed_result(
+                    packed_result_type,
+                    method_name,
+                    info["return"] == "EOS_EResult",
+                    options_prepare_identifier,
+                    options_type,
+                    i,
+                    info["args"],
+                    call_args,
+                    prepare_lines,
+                    after_call_lines,
+                    converted_return_type,
+                )
+                if len(converted_return_type):
+                    if len(converted_return_type) != 1:
+                        print("Error len(converted_return_type) != 1:", method_name)
+                        _print_stack_and_exit()
+                    if return_type != "void":
+                        print("ERROR : ?")
+                        _print_stack_and_exit()
+                    return_type = converted_return_type[1]
+            else:
+                # 返回 EOS_EResult 且返回参数为单个对象类型时
+                _assert(info["return"] == "EOS_EResult")
+
+                after_call_lines.append(f"\t{remapped_return_type} ret;")
+                after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
+                after_call_lines.append(f"\t\tret.instantiate();")
+                if _is_handle_type(decayed_type):
+                    prepare_lines.append(f"\t{decayed_type} {name}{{ nullptr }};")
+                    call_args.append(f"&{name}")
+                    after_call_lines.append(f"\t\tret.instantiate(); ret->set_handle({name});")
+                elif __is_struct_type(decayed_type):
+                    call_args.append(f"&{name}")
+                    if type.endswith("**"):
+                        prepare_lines.append(f"\t{decayed_type} *{name}{{}};")
+                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos(*{name});")
+                        after_call_lines.append(f"\t\t{decayed_type}_Release({name});")
+                    else:
+                        prepare_lines.append(f"\t{decayed_type} {name}{{}};")
+                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos({name});")
+                after_call_lines.append(f"\t}}")
 
             # Out 参数在最后，直接跳出
             break
@@ -2834,11 +2874,13 @@ def _gen_method(
                 )
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
-        r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
+        r_define_lines.append(f"\tEOS_EResult result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
+        r_define_lines.append(f"\tEOS::_set_last_result_code(result_code);")
     elif _is_handle_type(_decay_eos_type(info["return"])):
         r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
         r_define_lines.append(f'\tEOS_EResult result_code = {method_name}({", ".join(call_args)});')
+        r_define_lines.append(f"\tEOS::_set_last_result_code(result_code);")
     elif return_type == "void" or return_type == "Signal" or need_out_to_ret:
         r_define_lines.append(f'\t{method_name}({", ".join(call_args)});')
     else:
@@ -2859,6 +2901,9 @@ def _gen_method(
         if info["return"] == "EOS_EResult":
             r_define_lines.append(f"\tret->result_code = result_code;")
         r_define_lines.append(f"\treturn ret;")
+    elif len(remapped_return_type):
+        r_define_lines.append(f"\treturn ret;")
+        additional_doc.append(f"If the return value is null, please use [method EOS.get_last_result_code] to check the error.\n")
     elif return_type == "EOS_EResult":
         r_define_lines.append(f"\treturn result_code;")
     elif return_type == "Signal":
@@ -4892,11 +4937,15 @@ def _print_stack_and_exit():
     exit(1)
 
 
-def _assert(condition: bool):
+def _assert(condition: bool, msg: str = ""):
     if condition:
         return
     for l in traceback.format_stack():
         print(l)
+    if len(msg) > 0:
+        print("Assertion failed:", msg)
+    else:
+        print("Assertion failed.")
     exit(1)
 
 
