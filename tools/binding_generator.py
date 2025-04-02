@@ -966,6 +966,7 @@ def _gen_handle(
 
     if klass == "EOS":
         method_define_lines.append("\t_EOS_GET_VERSION()")
+        method_define_lines.append("\t_CODE_SNIPPET_DECLARE_LAST_RESULT_CODE()")
         method_define_lines.append("")
 
     # String Constants
@@ -1145,6 +1146,9 @@ def _gen_handle(
         r_cpp_lines.append(f"\t_CODE_SNIPPET_BINE_GET_LOCAL_ID({klass});")
 
     r_cpp_lines.append(f"}}")
+
+    if klass == "EOS":
+        r_cpp_lines.append("\t_CODE_SNIPPET_DEFINE_LAST_RESULT_CODE()")
 
     # 注册宏
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
@@ -2972,14 +2976,18 @@ def _convert_enum_value(ori: str) -> str:
 
 
 def _is_need_skip_struct(struct_type: str) -> bool:
-    return struct_type in [
-        "EOS_AntiCheatCommon_Quat",
-        "EOS_AntiCheatCommon_Vec3f",
-        # 直接使用字符串代替
-        "EOS_P2P_SocketId",
-        # 未使用
-        "EOS_UI_Rect",
-    ] or "_Reserved" in struct_type # 保留的API, 不能被用户调用
+    return (
+        struct_type
+        in [
+            "EOS_AntiCheatCommon_Quat",
+            "EOS_AntiCheatCommon_Vec3f",
+            # 直接使用字符串代替
+            "EOS_P2P_SocketId",
+            # 未使用
+            "EOS_UI_Rect",
+        ]
+        or "_Reserved" in struct_type
+    )  # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_callback(callback_type: str) -> bool:
@@ -2988,26 +2996,30 @@ def _is_need_skip_callback(callback_type: str) -> bool:
 
 def _is_need_skip_method(method_name: str) -> bool:
     # TODO: Create , Release, GetInterface 均不需要
-    return method_name in [
-        "EOS_ByteArray_ToString",  # Godot 压根就不需要
-        # 废弃 DEPRECATED!
-        "EOS_Achievements_CopyAchievementDefinitionByIndex",
-        "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
-        "EOS_Achievements_GetUnlockedAchievementCount",
-        "EOS_Achievements_CopyUnlockedAchievementByIndex",
-        "EOS_Achievements_CopyUnlockedAchievementByAchievementId",
-        "EOS_Achievements_AddNotifyAchievementsUnlocked",
-        "EOS_RTCAudio_RegisterPlatformAudioUser",
-        "EOS_RTCAudio_UnregisterPlatformAudioUser",
-        "EOS_RTCAudio_GetAudioInputDevicesCount",
-        "EOS_RTCAudio_GetAudioInputDeviceByIndex",
-        "EOS_RTCAudio_GetAudioOutputDevicesCount",
-        "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
-        "EOS_RTCAudio_SetAudioInputSettings",
-        "EOS_RTCAudio_SetAudioOutputSettings",
-        # 废弃 NOT: This api is deprecated.
-        "EOS_AntiCheatClient_PollStatus",
-    ] or "_Reserved" in method_name # 保留的API, 不能被用户调用
+    return (
+        method_name
+        in [
+            "EOS_ByteArray_ToString",  # Godot 压根就不需要
+            # 废弃 DEPRECATED!
+            "EOS_Achievements_CopyAchievementDefinitionByIndex",
+            "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
+            "EOS_Achievements_GetUnlockedAchievementCount",
+            "EOS_Achievements_CopyUnlockedAchievementByIndex",
+            "EOS_Achievements_CopyUnlockedAchievementByAchievementId",
+            "EOS_Achievements_AddNotifyAchievementsUnlocked",
+            "EOS_RTCAudio_RegisterPlatformAudioUser",
+            "EOS_RTCAudio_UnregisterPlatformAudioUser",
+            "EOS_RTCAudio_GetAudioInputDevicesCount",
+            "EOS_RTCAudio_GetAudioInputDeviceByIndex",
+            "EOS_RTCAudio_GetAudioOutputDevicesCount",
+            "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
+            "EOS_RTCAudio_SetAudioInputSettings",
+            "EOS_RTCAudio_SetAudioOutputSettings",
+            # 废弃 NOT: This api is deprecated.
+            "EOS_AntiCheatClient_PollStatus",
+        ]
+        or "_Reserved" in method_name
+    )  # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_enum_type(ori_enum_type: str) -> bool:
@@ -3404,9 +3416,13 @@ def _is_deprecated_constant(name: str) -> bool:
 
 
 def _is_need_skip_constant(name: str) -> bool:
-    return name in [
-        "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
-    ] or "_RESERVED" in name # 被保留的常量，不能被用户调用
+    return (
+        name
+        in [
+            "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
+        ]
+        or "_RESERVED" in name
+    )  # 被保留的常量，不能被用户调用
 
 
 def _is_string_constant(val: str) -> bool:
@@ -4088,7 +4104,7 @@ def _gen_struct_v2(
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{ -1.0 }};")
         elif _is_pure_handle_type(decayed_type):
-            bind_lines.append(f'\t_BIND_PROP({snake_field_name})')
+            bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{ 0 }};")
