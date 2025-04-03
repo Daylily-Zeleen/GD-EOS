@@ -1070,7 +1070,7 @@ def _gen_handle(
         ret.append(f"\t{klass}();")
     # Destructor
     if len(release_method) or len(remove_notifies_lines):  # and not is_base_handle_type:
-        ret.append(f"\t~{klass}();")
+        ret.append(f"\tvirtual ~{klass}() override;")
     # Handle setget
     if not is_base_handle_type:
         ret.append(f"\tvoid set_handle({handle_name} p_handle);")
