@@ -3771,14 +3771,16 @@ def _optimize_doc(doc: list[str]) -> list[str]:
             elif assume_only_one_local_user and line.startswith("@param LocalUserId"):
                 # 假定只有一个本地用户时不需要该项说明
                 continue
+            elif line.startswith("@param ClientData"):
+                # 不需要该参数
+                continue
 
         if len(ret) <= 0:
             # 首行
             ret.append(doc[i])
             in_details = False
         elif len(doc[i].strip()) <= 0:
-            # 空行
-            ret.append(doc[i])
+            # 跳过空行
             in_details = False
         elif doc[i].lstrip().startswith("@"):
             # 单行注释
@@ -4552,28 +4554,44 @@ def __make_callback_doc(callback_type: str) -> list[str]:
     for arg in info["args"]:
         name = arg["name"]
         type = arg["type"]
+
         decayed_type = _decay_eos_type(type)
         if not _is_expanded_struct(decayed_type):
-            ret.append(f"{name}: {decayed_type}\n")
-            for l in structs[decayed_type]["doc"]:
-                ret.append(f"\t{l}")
+            doc:list[str] = structs[decayed_type]['doc']
+            snake_name :str = to_snake_case(name)
+
+            if len(doc) == 1:
+                l = doc[0].lstrip('\t')
+                ret.append(f"{snake_name} ({decayed_type}): {l}")
+            else:
+                ret.append(f"{snake_name} ({decayed_type}):\n")
+                for l in doc:
+                    ret.append(f"\t{l}")
         else:
             arg_fields = __get_struct_fields(decayed_type)
 
             count_and_variant_type_fields: list[str] = __find_count_and_variant_type_fields_in_struct(decayed_type)
             for f in arg_fields:
-                if _is_client_data_field(type, f):
-                    continue  # 跳过这个特殊字段
                 # 处理要跳过的字段
                 if f in count_and_variant_type_fields:
                     # 跳过其中Godot不需要的字段
                     continue
                 info = arg_fields[f]
+                doc :list[str] = info["doc"]
                 f_type = _decay_eos_type(info["type"])
-                ret.append(f"{f}: {f_type}\n")
-                for l in info["doc"]:
-                    ret.append(f"\t{l}\n")
+                f_snake_name :str = to_snake_case(f)
 
+                if f_type.startswith("void") and f == "ClientData":
+                    continue # 跳过这个特殊字段
+
+                if len(doc) == 1:
+                    l = doc[0].lstrip('\t')
+                    ret.append(f"{f_snake_name} ({f_type}): {l}")
+                else:
+                    ret.append(f"{f_snake_name} ({f_type}):\n")
+                    for l in info["doc"]:
+                        ret.append(f"\t{l}\n")
+    ret.append("") # 插入空字符用于标记改参数必须换行
     return ret
 
 
@@ -4763,20 +4781,29 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
     __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     if len(additional_args_doc) > 0:
         insert_idx += len(doc)
-        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Arguments Additional Descriptions --------------\n"], indent_count)
-        insert_idx += 2
+        __insert_doc_to(typename, lines, insert_idx, ["-------------- Arguments Additional Descriptions --------------\n"], indent_count)
+        insert_idx += 1
 
         for arg in additional_args_doc:
             arg_doc = additional_args_doc[arg].copy()
+
             for i in range(len(arg_doc)):
-                arg_doc[i] = "\t" + arg_doc[i]
-            arg_doc.insert(0, "\n")
-            arg_doc.insert(1, f"{arg}:\n")
+                if len(arg_doc[i].strip()):
+                    # 非空行添加缩进
+                    arg_doc[i] = "\t" + arg_doc[i]
+
+            arg_snake_name = to_snake_case(arg)
+            if len(arg_doc) == 1:
+                arg_doc[0] = f"{arg_snake_name}: " + arg_doc[0].lstrip("\t")
+            else:
+                arg_doc.insert(0, f"{arg_snake_name}:\n")
+
             __insert_doc_to(typename, lines, insert_idx, arg_doc, indent_count)
             insert_idx += len(arg_doc)
+
     if len(additional_doc) > 0:
-        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
-        insert_idx += 2
+        __insert_doc_to(typename, lines, insert_idx, ["-------------- Additional Descriptions --------------\n"], indent_count)
+        insert_idx += 1
 
         additional_doc_copy = additional_doc.copy()
         additional_doc_copy.insert(0, "\n")
