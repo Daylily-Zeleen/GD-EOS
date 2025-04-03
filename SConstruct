@@ -1,9 +1,13 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python
 import os, shutil
 from SCons.Variables import Variables
 from SCons.Script import SConscript
 from SCons.Environment import Environment
 from SCons.Tool import Tool
+
+import os
+os.system("chcp 65001")
 
 env :Environment = SConscript("godot-cpp/SConstruct")
 

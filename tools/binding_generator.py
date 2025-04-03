@@ -438,6 +438,9 @@ def gen_files(file_base_name: str, infos: dict):
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f'#include <packed_results/{file_base_name + ".packed_results.h"}>')
+        else:
+            additional_include_lines.append(f'#include <{file_base_name}_types.h>') # 句柄类型
+            additional_include_lines.append(f'#include <core/utils.h>') # is_equal() 使用其中的 _EOS_HANDLE_IS_EQUAL 宏
 
         if assume_only_one_local_user and file_base_name == "eos_common":
             # 假定只有一个用户时定义 EOS_ASSUME_ONLY_ONE_USER 宏
@@ -1039,7 +1042,7 @@ def _gen_handle(
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append(f"")
     if not is_base_handle_type:
-        ret.append(f"\tclass {handle_name} m_handle{{ nullptr }};")
+        ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
         ret.append(f"")
     if len(notifies_member_lines):
         ret += notifies_member_lines
@@ -1149,7 +1152,7 @@ def _gen_handle(
     r_cpp_lines.append(f"}}")
 
     if klass == "EOS":
-        r_cpp_lines.append("\t_CODE_SNIPPET_DEFINE_LAST_RESULT_CODE()")
+        r_cpp_lines.append("_CODE_SNIPPET_DEFINE_LAST_RESULT_CODE()")
 
     # 注册宏
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
@@ -2288,7 +2291,7 @@ def __expand_input_struct(
             r_prepare_lines.append(f"\tLocalVector<{_decay_eos_type(field_type)}> _shadow_{snake_field};")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
-            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field, True)} &p_{snake_field}")
             if len(invalid_arg_return_value):
                 r_prepare_lines.append(f"\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});")
             else:
@@ -3114,16 +3117,22 @@ def is_deprecated_field(field: str) -> bool:
     )
 
 
-def remap_type(type: str, field: str = "") -> str:
+def remap_type(type: str, field: str = "", forward_declare :bool = False) -> str:
     if _is_enum_type(type):
         # 枚举类型原样返回
         return type
     if __is_struct_type(type):
-        return f"Ref<{__convert_to_struct_class(type)}>"
+        if forward_declare:
+            return f"Ref<class {__convert_to_struct_class(type)}>"
+        else:
+            return f"Ref<{__convert_to_struct_class(type)}>"
     if _is_handle_arr_type(type, field):
         return f"TypedArray<{_convert_handle_class_name(type)}>"
     if _is_handle_type(type, field):
-        return f"Ref<{_convert_handle_class_name(type)}>"
+        if forward_declare:
+            return f"Ref<class {_convert_handle_class_name(type)}>"
+        else:
+            return f"Ref<{_convert_handle_class_name(type)}>"
     if _is_internal_struct_arr_field(type, field):
         return f"TypedArray<{__convert_to_struct_class(_decay_eos_type(type))}>"
     if __is_callback_type(_decay_eos_type(type)):

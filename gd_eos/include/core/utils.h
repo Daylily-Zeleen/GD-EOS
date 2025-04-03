@@ -913,7 +913,7 @@ public:                                                                         
 private:
 
 #define _CODE_SNIPPET_DEFINE_LAST_RESULT_CODE() \
-    static EOS_EResult EOS::last_result_code = EOS_EResult::EOS_Success;
+    EOS_EResult EOS::last_result_code = EOS_EResult::EOS_Success;
 
 // EOS VERSION
 #define _EOS_GET_VERSION() \
