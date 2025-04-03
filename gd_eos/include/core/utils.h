@@ -902,15 +902,29 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         return return_action;                                                                                                             \
     }
 
+#define _CODE_SNIPPET_DECLARE_LAST_RESULT_CODE()                                                       \
+private:                                                                                               \
+    static EOS_EResult last_result_code;                                                               \
+                                                                                                       \
+public:                                                                                                \
+    static void _set_last_result_code(EOS_EResult p_result_code) { last_result_code = p_result_code; } \
+    static EOS_EResult get_last_result_code() { return last_result_code; }                             \
+                                                                                                       \
+private:
+
+#define _CODE_SNIPPET_DEFINE_LAST_RESULT_CODE() \
+    EOS_EResult EOS::last_result_code = EOS_EResult::EOS_Success;
+
 // EOS VERSION
 #define _EOS_GET_VERSION() \
     static String get_eos_version() { return EOS_GetVersion(); }
 
-#define _EOS_BING_VERSION_CONSTANTS() \
-    BIND_CONSTANT(EOS_MAJOR_VERSION)  \
-    BIND_CONSTANT(EOS_MINOR_VERSION)  \
-    BIND_CONSTANT(EOS_PATCH_VERSION)  \
-    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_eos_version"), &EOS::get_eos_version);
+#define _EOS_BING_VERSION_CONSTANTS()                                                                    \
+    BIND_CONSTANT(EOS_MAJOR_VERSION)                                                                     \
+    BIND_CONSTANT(EOS_MINOR_VERSION)                                                                     \
+    BIND_CONSTANT(EOS_PATCH_VERSION)                                                                     \
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_eos_version"), &EOS::get_eos_version); \
+    ClassDB::bind_static_method(get_class_static(), D_METHOD("get_last_result_code"), &EOS::get_last_result_code);
 
 // Handles
 #define _EOS_HANDLE_IS_EQUAL(m_handle_identifier, m_other_identifier) \

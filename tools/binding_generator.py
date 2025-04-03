@@ -438,6 +438,9 @@ def gen_files(file_base_name: str, infos: dict):
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f'#include <packed_results/{file_base_name + ".packed_results.h"}>')
+        else:
+            additional_include_lines.append(f"#include <{file_base_name}_types.h>")  # 句柄类型
+            additional_include_lines.append(f"#include <core/utils.h>")  # is_equal() 使用其中的 _EOS_HANDLE_IS_EQUAL 宏
 
         if assume_only_one_local_user and file_base_name == "eos_common":
             # 假定只有一个用户时定义 EOS_ASSUME_ONLY_ONE_USER 宏
@@ -966,6 +969,7 @@ def _gen_handle(
 
     if klass == "EOS":
         method_define_lines.append("\t_EOS_GET_VERSION()")
+        method_define_lines.append("\t_CODE_SNIPPET_DECLARE_LAST_RESULT_CODE()")
         method_define_lines.append("")
 
     # String Constants
@@ -1066,7 +1070,7 @@ def _gen_handle(
         ret.append(f"\t{klass}();")
     # Destructor
     if len(release_method) or len(remove_notifies_lines):  # and not is_base_handle_type:
-        ret.append(f"\t~{klass}();")
+        ret.append(f"\tvirtual ~{klass}() override;")
     # Handle setget
     if not is_base_handle_type:
         ret.append(f"\tvoid set_handle({handle_name} p_handle);")
@@ -1101,7 +1105,8 @@ def _gen_handle(
         r_cpp_lines.append(f"\tif (m_handle) {{")
         r_cpp_lines.append(f"\t\tchar OutBuffer [{handle_name.upper()}_MAX_LENGTH + 1] {{}};")
         r_cpp_lines.append(f"\t\tint32_t InOutBufferLength{{ {handle_name.upper()}_MAX_LENGTH + 1 }};")
-        r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);;")
+        r_cpp_lines.append(f"\t\tEOS_EResult result_code = {handle_name}_ToString(m_handle, &OutBuffer[0], &InOutBufferLength);")
+        r_cpp_lines.append(f"\t\tEOS::_set_last_result_code(result_code);")
         r_cpp_lines.append(f"\t\tif (result_code != EOS_EResult::EOS_Success) {{")
         r_cpp_lines.append(f"\t\t\tstr = EOS_EResult_ToString(result_code);")
         r_cpp_lines.append(f"\t\t}} else {{")
@@ -1145,6 +1150,9 @@ def _gen_handle(
         r_cpp_lines.append(f"\t_CODE_SNIPPET_BINE_GET_LOCAL_ID({klass});")
 
     r_cpp_lines.append(f"}}")
+
+    if klass == "EOS":
+        r_cpp_lines.append("_CODE_SNIPPET_DEFINE_LAST_RESULT_CODE()")
 
     # 注册宏
     r_register_lines.append(f"\tGDREGISTER_ABSTRACT_CLASS(godot::eos::{klass})\\")
@@ -1686,6 +1694,8 @@ def _gen_packed_result_type(
     r_register_lines: list[str],
     r_need_convert_to_return_value: list[bool],
     get_type_name_only: bool = False,
+    # 返回 EOS_EResult 并且只有单个对象类型的返回参数 时重新映射的返回值类型。
+    r_remapped_result_type: list[str] = [],
 ) -> str:
     out_args: list[dict[str, str]] = []
     for i in range(len(method_info["args"])):
@@ -1707,6 +1717,17 @@ def _gen_packed_result_type(
                 r_need_convert_to_return_value.append[True]
                 return ""
 
+    if method_info["return"] == "EOS_EResult" and len(out_args) == 1:
+        arg_name: str = out_args[0]["name"]
+        arg_type: str = out_args[0]["type"]
+        decayed_type: str = _decay_eos_type(arg_type)
+        if _is_handle_type(decayed_type) and not _is_handle_arr_type(arg_type, arg_name):
+            r_remapped_result_type.append(f"Ref<{_convert_handle_class_name(decayed_type)}>")
+            return ""
+        if __is_struct_type(decayed_type):
+            r_remapped_result_type.append(f"Ref<{__convert_to_struct_class(decayed_type)}>")
+            return ""
+
     typename: str = _convert_result_type(method_name)
     if get_type_name_only:
         return typename
@@ -1719,7 +1740,7 @@ def _gen_packed_result_type(
         arg: dict[str, str] = out_args[i]
         arg_type: str = arg["type"]
         arg_name: str = arg["name"]
-        decayed_type: str = _decay_eos_type(arg["type"])
+        decayed_type: str = _decay_eos_type(arg_type)
         snake_name: str = to_snake_case(arg_name.removeprefix("IntOut").removeprefix("Out").removeprefix("bOut"))
         if _is_handle_arr_type(arg_type, arg_name):
             print("ERROR UNSUPPORTED handle arr:", method_name, arg_type)
@@ -2270,7 +2291,7 @@ def __expand_input_struct(
             r_prepare_lines.append(f"\tLocalVector<{_decay_eos_type(field_type)}> _shadow_{snake_field};")
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_STRUCT_ARR({options_field}, p_{snake_field}, _shadow_{snake_field}, {option_count_field});")
         elif _is_internal_struct_field(field_type, field):
-            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field)} &p_{snake_field}")
+            r_declare_args.append(f"const {remap_type(_decay_eos_type(field_type), field, True)} &p_{snake_field}")
             if len(invalid_arg_return_value):
                 r_prepare_lines.append(f"\tERR_FAIL_NULL_V(p_{snake_field}, {invalid_arg_return_value});")
             else:
@@ -2522,7 +2543,9 @@ def _gen_method(
     callback_signal = ""
 
     out_to_ret: list[bool] = []
-    packed_result_type = _gen_packed_result_type(method_name, info, [], [], [], out_to_ret, True)
+    _remapped_return_type_list: list[str] = []
+    packed_result_type: str = _gen_packed_result_type(method_name, info, [], [], [], out_to_ret, True, _remapped_return_type_list)
+    remapped_return_type: str = _remapped_return_type_list[0] if len(_remapped_return_type_list) > 0 else ""
     need_out_to_ret: bool = False if len(out_to_ret) <= 0 else out_to_ret[0]
 
     # 是否回调
@@ -2533,12 +2556,14 @@ def _gen_method(
                 callback_signal = __convert_to_signal_name(_decay_eos_type(a["type"]), method_name)
             break
 
-    if (return_type == "Signal") and len(packed_result_type):
+    if (return_type == "Signal") and (len(packed_result_type) or len(remapped_return_type)):
         print("ERROR 回调与打包返回冲突:", method_name)
         _print_stack_and_exit()
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
+    if len(remapped_return_type):
+        return_type = remapped_return_type
     elif _is_handle_type(_decay_eos_type(info["return"])):
         return_type = f'Ref<class {_convert_handle_class_name(_decay_eos_type(info["return"]))}>'
     elif return_type == "" and info["return"] != "void":
@@ -2711,29 +2736,51 @@ def _gen_method(
                 expended_args_doc,
             )
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
-            # Out 参数
-            converted_return_type: list[str] = []
-            __make_packed_result(
-                packed_result_type,
-                method_name,
-                info["return"] == "EOS_EResult",
-                options_prepare_identifier,
-                options_type,
-                i,
-                info["args"],
-                call_args,
-                prepare_lines,
-                after_call_lines,
-                converted_return_type,
-            )
-            if len(converted_return_type):
-                if len(converted_return_type) != 1:
-                    print("Error len(converted_return_type) != 1:", method_name)
-                    _print_stack_and_exit()
-                if return_type != "void":
-                    print("ERROR : ?")
-                    _print_stack_and_exit()
-                return_type = converted_return_type[1]
+            if len(remapped_return_type) == 0:
+                # Out 参数
+                converted_return_type: list[str] = []
+                __make_packed_result(
+                    packed_result_type,
+                    method_name,
+                    info["return"] == "EOS_EResult",
+                    options_prepare_identifier,
+                    options_type,
+                    i,
+                    info["args"],
+                    call_args,
+                    prepare_lines,
+                    after_call_lines,
+                    converted_return_type,
+                )
+                if len(converted_return_type):
+                    if len(converted_return_type) != 1:
+                        print("Error len(converted_return_type) != 1:", method_name)
+                        _print_stack_and_exit()
+                    if return_type != "void":
+                        print("ERROR : ?")
+                        _print_stack_and_exit()
+                    return_type = converted_return_type[1]
+            else:
+                # 返回 EOS_EResult 且返回参数为单个对象类型时
+                _assert(info["return"] == "EOS_EResult")
+
+                after_call_lines.append(f"\t{remapped_return_type} ret;")
+                after_call_lines.append(f"\tif (result_code == EOS_EResult::EOS_Success) {{")
+                after_call_lines.append(f"\t\tret.instantiate();")
+                if _is_handle_type(decayed_type):
+                    prepare_lines.append(f"\t{decayed_type} {name}{{ nullptr }};")
+                    call_args.append(f"&{name}")
+                    after_call_lines.append(f"\t\tret.instantiate(); ret->set_handle({name});")
+                elif __is_struct_type(decayed_type):
+                    call_args.append(f"&{name}")
+                    if type.endswith("**"):
+                        prepare_lines.append(f"\t{decayed_type} *{name}{{}};")
+                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos(*{name});")
+                        after_call_lines.append(f"\t\t{decayed_type}_Release({name});")
+                    else:
+                        prepare_lines.append(f"\t{decayed_type} {name}{{}};")
+                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos({name});")
+                after_call_lines.append(f"\t}}")
 
             # Out 参数在最后，直接跳出
             break
@@ -2830,11 +2877,13 @@ def _gen_method(
                 )
             r_define_lines.append(f"#endif // {disable_macro}")
     elif method_name == "EOS_Logging_SetCallback":
-        r_define_lines.append(f"\tauto result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
+        r_define_lines.append(f"\tEOS_EResult result_code = {method_name}(_EOS_LOGGING_CALLBACK());")
+        r_define_lines.append(f"\tEOS::_set_last_result_code(result_code);")
     elif _is_handle_type(_decay_eos_type(info["return"])):
         r_define_lines.append(f'\tauto return_handle = {method_name}({", ".join(call_args)});')
     elif info["return"] == "EOS_EResult":
         r_define_lines.append(f'\tEOS_EResult result_code = {method_name}({", ".join(call_args)});')
+        r_define_lines.append(f"\tEOS::_set_last_result_code(result_code);")
     elif return_type == "void" or return_type == "Signal" or need_out_to_ret:
         r_define_lines.append(f'\t{method_name}({", ".join(call_args)});')
     else:
@@ -2855,6 +2904,9 @@ def _gen_method(
         if info["return"] == "EOS_EResult":
             r_define_lines.append(f"\tret->result_code = result_code;")
         r_define_lines.append(f"\treturn ret;")
+    elif len(remapped_return_type):
+        r_define_lines.append(f"\treturn ret;")
+        additional_doc.append(f"If the return value is null, please use [method EOS.get_last_result_code] to check the error.\n")
     elif return_type == "EOS_EResult":
         r_define_lines.append(f"\treturn result_code;")
     elif return_type == "Signal":
@@ -2972,14 +3024,18 @@ def _convert_enum_value(ori: str) -> str:
 
 
 def _is_need_skip_struct(struct_type: str) -> bool:
-    return struct_type in [
-        "EOS_AntiCheatCommon_Quat",
-        "EOS_AntiCheatCommon_Vec3f",
-        # 直接使用字符串代替
-        "EOS_P2P_SocketId",
-        # 未使用
-        "EOS_UI_Rect",
-    ] or "_Reserved" in struct_type # 保留的API, 不能被用户调用
+    return (
+        struct_type
+        in [
+            "EOS_AntiCheatCommon_Quat",
+            "EOS_AntiCheatCommon_Vec3f",
+            # 直接使用字符串代替
+            "EOS_P2P_SocketId",
+            # 未使用
+            "EOS_UI_Rect",
+        ]
+        or "_Reserved" in struct_type
+    )  # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_callback(callback_type: str) -> bool:
@@ -2988,26 +3044,30 @@ def _is_need_skip_callback(callback_type: str) -> bool:
 
 def _is_need_skip_method(method_name: str) -> bool:
     # TODO: Create , Release, GetInterface 均不需要
-    return method_name in [
-        "EOS_ByteArray_ToString",  # Godot 压根就不需要
-        # 废弃 DEPRECATED!
-        "EOS_Achievements_CopyAchievementDefinitionByIndex",
-        "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
-        "EOS_Achievements_GetUnlockedAchievementCount",
-        "EOS_Achievements_CopyUnlockedAchievementByIndex",
-        "EOS_Achievements_CopyUnlockedAchievementByAchievementId",
-        "EOS_Achievements_AddNotifyAchievementsUnlocked",
-        "EOS_RTCAudio_RegisterPlatformAudioUser",
-        "EOS_RTCAudio_UnregisterPlatformAudioUser",
-        "EOS_RTCAudio_GetAudioInputDevicesCount",
-        "EOS_RTCAudio_GetAudioInputDeviceByIndex",
-        "EOS_RTCAudio_GetAudioOutputDevicesCount",
-        "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
-        "EOS_RTCAudio_SetAudioInputSettings",
-        "EOS_RTCAudio_SetAudioOutputSettings",
-        # 废弃 NOT: This api is deprecated.
-        "EOS_AntiCheatClient_PollStatus",
-    ] or "_Reserved" in method_name # 保留的API, 不能被用户调用
+    return (
+        method_name
+        in [
+            "EOS_ByteArray_ToString",  # Godot 压根就不需要
+            # 废弃 DEPRECATED!
+            "EOS_Achievements_CopyAchievementDefinitionByIndex",
+            "EOS_Achievements_CopyAchievementDefinitionByAchievementId",
+            "EOS_Achievements_GetUnlockedAchievementCount",
+            "EOS_Achievements_CopyUnlockedAchievementByIndex",
+            "EOS_Achievements_CopyUnlockedAchievementByAchievementId",
+            "EOS_Achievements_AddNotifyAchievementsUnlocked",
+            "EOS_RTCAudio_RegisterPlatformAudioUser",
+            "EOS_RTCAudio_UnregisterPlatformAudioUser",
+            "EOS_RTCAudio_GetAudioInputDevicesCount",
+            "EOS_RTCAudio_GetAudioInputDeviceByIndex",
+            "EOS_RTCAudio_GetAudioOutputDevicesCount",
+            "EOS_RTCAudio_GetAudioOutputDeviceByIndex",
+            "EOS_RTCAudio_SetAudioInputSettings",
+            "EOS_RTCAudio_SetAudioOutputSettings",
+            # 废弃 NOT: This api is deprecated.
+            "EOS_AntiCheatClient_PollStatus",
+        ]
+        or "_Reserved" in method_name
+    )  # 保留的API, 不能被用户调用
 
 
 def _is_need_skip_enum_type(ori_enum_type: str) -> bool:
@@ -3057,16 +3117,22 @@ def is_deprecated_field(field: str) -> bool:
     )
 
 
-def remap_type(type: str, field: str = "") -> str:
+def remap_type(type: str, field: str = "", forward_declare: bool = False) -> str:
     if _is_enum_type(type):
         # 枚举类型原样返回
         return type
     if __is_struct_type(type):
-        return f"Ref<{__convert_to_struct_class(type)}>"
+        if forward_declare:
+            return f"Ref<class {__convert_to_struct_class(type)}>"
+        else:
+            return f"Ref<{__convert_to_struct_class(type)}>"
     if _is_handle_arr_type(type, field):
         return f"TypedArray<{_convert_handle_class_name(type)}>"
     if _is_handle_type(type, field):
-        return f"Ref<{_convert_handle_class_name(type)}>"
+        if forward_declare:
+            return f"Ref<class {_convert_handle_class_name(type)}>"
+        else:
+            return f"Ref<{_convert_handle_class_name(type)}>"
     if _is_internal_struct_arr_field(type, field):
         return f"TypedArray<{__convert_to_struct_class(_decay_eos_type(type))}>"
     if __is_callback_type(_decay_eos_type(type)):
@@ -3404,9 +3470,13 @@ def _is_deprecated_constant(name: str) -> bool:
 
 
 def _is_need_skip_constant(name: str) -> bool:
-    return name in [
-        "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
-    ] or "_RESERVED" in name # 被保留的常量，不能被用户调用
+    return (
+        name
+        in [
+            "EOS_ANTICHEATCLIENT_PEER_SELF",  # 指针，非常量
+        ]
+        or "_RESERVED" in name
+    )  # 被保留的常量，不能被用户调用
 
 
 def _is_string_constant(val: str) -> bool:
@@ -3701,14 +3771,16 @@ def _optimize_doc(doc: list[str]) -> list[str]:
             elif assume_only_one_local_user and line.startswith("@param LocalUserId"):
                 # 假定只有一个本地用户时不需要该项说明
                 continue
+            elif line.startswith("@param ClientData"):
+                # 不需要该参数
+                continue
 
         if len(ret) <= 0:
             # 首行
             ret.append(doc[i])
             in_details = False
         elif len(doc[i].strip()) <= 0:
-            # 空行
-            ret.append(doc[i])
+            # 跳过空行
             in_details = False
         elif doc[i].lstrip().startswith("@"):
             # 单行注释
@@ -4088,7 +4160,7 @@ def _gen_struct_v2(
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{ -1.0 }};")
         elif _is_pure_handle_type(decayed_type):
-            bind_lines.append(f'\t_BIND_PROP({snake_field_name})')
+            bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{ 0 }};")
@@ -4159,6 +4231,8 @@ def _gen_struct_v2(
         lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
     if additional_methods_requirements["to"]:
         lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
+    lines.append("")
+    lines.append(f"\tString _to_string() const;")
     lines.append("protected:")
     lines.append("\tstatic void _bind_methods();")
     lines.append("};")
@@ -4430,6 +4504,9 @@ def _gen_struct_v2(
         for line in optional_cpp_lines:
             r_structs_cpp.insert(insert_idx, line)
 
+    r_structs_cpp.append("")
+    r_structs_cpp.append(f'String {typename}::_to_string() const {{ return vformat("<{typename}#%d>", get_instance_id()); }}')
+    r_structs_cpp.append("")
     # doc
     _insert_doc_class_brief(typename, struct_info["doc"])
     _insert_doc_class_description(typename)
@@ -4482,28 +4559,44 @@ def __make_callback_doc(callback_type: str) -> list[str]:
     for arg in info["args"]:
         name = arg["name"]
         type = arg["type"]
+
         decayed_type = _decay_eos_type(type)
         if not _is_expanded_struct(decayed_type):
-            ret.append(f"{name}: {decayed_type}\n")
-            for l in structs[decayed_type]["doc"]:
-                ret.append(f"\t{l}")
+            doc: list[str] = structs[decayed_type]["doc"]
+            snake_name: str = to_snake_case(name)
+
+            if len(doc) == 1:
+                l = doc[0].lstrip("\t")
+                ret.append(f"{snake_name} ({decayed_type}): {l}")
+            else:
+                ret.append(f"{snake_name} ({decayed_type}):\n")
+                for l in doc:
+                    ret.append(f"\t{l}")
         else:
             arg_fields = __get_struct_fields(decayed_type)
 
             count_and_variant_type_fields: list[str] = __find_count_and_variant_type_fields_in_struct(decayed_type)
             for f in arg_fields:
-                if _is_client_data_field(type, f):
-                    continue  # 跳过这个特殊字段
                 # 处理要跳过的字段
                 if f in count_and_variant_type_fields:
                     # 跳过其中Godot不需要的字段
                     continue
                 info = arg_fields[f]
+                doc: list[str] = info["doc"]
                 f_type = _decay_eos_type(info["type"])
-                ret.append(f"{f}: {f_type}\n")
-                for l in info["doc"]:
-                    ret.append(f"\t{l}\n")
+                f_snake_name: str = to_snake_case(f)
 
+                if f_type.startswith("void") and f == "ClientData":
+                    continue  # 跳过这个特殊字段
+
+                if len(doc) == 1:
+                    l = doc[0].lstrip("\t")
+                    ret.append(f"{f_snake_name} ({f_type}): {l}")
+                else:
+                    ret.append(f"{f_snake_name} ({f_type}):\n")
+                    for l in info["doc"]:
+                        ret.append(f"\t{l}\n")
+    ret.append("")  # 插入空字符用于标记改参数必须换行
     return ret
 
 
@@ -4693,20 +4786,29 @@ def __insert_doc_method_like(tag: str, typename: str, name: str, doc: list[str],
     __insert_doc_to(typename, lines, insert_idx, doc, indent_count)
     if len(additional_args_doc) > 0:
         insert_idx += len(doc)
-        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Arguments Additional Descriptions --------------\n"], indent_count)
-        insert_idx += 2
+        __insert_doc_to(typename, lines, insert_idx, ["-------------- Arguments Additional Descriptions --------------\n"], indent_count)
+        insert_idx += 1
 
         for arg in additional_args_doc:
             arg_doc = additional_args_doc[arg].copy()
+
             for i in range(len(arg_doc)):
-                arg_doc[i] = "\t" + arg_doc[i]
-            arg_doc.insert(0, "\n")
-            arg_doc.insert(1, f"{arg}:\n")
+                if len(arg_doc[i].strip()):
+                    # 非空行添加缩进
+                    arg_doc[i] = "\t" + arg_doc[i]
+
+            arg_snake_name = to_snake_case(arg)
+            if len(arg_doc) == 1:
+                arg_doc[0] = f"{arg_snake_name}: " + arg_doc[0].lstrip("\t")
+            else:
+                arg_doc.insert(0, f"{arg_snake_name}:\n")
+
             __insert_doc_to(typename, lines, insert_idx, arg_doc, indent_count)
             insert_idx += len(arg_doc)
+
     if len(additional_doc) > 0:
-        __insert_doc_to(typename, lines, insert_idx, ["\n", "-------------- Additional Descriptions --------------\n"], indent_count)
-        insert_idx += 2
+        __insert_doc_to(typename, lines, insert_idx, ["-------------- Additional Descriptions --------------\n"], indent_count)
+        insert_idx += 1
 
         additional_doc_copy = additional_doc.copy()
         additional_doc_copy.insert(0, "\n")
@@ -4876,11 +4978,15 @@ def _print_stack_and_exit():
     exit(1)
 
 
-def _assert(condition: bool):
+def _assert(condition: bool, msg: str = ""):
     if condition:
         return
     for l in traceback.format_stack():
         print(l)
+    if len(msg) > 0:
+        print("Assertion failed:", msg)
+    else:
+        print("Assertion failed.")
     exit(1)
 
 
