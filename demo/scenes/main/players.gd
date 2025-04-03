@@ -31,9 +31,9 @@ func setup_local(product_user_id: EOSProductUserId, lobby_id: String) -> void:
 func _spawn_player(peer_id: int) -> void:
 	# Copy lobby details to get lobby owner.
 	# We don't care the failed result here, just get lobby detail if operation success.
-	var details := EOSLobby.copy_lobby_details(_lobby_id, _local_user_id).lobby_details
+	var details := EOSLobby.copy_lobby_details(_lobby_id, _local_user_id)
 	if not is_instance_valid(details):
-		printerr("Copy lobby details failed.")
+		printerr("Copy lobby details failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 		return
 
 	# Updata authority
@@ -52,9 +52,9 @@ func _spawn_player(peer_id: int) -> void:
 func _despawn_player(peer_id: int) -> void:
 	# Copy lobby details to get lobby owner.
 	# We don't care the failed result here, just get lobby detail if operation success.
-	var details := EOSLobby.copy_lobby_details(_lobby_id, _local_user_id).lobby_details
+	var details := EOSLobby.copy_lobby_details(_lobby_id, _local_user_id)
 	if not is_instance_valid(details):
-		printerr("Copy lobby details failed.")
+		printerr("Copy lobby details failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 		return
 
 	# Updata authority

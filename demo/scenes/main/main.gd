@@ -191,23 +191,22 @@ func _create_lobby_async() -> void:
 	_entered_lobby_id = create_result.lobby_id
 
 	# Initialize lobby info, we use "STARTE" to sreach lobbies.
-	var ulmr := EOSLobby.update_lobby_modification(_product_user_id, _entered_lobby_id)
-	if ulmr.result_code != EOS.Success:
-		printerr("== Update lobby modification failed: ", EOS.result_to_string(ulmr.result_code))
+	var modification := EOSLobby.update_lobby_modification(_product_user_id, _entered_lobby_id)
+	if not is_instance_valid(modification):
+		printerr("== Update lobby modification failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 		set_lobby_btns_disabled(false)
 		return
-	var lobby_modification := ulmr.lobby_modification
 
 	var parameter := EOSLobby_AttributeData.new()
 	parameter.key = "STARTE"
 	parameter.value = false
-	var add_attribute_result = lobby_modification.add_attribute(parameter, EOSLobby.LAT_PUBLIC)
+	var add_attribute_result = modification.add_attribute(parameter, EOSLobby.LAT_PUBLIC)
 	if add_attribute_result != EOS.Success:
 		printerr("== Update lobby modification failed: ", EOS.result_to_string(create_result.result_code))
 		set_lobby_btns_disabled(false)
 		return
 
-	var update_result: EOSLobby_UpdateLobbyCallbackInfo = await EOSLobby.update_lobby(lobby_modification)
+	var update_result: EOSLobby_UpdateLobbyCallbackInfo = await EOSLobby.update_lobby(modification)
 	if update_result.result_code != EOS.Success:
 		printerr("== Update lobby failed: ", EOS.result_to_string(update_result.result_code))
 		set_lobby_btns_disabled(false)
@@ -238,18 +237,16 @@ func _refresh_lobbies_list_async() -> void:
 
 	lobbies_item_list.clear()
 	for i in range(lobby_search.get_search_result_count()):
-		var csr: LobbySearch_CopySearchResultByIndexResult = lobby_search.copy_search_result_by_index(i)
-		if csr.result_code != EOS.Success:
-			printerr("== Copy lobby search result failed: ", EOS.result_to_string(csr.result_code))
+		var lobby_details := lobby_search.copy_search_result_by_index(i)
+		if not is_instance_valid(lobby_details):
+			printerr("== Copy lobby search result failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 			continue
-		var lobby_detials: EOSLobbyDetails = csr.lobby_details
-		var cir := lobby_detials.copy_info()
-		if cir.result_code != EOS.Success:
-			printerr("== Copy lobby details info failed: ", EOS.result_to_string(cir.result_code))
+		var info := lobby_details.copy_info()
+		if not is_instance_valid(info):
+			printerr("== Copy lobby details info failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 			continue
-		var info: EOSLobbyDetails_Info = cir.lobby_details_info
-		lobbies_item_list.add_item("%s - %d/%d" % [info.lobby_id, lobby_detials.get_member_count(), info.max_members])
-		lobbies_item_list.set_item_metadata(lobbies_item_list.item_count - 1, lobby_detials)
+		lobbies_item_list.add_item("%s - %d/%d" % [info.lobby_id, lobby_details.get_member_count(), info.max_members])
+		lobbies_item_list.set_item_metadata(lobbies_item_list.item_count - 1, lobby_details)
 	set_lobby_btns_disabled(false)
 	print("===== Refresh lobbies list success =====")
 
