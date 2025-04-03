@@ -439,8 +439,8 @@ def gen_files(file_base_name: str, infos: dict):
         if has_packed_result:
             additional_include_lines.append(f'#include <packed_results/{file_base_name + ".packed_results.h"}>')
         else:
-            additional_include_lines.append(f'#include <{file_base_name}_types.h>') # 句柄类型
-            additional_include_lines.append(f'#include <core/utils.h>') # is_equal() 使用其中的 _EOS_HANDLE_IS_EQUAL 宏
+            additional_include_lines.append(f"#include <{file_base_name}_types.h>")  # 句柄类型
+            additional_include_lines.append(f"#include <core/utils.h>")  # is_equal() 使用其中的 _EOS_HANDLE_IS_EQUAL 宏
 
         if assume_only_one_local_user and file_base_name == "eos_common":
             # 假定只有一个用户时定义 EOS_ASSUME_ONLY_ONE_USER 宏
@@ -3117,7 +3117,7 @@ def is_deprecated_field(field: str) -> bool:
     )
 
 
-def remap_type(type: str, field: str = "", forward_declare :bool = False) -> str:
+def remap_type(type: str, field: str = "", forward_declare: bool = False) -> str:
     if _is_enum_type(type):
         # 枚举类型原样返回
         return type
@@ -4231,6 +4231,8 @@ def _gen_struct_v2(
         lines.append(f"\tvoid set_to_eos({struct_type} &p_origin);")
     if additional_methods_requirements["to"]:
         lines.append(f"\t{struct_type} &to_eos() {{set_to_eos(m_eos_data); return m_eos_data;}}")
+    lines.append("")
+    lines.append(f"\tString _to_string() const;")
     lines.append("protected:")
     lines.append("\tstatic void _bind_methods();")
     lines.append("};")
@@ -4502,6 +4504,9 @@ def _gen_struct_v2(
         for line in optional_cpp_lines:
             r_structs_cpp.insert(insert_idx, line)
 
+    r_structs_cpp.append("")
+    r_structs_cpp.append(f'String {typename}::_to_string() const {{ return vformat("<{typename}#%d>", get_instance_id()); }}')
+    r_structs_cpp.append("")
     # doc
     _insert_doc_class_brief(typename, struct_info["doc"])
     _insert_doc_class_description(typename)
@@ -4557,11 +4562,11 @@ def __make_callback_doc(callback_type: str) -> list[str]:
 
         decayed_type = _decay_eos_type(type)
         if not _is_expanded_struct(decayed_type):
-            doc:list[str] = structs[decayed_type]['doc']
-            snake_name :str = to_snake_case(name)
+            doc: list[str] = structs[decayed_type]["doc"]
+            snake_name: str = to_snake_case(name)
 
             if len(doc) == 1:
-                l = doc[0].lstrip('\t')
+                l = doc[0].lstrip("\t")
                 ret.append(f"{snake_name} ({decayed_type}): {l}")
             else:
                 ret.append(f"{snake_name} ({decayed_type}):\n")
@@ -4577,21 +4582,21 @@ def __make_callback_doc(callback_type: str) -> list[str]:
                     # 跳过其中Godot不需要的字段
                     continue
                 info = arg_fields[f]
-                doc :list[str] = info["doc"]
+                doc: list[str] = info["doc"]
                 f_type = _decay_eos_type(info["type"])
-                f_snake_name :str = to_snake_case(f)
+                f_snake_name: str = to_snake_case(f)
 
                 if f_type.startswith("void") and f == "ClientData":
-                    continue # 跳过这个特殊字段
+                    continue  # 跳过这个特殊字段
 
                 if len(doc) == 1:
-                    l = doc[0].lstrip('\t')
+                    l = doc[0].lstrip("\t")
                     ret.append(f"{f_snake_name} ({f_type}): {l}")
                 else:
                     ret.append(f"{f_snake_name} ({f_type}):\n")
                     for l in info["doc"]:
                         ret.append(f"\t{l}\n")
-    ret.append("") # 插入空字符用于标记改参数必须换行
+    ret.append("")  # 插入空字符用于标记改参数必须换行
     return ret
 
 
