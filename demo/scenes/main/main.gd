@@ -110,15 +110,15 @@ func _on_login_btn_pressed() -> void:
 			_epic_account_id = auth_login_result.local_user_id
 
 			# Copy id token
-			var copy_token_result := EOSAuth.copy_id_token(_epic_account_id)
-			if copy_token_result.result_code != EOS.Success:
-				printerr("== Copy token failed: ", EOS.result_to_string(copy_token_result.result_code))
+			var token := EOSAuth.copy_id_token(_epic_account_id)
+			if not is_instance_valid(token):
+				printerr("== Copy token failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 				await _auth_logout_async()
 				return
 
 			# Setup connect credentials
 			connect_credentials.type = EOS.ECT_EPIC_ID_TOKEN
-			connect_credentials.token = copy_token_result.id_token.json_web_token
+			connect_credentials.token = token.json_web_token
 		EOS.ECT_DEVICEID_ACCESS_TOKEN:
 			# Create Device ID
 			var cdidr: EOS.Result = await EOSConnect.create_device_id(OS.get_name() + ":" + OS.get_model_name())
@@ -217,27 +217,26 @@ func _create_lobby_async() -> void:
 
 func _refresh_lobbies_list_async() -> void:
 	set_lobby_btns_disabled(true)
-	var clsr := EOSLobby.create_lobby_search(10)
-	if clsr.result_code != EOS.Success:
-		printerr("== Create loggby search failed: ", EOS.result_to_string(clsr.result_code))
+	var lobby_searh := EOSLobby.create_lobby_search(10)
+	if not is_instance_valid(lobby_searh):
+		printerr("== Create loggby search failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 		set_lobby_btns_disabled(false)
 		return
-	var lobby_search: EOSLobbySearch = clsr.lobby_search
 	# Ignore strated lobbies.
 	var parameter := EOSLobby_AttributeData.new()
 	parameter.key = "STARTE"
 	parameter.value = false
-	lobby_search.set_parameter(parameter, EOS.CO_EQUAL)
+	lobby_searh.set_parameter(parameter, EOS.CO_EQUAL)
 
-	var find_result_code: EOS.Result = await lobby_search.find(_product_user_id)
+	var find_result_code: EOS.Result = await lobby_searh.find(_product_user_id)
 	if find_result_code != EOS.Success:
 		printerr("== Find lobbies failed: ", EOS.result_to_string(find_result_code))
 		set_lobby_btns_disabled(false)
 		return
 
 	lobbies_item_list.clear()
-	for i in range(lobby_search.get_search_result_count()):
-		var lobby_details := lobby_search.copy_search_result_by_index(i)
+	for i in range(lobby_searh.get_search_result_count()):
+		var lobby_details := lobby_searh.copy_search_result_by_index(i)
 		if not is_instance_valid(lobby_details):
 			printerr("== Copy lobby search result failed: ", EOS.result_to_string(EOS.get_last_result_code()))
 			continue
