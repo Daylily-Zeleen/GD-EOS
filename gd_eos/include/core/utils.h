@@ -1,6 +1,8 @@
 #pragma once
 
 #include <eos_sdk.h>
+#include <eos_version.h>
+
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
