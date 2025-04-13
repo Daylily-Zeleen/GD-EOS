@@ -71,11 +71,12 @@ void *get_platform_specific_options() {
 
     // Case 1: Find in addons (typically in editor)
     const String addon_bin_path = "res://addons/gd-eos/bin/windows";
-#if defined(_WIN32)
-    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join("x86").path_join(xAudio29_dll_name)));
-#else // defined(_WIN64)
-    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join("x64").path_join(xAudio29_dll_name)));
-#endif // defined(_WIN32)
+#if defined(_WIN64)
+    const String arch = "x64";
+#else // defined(_WIN32)
+    const String arch = "x86";
+#endif // defined(_WIN64)
+    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join(arch).path_join(xAudio29_dll_name)));
 
     // Case 2: Find near by executable (typically in exported project).
     candidate_paths.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join(xAudio29_dll_name));

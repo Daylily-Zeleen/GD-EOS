@@ -2645,13 +2645,13 @@ def _gen_method(
                     prepare_lines.append(f'\tstatic constexpr char {signal_name}[] = "{signal_name}";')
                     if signal_name != interface_signal_name:
                         prepare_lines.append(f'\tstatic constexpr char {interface_signal_name}[] = "{interface_signal_name}";')
-                    prepare_lines.append("#ifdef _WIN32")
+                    prepare_lines.append("#ifdef _WIN64") # 用 _WIN64 检查 windows 64 位，_WIN32 同时存在于32和64位构建中，不能作为判断
                     prepare_lines.append(
-                        f'\tauto callback = []({_get_callback_infos(decayed_type)["args"][0]["type"]} p_data) {{ godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>(p_data); }};'
+                        f"\t{decayed_type} callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
                     )
                     prepare_lines.append("#else")
                     prepare_lines.append(
-                        f"\t{decayed_type} callback = &godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>;"
+                        f'\tauto callback = []({_get_callback_infos(decayed_type)["args"][0]["type"]} p_data) {{ godot::eos::internal::file_transfer_completion_callback<{cb}, {gd_cb}, {signal_name}, {interface_signal_name}>(p_data); }};'
                     )
                     prepare_lines.append("#endif")
                     call_args.append(f"callback")
@@ -4446,28 +4446,7 @@ def _gen_struct_v2(
                     if not const_str_line in optional_cpp_lines and not const_str_line in r_structs_cpp:
                         optional_cpp_lines.append(const_str_line)
 
-                    r_structs_cpp.append("#ifdef _WIN32")
-                    if field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data, void *r_data_buffer, uint32_t *r_data_written){{')
-                    else:
-                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data){{')
-                    if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                    elif field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
-                        r_structs_cpp.append(
-                            f"\t\t\treturn godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data, r_data_buffer, r_data_written);"
-                        )
-                    elif field_type == "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
-                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                    elif field_type == "EOS_TitleStorage_OnReadFileDataCallback":
-                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                    elif field_type == "EOS_TitleStorage_OnFileTransferProgressCallback":
-                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
-                    else:
-                        print("ERROR: ", field_type)
-                        _print_stack_and_exit()
-                    r_structs_cpp.append("\t\t};")
-                    r_structs_cpp.append("#else")
+                    r_structs_cpp.append("#ifdef _WIN64")
 
                     if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
                         r_structs_cpp.append(f"\tp_data.{field} = ({field_type})&godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
@@ -4488,6 +4467,29 @@ def _gen_struct_v2(
                     else:
                         print("ERROR: ", field_type)
                         _print_stack_and_exit()
+                    r_structs_cpp.append("#else")
+
+                    if field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data, void *r_data_buffer, uint32_t *r_data_written){{')
+                    else:
+                        r_structs_cpp.append(f'\tp_data.{field} = []({cb_arg["type"]} p_data){{')
+                    if field_type == "EOS_PlayerDataStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_PlayerDataStorage_OnWriteFileDataCallback":
+                        r_structs_cpp.append(
+                            f"\t\t\treturn godot::eos::internal::write_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data, r_data_buffer, r_data_written);"
+                        )
+                    elif field_type == "EOS_PlayerDataStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_TitleStorage_OnReadFileDataCallback":
+                        r_structs_cpp.append(f"\t\t\treturn godot::eos::internal::title_storage_read_file_data_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    elif field_type == "EOS_TitleStorage_OnFileTransferProgressCallback":
+                        r_structs_cpp.append(f"\t\t\tgodot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>(p_data);")
+                    else:
+                        print("ERROR: ", field_type)
+                        _print_stack_and_exit()
+                    r_structs_cpp.append("\t\t};")
+
                     r_structs_cpp.append("#endif")
                 else:
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
