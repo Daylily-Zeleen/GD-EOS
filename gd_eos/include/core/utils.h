@@ -1,16 +1,13 @@
 #pragma once
 
 #include <eos_sdk.h>
+#include <eos_version.h>
+
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
 namespace godot::eos {
-
-#ifdef DEBUG_ENABLED
-String eos_product_user_id_to_string(EOS_ProductUserId p_product_user_id);
-String eos_epic_account_id_to_string(EOS_EpicAccountId p_epic_account_id);
-#endif // DEBUG_ENABLED
 
 #define ENABLE_IF(condition) std::enable_if_t<condition> *_dummy = nullptr
 
@@ -35,13 +32,13 @@ namespace godot::eos::internal {
 #define _EOS_VERSION_GREATER_THAN_1_6_1 (EOS_MAJOR_VERSION > 1 || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION > 16) || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION == 16 && EOS_PATCH_VERSION > 1))
 
 #define _BIND_ENUM_CONSTANT(enum_type_name, e, e_bind) \
-    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enum_type_name>(enum_type_name::e, e_bind), e_bind, enum_type_name::e);
+    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enum_type_name>(enum_type_name::e, e_bind), e_bind, (GDExtensionInt)enum_type_name::e);
 
 #define _BIND_ENUM_BITFIELD_FLAG(enum_type_name, e, e_bind) \
-    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enum_type_name::e, e_bind), e_bind, enum_type_name::e, true);
+    godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_bitfield_name(enum_type_name::e, e_bind), e_bind, (GDExtensionInt)enum_type_name::e, true);
 
 #define _BIND_CONSTANT(constant, constant_bind) \
-    godot::ClassDB::bind_integer_constant(get_class_static(), "", constant_bind, constant);
+    godot::ClassDB::bind_integer_constant(get_class_static(), "", constant_bind, (GDExtensionInt)constant);
 
 #define SNAME(sn) []() -> const StringName & {static const StringName ret{sn};return ret; }()
 
@@ -144,10 +141,20 @@ namespace godot::eos::internal {
 
 #define _BIND_BEGIN(klass) using _BINDING_CLASS = klass;
 
+template <class T, std::enable_if_t<std::is_enum_v<T>> *_dummy = nullptr>
+static Variant::Type get_variant_type() {
+    return Variant::INT;
+}
+
+template <class T, std::enable_if_t<!std::is_enum_v<T>> *_dummy = nullptr>
+static Variant::Type get_variant_type() {
+    return Variant(T()).get_type();
+}
+
 #define _BIND_PROP(field)                                                               \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
-    ADD_PROPERTY(PropertyInfo(Variant(decltype(_BINDING_CLASS::field){}).get_type(), #field), "set_" #field, "get_" #field);
+    ADD_PROPERTY(PropertyInfo(get_variant_type<decltype(_BINDING_CLASS::field)>(), #field), "set_" #field, "get_" #field);
 
 #define _BIND_PROP_FLAGS(field)                                                         \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
