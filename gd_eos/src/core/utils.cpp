@@ -15,21 +15,6 @@
 
 namespace godot::eos {
 
-#ifdef DEBUG_ENABLED
-String eos_product_user_id_to_string(EOS_ProductUserId p_product_user_id) {
-    char buffer[EOS_PRODUCTUSERID_MAX_LENGTH + 1];
-    int32_t inoutlength{ EOS_PRODUCTUSERID_MAX_LENGTH + 1 };
-    EOS_ProductUserId_ToString(p_product_user_id, buffer, &inoutlength);
-    return buffer;
-}
-String eos_epic_account_id_to_string(EOS_EpicAccountId p_epic_account_id) {
-    char buffer[EOS_EPICACCOUNTID_MAX_LENGTH + 1];
-    int32_t inoutlength{ EOS_EPICACCOUNTID_MAX_LENGTH + 1 };
-    EOS_EpicAccountId_ToString(p_epic_account_id, buffer, &inoutlength);
-    return buffer;
-}
-#endif // DEBUG_ENABLED
-
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_internal_directory"
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_external_directory"
 
