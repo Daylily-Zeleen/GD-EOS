@@ -6,6 +6,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows/eos_Windows.h>
+#include <godot_cpp/classes/file_access.hpp>
 #elif defined(__ANDROID__)
 #include <Android/eos_android.h>
 #include <godot_cpp/classes/dir_access.hpp>
@@ -57,27 +58,40 @@ void *get_platform_specific_options() {
             }
         }
 
+        Wrapper() {
+            windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
+        }
+
     private:
         CharString XAudio29DllPath{};
     } wrapper{};
 
-    wrapper.windowsRTCOptions.ApiVersion = EOS_WINDOWS_RTCOPTIONS_API_LATEST;
-    String xAudio29DllPath;
-    if (OS::get_singleton()->has_feature("editor")) {
-        String bin_path = "res://addons/gd_eos/bin/";
+    PackedStringArray candidate_paths;
+    const String xAudio29_dll_name = "xaudio2_9redist.dll";
+
+    // Case 1: Find in addons (typically in editor)
+    const String addon_bin_path = "res://addons/gd-eos/bin/windows";
 #if defined(_WIN32)
-        xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x86").path_join("xaudio2_9redist.dll"));
+    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join("x86").path_join(xAudio29_dll_name)));
 #else // defined(_WIN64)
-        xAudio29DllPath = ProjectSettings::get_singleton()->globalize_path(bin_path.path_join("x64").path_join("xaudio2_9redist.dll"));
-#endif
-    } else {
-        xAudio29DllPath = OS::get_singleton()->get_executable_path().get_base_dir().path_join("xaudio2_9redist.dll");
+    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join("x64").path_join(xAudio29_dll_name)));
+#endif // defined(_WIN32)
+
+    // Case 2: Find near by executable (typically in exported project).
+    candidate_paths.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join(xAudio29_dll_name));
+
+    // Set XAudio29DllPath if the dll is found.
+    for (const auto &path : candidate_paths) {
+        if (godot::FileAccess::file_exists(path)) {
+            wrapper.set_XAudio29DllPath(path);
+            break;
+        }
     }
-    wrapper.set_XAudio29DllPath(xAudio29DllPath);
+
     return &wrapper.windowsRTCOptions;
-#else
+#else // !defined(_WIN32) && !defined(_WIN64)
     return nullptr;
-#endif
+#endif // defined(_WIN32) || defined(_WIN64)
 }
 
 void *get_system_initialize_options() {
