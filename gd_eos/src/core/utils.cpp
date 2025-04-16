@@ -6,6 +6,7 @@
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <Windows/eos_Windows.h>
+#include <godot_cpp/classes/engine.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #elif defined(__ANDROID__)
 #include <Android/eos_android.h>
@@ -52,26 +53,48 @@ void *get_platform_specific_options() {
     } wrapper{};
 
     PackedStringArray candidate_paths;
-    const String xAudio29_dll_name = "xaudio2_9redist.dll";
+    const String xAudio2_9_dll_name = "xaudio2_9redist.dll";
 
     // Case 1: Find in addons (typically in editor)
     const String addon_bin_path = "res://addons/gd-eos/bin/windows";
 #if defined(_WIN64)
     const String arch = "x64";
-#else // defined(_WIN32)
+#else // Win32
     const String arch = "x86";
 #endif // defined(_WIN64)
-    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join(arch).path_join(xAudio29_dll_name)));
+    candidate_paths.push_back(ProjectSettings::get_singleton()->globalize_path(addon_bin_path.path_join(arch).path_join(xAudio2_9_dll_name)));
 
     // Case 2: Find near by executable (typically in exported project).
-    candidate_paths.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join(xAudio29_dll_name));
+    candidate_paths.push_back(OS::get_singleton()->get_executable_path().get_base_dir().path_join(xAudio2_9_dll_name));
+
+    // Case 3: Find in system directory.
+    String runner_arch = Engine::get_singleton()->get_architecture_name();
+    if (runner_arch.contains("32")) {
+        // Run on win32, find in system32.
+        candidate_paths.push_back("C://Windows/System32/XAudio2_9.dll");
+    } else {
+#if defined(_WIN64)
+        // Run on win64 + win64 build, find in system32.
+        candidate_paths.push_back("C://Windows/System32/XAudio2_9.dll");
+#else
+        // Run on win64 + win32 build, find in SysWOW64.
+        candidate_paths.push_back("C://Windows/SysWOW64/XAudio2_9.dll");
+#endif
+    }
 
     // Set XAudio29DllPath if the dll is found.
+    String xAudio29_dll_path;
     for (const auto &path : candidate_paths) {
         if (godot::FileAccess::file_exists(path)) {
-            wrapper.set_XAudio29DllPath(path);
+            xAudio29_dll_path = path;
             break;
         }
+    }
+    wrapper.set_XAudio29DllPath(xAudio29_dll_path);
+
+    if (xAudio29_dll_path.is_empty()) {
+        UtilityFunctions::push_error("\"XAudio2_9.dll\" is not found, platform specific options for windows is not unavailable.");
+        return nullptr;
     }
 
     return &wrapper.windowsRTCOptions;
