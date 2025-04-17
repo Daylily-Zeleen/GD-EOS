@@ -848,9 +848,9 @@ def _make_notify_code(
             )
             cb = cb.replace("_EOS_METHOD_CALLBACK(", f"_CODE_SNIPPET_LOGIN_STATUS_CHANGED_CALLBACK({gd_id_type}, ")
         else:
-            cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_NOTIFY_CALLBACK")
+            cb = cb.replace("_EOS_METHOD_CALLBACK", "_EOS_SIMPLE_NOTIFY_CALLBACK")
     elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
-        cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_NOTIFY_CALLBACK_EXPANDED")
+        cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_SIMPLE_NOTIFY_CALLBACK_EXPANDED")
     else:
         print("ERROR")
         _print_stack_and_exit()
@@ -918,6 +918,8 @@ def _gen_handle(
     for m in method_infos:
         methods_name_list.append(m)
     methods_name_list.sort()
+
+    need_notification_header :bool = False
     for method in methods_name_list:
         if method.endswith("Release"):
             continue
@@ -949,8 +951,7 @@ def _gen_handle(
                     continue
 
         if "RemoveNotify" in method:
-            if method in skip_remove_notify_methods:
-                continue  # 已经成对处理
+            continue  # 已处理
 
         _gen_method(
             handle_name,
@@ -961,6 +962,9 @@ def _gen_handle(
             method_bind_lines,
         )
         r_cpp_lines.append("")
+
+        if "AddNotify" in method:
+            need_notification_header = True
 
     # to_string
     method_define_lines.append("")
@@ -1031,6 +1035,8 @@ def _gen_handle(
         r_cpp_lines.append(f"")
 
     ret: list[str] = []
+    if need_notification_header:
+        ret.append("#include <core/eos_notification.h>")
 
     # 单例继承关系特殊处理
     inherits = f"public {base_class}"
@@ -1131,6 +1137,7 @@ def _gen_handle(
         if callback == "EOS_LogMessageFunc":
             # log 回调为静态成员，不能添加信号
             continue
+        # TODO: 排除 AddNotifyXXX 相关的回调
         _gen_callback(callback, r_cpp_lines, True)
     # BIND 枚举
     if len(infos["enums"]):
@@ -1609,9 +1616,6 @@ def parse_all_file():
 
     _make_additional_method_requirements()
 
-    # print(classes)
-    # print(interfaces.keys())
-
     for il in unhandled_infos:
         print(
             f'{il}\t\t\tcb:{len(unhandled_infos[il].get("callbacks", {}))}\tmethods:{len(unhandled_infos[il].get("methods",{}))}\tenums:{len(unhandled_infos[il].get("enums",{}))}\tconstantes:{len(unhandled_infos[il].get("constants", {}))}'
@@ -1958,6 +1962,7 @@ def _gen_callback(
     callback_type: str,
     r_bind_signal_lines: list[str],
     for_gen_signal_binding: bool = False,
+    for_notification: bool = False,
 ) -> str:
     (infos, handle, method) = _get_callback_infos_v2(callback_type)
     method = __convert_method_name(method, handle) if len(method) else method
@@ -1993,7 +1998,10 @@ def _gen_callback(
             print("ERROR unsupported callback type:", callback_type)
             _print_stack_and_exit()
         else:
-            ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+            if not for_notification:
+                ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
+            else:
+                ret = f'_EOS_NOTIFY_CALLBACK({arg_type}, data, {gd_cb_info_type})'
 
         additional_doc: list[str] = []
         if len(method) and signal_name.startswith("on_"):
@@ -2018,7 +2026,10 @@ def _gen_callback(
             print("ERROR unsupported callback type:", callback_type)
             _print_stack_and_exit()
         else:
-            ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
+            if not for_notification:
+                ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
+            else:
+                ret = f'\n\t\t_EOS_NOTIFY_CALLBACK_EXPANDED({arg_type}, data'
 
         for field in fields:
             field_type: str = fields[field]["type"]
@@ -2562,6 +2573,7 @@ def _gen_method(
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
+
     if len(remapped_return_type):
         return_type = remapped_return_type
     elif _is_handle_type(_decay_eos_type(info["return"])):
@@ -2570,6 +2582,10 @@ def _gen_method(
         return_type = remap_type(info["return"], "")
     elif return_type == "":
         return_type = "void"
+
+    if "AddNotify" in method_name:
+        # 添加通知,返回通知对象
+        return_type = "Ref<EOSNotification>"
 
     invalid_arg_return_val: str = ""
     if return_type != "void":
@@ -2650,42 +2666,50 @@ def _gen_method(
                     )
                     call_args.append(f"callback")
                 else:
-                    call_args.append(f"{_gen_callback(decayed_type, [])}")
+                    call_args.append(f'{_gen_callback(decayed_type, [], False, return_type == "Ref<EOSNotification>")}')
 
                 bind_def_vals.append("DEFVAL(Callable())")
             # 插入回调的文档
             expended_args_doc[name] = __make_callback_doc(decayed_type)
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
-            next_decayed_type = _decay_eos_type(info["args"][i + 1]["type"])
-            if (i + 1) < len(info["args"]) and __is_callback_type(next_decayed_type):
-                if next_decayed_type == "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
-                    write_cb = f'{options_input_identifier}->get_{to_snake_case("WriteFileDataCallback")}()'
-                    progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
-                    completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
-
-                    prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                    prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {write_cb}, {progress_cb}, {completion_cb});")
-                    call_args.append(f"transfer_data")
-                    for_file_transfer = True
-                elif next_decayed_type in ["EOS_PlayerDataStorage_OnReadFileCompleteCallback", "EOS_TitleStorage_OnReadFileCompleteCallback"]:
-                    read_cb = f'{options_input_identifier}->get_{to_snake_case("ReadFileDataCallback")}()'
-                    progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
-                    completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
-
-                    prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
-                    prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {read_cb}, {progress_cb}, {completion_cb});")
-                    call_args.append(f"transfer_data")
-                    for_file_transfer = True
-                elif next_decayed_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
-                    prepare_lines.append("\tstatic auto ClientData = _CallbackClientData(this, {});")
-                    prepare_lines.append("\tClientData.handle_wrapper = this;")
-                    prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
-                    call_args.append("&ClientData")
-                else:
-                    call_args.append(f'_CallbackClientData::create(this, p_{to_snake_case(info["args"][i+1]["name"])})')
+            if return_type == "Ref<EOSNotification>":
+                next_arg_name = _decay_eos_type(info["args"][i + 1]["name"])
+                prepare_lines.append("\tRef<EOSNotification> ret; ret.instantiate();")
+                call_args.append("ret.ptr()")
+                after_call_lines.append(f'\tif (notification_id == EOS_INVALID_NOTIFICATIONID) return {{}};')
+                after_call_lines.append(f'\tauto NotifyRemover = memnew(EOSNotifyRemover(m_handle, &{method_name.replace("AddNotify", "RemoveNotify")}));')
+                after_call_lines.append(f'\tret->_setup(notification_id, NotifyRemover, p_{to_snake_case(next_arg_name)});')
             else:
-                call_args.append(f"_CallbackClientData::create(this)")
+                next_decayed_type = _decay_eos_type(info["args"][i + 1]["type"])
+                if (i + 1) < len(info["args"]) and __is_callback_type(next_decayed_type):
+                    if next_decayed_type == "EOS_PlayerDataStorage_OnWriteFileCompleteCallback":
+                        write_cb = f'{options_input_identifier}->get_{to_snake_case("WriteFileDataCallback")}()'
+                        progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
+                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+
+                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {write_cb}, {progress_cb}, {completion_cb});")
+                        call_args.append(f"transfer_data")
+                        for_file_transfer = True
+                    elif next_decayed_type in ["EOS_PlayerDataStorage_OnReadFileCompleteCallback", "EOS_TitleStorage_OnReadFileCompleteCallback"]:
+                        read_cb = f'{options_input_identifier}->get_{to_snake_case("ReadFileDataCallback")}()'
+                        progress_cb = f'{options_input_identifier}->get_{to_snake_case("FileTransferProgressCallback")}()'
+                        completion_cb = f'p_{to_snake_case(info["args"][i+1]["name"])}'
+
+                        prepare_lines.append(f"\t{return_type} ret; ret.instantiate();")
+                        prepare_lines.append(f"\tauto transfer_data = MAKE_FILE_TRANSFER_DATA(ret, {read_cb}, {progress_cb}, {completion_cb});")
+                        call_args.append(f"transfer_data")
+                        for_file_transfer = True
+                    elif next_decayed_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
+                        prepare_lines.append("\tstatic auto ClientData = _CallbackClientData(this, {});")
+                        prepare_lines.append("\tClientData.handle_wrapper = this;")
+                        prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
+                        call_args.append("&ClientData")
+                    else:
+                        call_args.append(f'_CallbackClientData::create(this, p_{to_snake_case(info["args"][i+1]["name"])})')
+                else:
+                    call_args.append(f"_CallbackClientData::create(this)")
         elif assume_only_one_local_user and _is_local_user_id(name):
             interface_class = _get_login_interface_of_local_user_id(name, type)
             prepare_lines.append(
@@ -2880,6 +2904,8 @@ def _gen_method(
         r_define_lines.append(f"\tEOS::_set_last_result_code(result_code);")
     elif return_type == "void" or return_type == "Signal" or need_out_to_ret:
         r_define_lines.append(f'\t{method_name}({", ".join(call_args)});')
+    elif return_type == "Ref<EOSNotification>":
+        r_define_lines.append(f'\tauto notification_id = {method_name}({", ".join(call_args)});')
     else:
         r_define_lines.append(f'\tauto ret = {method_name}({", ".join(call_args)});')
     # 后处理
