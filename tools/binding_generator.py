@@ -2764,16 +2764,16 @@ def _gen_method(
                 if _is_handle_type(decayed_type):
                     prepare_lines.append(f"\t{decayed_type} {name}{{ nullptr }};")
                     call_args.append(f"&{name}")
-                    after_call_lines.append(f"\t\tret.instantiate(); ret->set_handle({name});")
+                    after_call_lines.append(f"\t\tret->set_handle({name});")
                 elif __is_struct_type(decayed_type):
                     call_args.append(f"&{name}")
                     if type.endswith("**"):
                         prepare_lines.append(f"\t{decayed_type} *{name}{{}};")
-                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos(*{name});")
+                        after_call_lines.append(f"\t\tret->set_from_eos(*{name});")
                         after_call_lines.append(f"\t\t{decayed_type}_Release({name});")
                     else:
                         prepare_lines.append(f"\t{decayed_type} {name}{{}};")
-                        after_call_lines.append(f"\t\tret.instantiate(); ret->set_from_eos({name});")
+                        after_call_lines.append(f"\t\tret->set_from_eos({name});")
                 after_call_lines.append(f"\t}}")
 
             # Out 参数在最后，直接跳出
