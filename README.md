@@ -164,7 +164,7 @@ In this version, apart from the `EOSAuth` and `EOSConnect` interfaces, the `loca
 
 To use this version, you must use`EOSConnect.login()` to set an `EOSProductUserId` as the local user ID internally, and use `EOSAuth.login()` to set an `EOSEpicAccountId` as the local user ID internally (if you log in with different accounts multiple times, the local user ID will be set to the last logged-in user). Otherwise, when calling other APIs, it will return `EOS.Result.InvalidParameters` and throw an appropriate error message as a prompt.
 
-By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get_local()` to get current local user id, **but don't release the return value of these interfaces manually!!**.
+By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get_local()` to get current local user id, **but don't manually release the return value of these APIs!!**.
 
 ## **Known issues**
 
