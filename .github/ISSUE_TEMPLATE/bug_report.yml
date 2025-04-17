@@ -37,6 +37,14 @@ body:
   validations:
     required: true
 
+- type: input
+  attributes:
+    label: GD-EOS version
+    description: Please use latest GD-EOS version for testing.
+    placeholder: v0.4.0 (or commit hash)
+  validations:
+    required: true
+
 - type: textarea
   attributes:
     label: Issue description
