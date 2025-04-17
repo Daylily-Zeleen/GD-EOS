@@ -208,12 +208,6 @@ static Variant::Type get_variant_type() {
 // =====================
 // ClientData
 struct _CallbackClientData {
-    Object *handle_wrapper;
-    Callable callback;
-
-    _CallbackClientData(Object *p_handle_wrapper, const Callable &p_callback = {}) :
-            handle_wrapper(p_handle_wrapper), callback(p_callback) {}
-
     struct ScopedObject {
     private:
         _CallbackClientData *ccd;
@@ -221,16 +215,26 @@ struct _CallbackClientData {
     public:
         ScopedObject(void *p) :
                 ccd((_CallbackClientData *)p) {}
-        Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
-        Callable &get_callback() const { return ccd->callback; }
-
         ScopedObject(_CallbackClientData *p_ccd) :
                 ccd(p_ccd) {}
-        ~ScopedObject() { memdelete(ccd); }
-    };
-};
+        ~ScopedObject() {
+            memdelete(ccd);
+        }
 
-#define _MAKE_CALLBACK_CLIENT_DATA(...) memnew(_CallbackClientData(this, ##__VA_ARGS__))
+        Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
+        Callable &get_callback() const { return ccd->callback; }
+    };
+
+    _CallbackClientData(Object *p_handle_wrapper, const Callable &p_callback = {}) :
+            handle_wrapper(p_handle_wrapper), callback(p_callback) {}
+
+    Object *handle_wrapper;
+    Callable callback;
+
+    static _CallbackClientData *create(Object *p_handle_wrapper, const Callable &p_callback = {}) {
+        return memnew(_CallbackClientData(p_handle_wrapper, p_callback));
+    }
+};
 
 template <typename From, typename To>
 static To to_godot_type(From p_from) {
