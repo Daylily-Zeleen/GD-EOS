@@ -2683,9 +2683,9 @@ def _gen_method(
                     prepare_lines.append(f'\tClientData.callback = p_{to_snake_case(info["args"][i+1]["name"])};')
                     call_args.append("&ClientData")
                 else:
-                    call_args.append(f'_MAKE_CALLBACK_CLIENT_DATA(p_{to_snake_case(info["args"][i+1]["name"])})')
+                    call_args.append(f'_CallbackClientData::create(this, p_{to_snake_case(info["args"][i+1]["name"])})')
             else:
-                call_args.append(f"_MAKE_CALLBACK_CLIENT_DATA()")
+                call_args.append(f"_CallbackClientData::create(this)")
         elif assume_only_one_local_user and _is_local_user_id(name):
             interface_class = _get_login_interface_of_local_user_id(name, type)
             prepare_lines.append(
