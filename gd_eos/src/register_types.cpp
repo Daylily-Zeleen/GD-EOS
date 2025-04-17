@@ -29,6 +29,7 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
         return;
     }
 
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSNotification);
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSDataClass);
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPackedResult);
 

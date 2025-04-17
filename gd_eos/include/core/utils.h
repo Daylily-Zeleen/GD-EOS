@@ -863,14 +863,14 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
     }                                                                                              \
 }
 
-#define _EOS_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)              \
+#define _EOS_SIMPLE_NOTIFY_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)       \
     [](m_callback_info_ty m_callback_identifier) {                                                                  \
         if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
             obj->emit_signal(SNAME(m_callback_signal), m_arg_type::from_eos(*m_callback_identifier));               \
         }                                                                                                           \
     }
 
-#define _EOS_NOTIFY_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...)            \
+#define _EOS_SIMPLE_NOTIFY_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...)     \
     [](m_callback_info_ty m_callback_identifier) {                                                                  \
         if (auto obj = godot::Object::cast_to<godot::Object>((godot::Object *)m_callback_identifier->ClientData)) { \
             obj->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                                              \
