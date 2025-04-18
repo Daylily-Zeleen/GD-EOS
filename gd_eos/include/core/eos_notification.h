@@ -44,7 +44,7 @@ public:
         if (notify_callback.is_valid()) {
             notify_callback.call(p_arg);
         }
-        emit_notified(p_arg);
+        emit_received(p_arg);
     }
 
     template <typename... ARGS>
@@ -53,13 +53,13 @@ public:
             notify_callback.call(p_args...);
         }
         if constexpr (sizeof...(p_args) == 0) {
-            emit_notified();
+            emit_received();
         }
         if constexpr (sizeof...(p_args) == 1) {
-            emit_notified(p_args...);
+            emit_received(p_args...);
         }
         if constexpr (sizeof...(p_args) > 1) {
-            emit_notified(Array::make(p_args...));
+            emit_received(Array::make(p_args...));
         }
     }
 
@@ -76,7 +76,7 @@ private:
     EOS_NotificationId notification_id{ EOS_INVALID_NOTIFICATIONID };
     internal::EOSNotifyRemoverBase *remover;
 
-    void emit_notified(const Variant &p_args = Variant());
+    void emit_received(const Variant &p_args = Variant());
 };
 }; // namespace godot::eos
 
