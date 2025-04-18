@@ -1003,7 +1003,6 @@ def _gen_handle(
         if _is_string_constant(const_value):
             method_define_lines.append(f"\tstatic String {_convert_constant_as_method_name(constant)}() {{ return {constant}; }}")
             has_string_constants = True
-            _insert_doc_method(klass, _convert_constant_as_method_name(constant), infos["constants"][constant]["doc"], {})
     if has_string_constants:
         method_define_lines.append("")
 
@@ -1164,12 +1163,16 @@ def _gen_handle(
         r_cpp_lines.append(f"\t_BIND_ENUMS_{macro_suffix}()")
     # 常量
     for constant in infos["constants"]:
+        doc = infos["constants"][constant]["doc"]
         if _is_string_constant(infos["constants"][constant]["value"]):
+            converted_method_name :str = _convert_constant_as_method_name(constant)
             r_cpp_lines.append(
-                f'\tClassDB::bind_static_method(get_class_static(), D_METHOD("{_convert_constant_as_method_name(constant)}"), &{klass}::{_convert_constant_as_method_name(constant)});'
+                f'\tClassDB::bind_static_method(get_class_static(), D_METHOD("{converted_method_name}"), &{klass}::{converted_method_name});'
             )
+            _insert_doc_method(klass, converted_method_name, doc, {})
         else:
             r_cpp_lines.append(f'\t_BIND_CONSTANT({constant}, "{_convert_constant_name(constant)}")')
+            _insert_doc_constant(klass, _convert_constant_name(constant), doc)
     if klass == "EOS":
         r_cpp_lines.append("\t_EOS_BING_VERSION_CONSTANTS()")
 
