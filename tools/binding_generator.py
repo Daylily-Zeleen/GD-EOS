@@ -3805,6 +3805,9 @@ def _optimize_doc(doc: list[str]) -> list[str]:
                 if see_type.endswith("_Release"):
                     # 跳过对句柄释放方法的说明（转为 GDScript 用的 SDK 后已管理好所有的内存问题）
                     continue
+                if "RemoveNotify" in see_type:
+                    # 由 EOSNotification 处理，不再需要手动移除
+                    continue
                 elif _is_expanded_struct(see_type):
                     # 跳过被展开的结构体类型说明
                     continue
