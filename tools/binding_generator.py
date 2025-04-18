@@ -2643,7 +2643,7 @@ def _gen_method(
 
     bind_def_vals: list[str] = []
 
-    expended_args_doc: dict[str, list[str]] = {}  # 字段 -> doc
+    expanded_args_doc: dict[str, list[str]] = {}  # 字段 -> doc
     additional_doc: list[str] = []
     while i < len(info["args"]):
         type: str = info["args"][i]["type"]
@@ -2690,7 +2690,7 @@ def _gen_method(
 
                 bind_def_vals.append("DEFVAL(Callable())")
             # 插入回调的文档
-            expended_args_doc[name] = __make_callback_doc(decayed_type)
+            expanded_args_doc[name] = __make_callback_doc(decayed_type)
         elif __is_client_data(type, name):
             # Client Data, 必定配合回调使用
             if return_type == "Ref<EOSNotification>":
@@ -2771,7 +2771,7 @@ def _gen_method(
                 prepare_lines,
                 after_call_lines,
                 bind_def_vals,
-                expended_args_doc,
+                expanded_args_doc,
             )
         elif name.startswith("Out") or name.startswith("InOut") or name.startswith("bOut"):
             if len(remapped_return_type) == 0:
@@ -2970,7 +2970,7 @@ def _gen_method(
     bind_prefix: str = "ClassDB::bind_static_method(get_class_static(), " if static else "ClassDB::bind_method("
     r_bind_lines.append(f'\t{bind_prefix}D_METHOD("{snake_method_name}"{bind_args_text}), &{handle_klass}::{snake_method_name}{default_val_arg});')
 
-    _insert_doc_method(handle_klass, snake_method_name, info["doc"], expended_args_doc, additional_doc)
+    _insert_doc_method(handle_klass, snake_method_name, info["doc"], expanded_args_doc, additional_doc)
 
 
 def _get_EOS_EResult(r_file_lower2infos: list[str]):
