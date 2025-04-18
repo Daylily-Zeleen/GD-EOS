@@ -2700,6 +2700,8 @@ def _gen_method(
                 after_call_lines.append(f'\tif (notification_id == EOS_INVALID_NOTIFICATIONID) return {{}};')
                 after_call_lines.append(f'\tauto NotifyRemover = memnew(EOSNotifyRemover(m_handle, &{method_name.replace("AddNotify", "RemoveNotify")}));')
                 after_call_lines.append(f'\tret->_setup(notification_id, NotifyRemover, p_{to_snake_case(next_arg_name)});')
+
+                additional_doc.append(f"[b]NOTE[/b]: The return value can be null, it means that add notify failed.\n")
             else:
                 next_decayed_type = _decay_eos_type(info["args"][i + 1]["type"])
                 if (i + 1) < len(info["args"]) and __is_callback_type(next_decayed_type):

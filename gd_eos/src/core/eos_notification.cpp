@@ -5,8 +5,16 @@
 using namespace godot;
 using namespace godot::eos;
 
+static const StringName &s_received() {
+    static const StringName ret{ "received" };
+    return ret;
+}
+
 void EOSNotification::_bind_methods() {
-    ADD_SIGNAL(MethodInfo("notified", PropertyInfo(Variant::NIL, "arg")));
+    ClassDB::bind_method(D_METHOD("set_callback"), &EOSNotification::set_callback);
+    ClassDB::bind_method(D_METHOD("get_callback"), &EOSNotification::get_callback);
+    ADD_PROPERTY(PropertyInfo(Variant::CALLABLE, "callback"), "set_callback", "get_callback");
+    ADD_SIGNAL(MethodInfo(s_received(), PropertyInfo(Variant::NIL, "args")));
 }
 
 EOSNotification::~EOSNotification() {
@@ -38,9 +46,9 @@ void EOSNotification::set_callback(const Callable &p_callback) {
 }
 
 Signal EOSNotification::to() {
-    return Signal(this, SNAME("notified"));
+    return Signal(this, s_received());
 }
 
-void EOSNotification::emit_notified(const Variant &p_args) {
-    emit_signal(SNAME("notified"), p_args);
+void EOSNotification::emit_received(const Variant &p_args) {
+    emit_signal(s_received(), p_args);
 }
