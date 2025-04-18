@@ -875,6 +875,14 @@ def _convert_constant_as_method_name(name: str) -> str:
     return f'get_{name.removeprefix("EOS_").replace("OPT_", "ONLINE_PLATFORM_TYPE_").replace("IPT", "INTEGRATED_PLATFORM_TYPE_")}'
 
 
+def _get_callback_type_of_method(method_info: dict) -> str:
+    if len(method_info["args"]) >0:
+        arg = method_info["args"][-1]
+        if arg["type"].endswith("Callback") or arg["type"].endswith("CallbackV2"):
+            return _decay_eos_type(arg["type"])
+    return ""
+
+
 def _gen_handle(
     handle_name: str,
     infos: dict,
@@ -920,6 +928,7 @@ def _gen_handle(
     methods_name_list.sort()
 
     need_notification_header :bool = False
+    need_signal_callback_list :list[str] =[]
     for method in methods_name_list:
         if method.endswith("Release"):
             continue
@@ -927,8 +936,10 @@ def _gen_handle(
             continue
         if method.endswith("Interface"):
             continue  # 跳过接口获取方法
+
+        method_info: dict = method_infos[method]
         if "AddNotify" in method:
-            options_arg: dict = method_infos[method]["args"][1]
+            options_arg: dict = method_info["args"][1]
             options_type: str = options_arg["type"]
             decayed_options_type: str = _decay_eos_type(options_type)
             if __is_struct_type(decayed_options_type) and options_arg["name"].endswith("Options"):
@@ -941,7 +952,10 @@ def _gen_handle(
                     valid_field_count += 1
 
                 if valid_field_count == 1 and "ApiVersion" in options_fields:
-                    _make_notify_code(klass, method, method_infos[method], decayed_options_type, notifies_member_lines, setup_notifies_lines, remove_notifies_lines)
+                    cb_type:str = _get_callback_type_of_method(method_info)
+                    _assert(len(cb_type) > 0, f'{method} - {cb_type}')
+                    need_signal_callback_list.append(cb_type)
+                    _make_notify_code(klass, method, method_info, decayed_options_type, notifies_member_lines, setup_notifies_lines, remove_notifies_lines)
 
                     for m in method_infos:
                         if m == method:
@@ -956,7 +970,7 @@ def _gen_handle(
         _gen_method(
             handle_name,
             method,
-            method_infos[method],
+            method_info,
             method_define_lines,
             r_cpp_lines,
             method_bind_lines,
@@ -964,7 +978,12 @@ def _gen_handle(
         r_cpp_lines.append("")
 
         if "AddNotify" in method:
+            # 使用 EOSNotification, 不需要为其添加信号
             need_notification_header = True
+        else:
+            cb_type:str = _get_callback_type_of_method(method_info)
+            if len(cb_type) > 0:
+                need_signal_callback_list.append(cb_type)
 
     # to_string
     method_define_lines.append("")
@@ -1137,8 +1156,9 @@ def _gen_handle(
         if callback == "EOS_LogMessageFunc":
             # log 回调为静态成员，不能添加信号
             continue
-        # TODO: 排除 AddNotifyXXX 相关的回调
-        _gen_callback(callback, r_cpp_lines, True)
+
+        if callback in need_signal_callback_list:
+            _gen_callback(callback, r_cpp_lines, True)
     # BIND 枚举
     if len(infos["enums"]):
         r_cpp_lines.append(f"\t_BIND_ENUMS_{macro_suffix}()")
