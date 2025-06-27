@@ -223,16 +223,37 @@ struct _CallbackClientData {
 
         Object *get_handle_wrapper() const { return ccd->handle_wrapper; }
         Callable &get_callback() const { return ccd->callback; }
+        bool is_ref_counted() const { return ccd->ref_counted; }
+
+        void before_emit() const {
+            if (is_ref_counted()) {
+                static_cast<RefCounted *>(get_handle_wrapper())->reference();
+            }
+        }
+        void after_emit() const {
+            if (is_ref_counted()) {
+                callable_mp_static(ScopedObject::unref_deferred).call_deferred(get_handle_wrapper());
+            }
+        }
+
+    private:
+        static void unref_deferred(RefCounted *p_ref) {
+            if (p_ref->unreference()) {
+                memdelete(p_ref);
+            }
+        }
     };
 
-    _CallbackClientData(Object *p_handle_wrapper, const Callable &p_callback = {}) :
-            handle_wrapper(p_handle_wrapper), callback(p_callback) {}
+    _CallbackClientData(Object *p_handle_wrapper, const Callable &p_callback = {}, bool p_ref_counted = false) :
+            handle_wrapper(p_handle_wrapper), callback(p_callback), ref_counted(p_ref_counted) {}
 
     Object *handle_wrapper;
     Callable callback;
+    bool ref_counted;
 
-    static _CallbackClientData *create(Object *p_handle_wrapper, const Callable &p_callback = {}) {
-        return memnew(_CallbackClientData(p_handle_wrapper, p_callback));
+    template <typename T>
+    static _CallbackClientData *create(T *p_handle_wrapper, const Callable &p_callback = {}) {
+        return memnew(_CallbackClientData(p_handle_wrapper, p_callback, std::is_base_of_v<RefCounted, T>));
     }
 };
 
@@ -884,7 +905,9 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd.get_callback().is_valid()) {                                                            \
             cd.get_callback().call(cb_data);                                                           \
         }                                                                                              \
+        cd.before_emit();                                                                              \
         cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), cb_data);                       \
+        cd.after_emit();                                                                               \
     }
 
 #define _EOS_METHOD_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, m_callback_signal, ...) \
@@ -893,7 +916,9 @@ auto _to_godot_val_from_union(EOSUnion &p_eos_union, EOSUnionTypeEnum p_type) {
         if (cd.get_callback().is_valid()) {                                                              \
             cd.get_callback().call(__VA_ARGS__);                                                         \
         }                                                                                                \
+        cd.before_emit();                                                                                \
         cd.get_handle_wrapper()->emit_signal(SNAME(m_callback_signal), ##__VA_ARGS__);                   \
+        cd.after_emit();                                                                                 \
     }
 
 #define _EOS_USER_PRE_LOGOUT_CALLBACK(m_callback_info_ty, m_callback_identifier, m_callback_signal, m_arg_type)                           \
