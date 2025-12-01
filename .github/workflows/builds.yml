@@ -118,12 +118,12 @@ jobs:
               scons --version
 
         - name: Checkout project
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
               submodules: false
 
         - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
               repository: godotengine/godot-cpp
               path: godot-cpp
@@ -131,7 +131,7 @@ jobs:
               submodules: recursive
 
         - name: Checkout private EOS SDK repo
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
               token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
               repository: Daylily-Zeleen/eos-sdk
@@ -208,7 +208,7 @@ jobs:
       needs: build
       steps:
         - name: Checkout project
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
               submodules: false
 
