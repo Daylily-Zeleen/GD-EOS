@@ -157,7 +157,7 @@ jobs:
             link-to-sdk: true
 
         - name: Setup build cache
-          uses: actions/cache@v4
+          uses: actions/cache@v5
           with:
               path: ${{ env.SCONS_CACHE }}
               key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
