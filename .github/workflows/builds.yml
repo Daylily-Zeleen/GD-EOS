@@ -197,7 +197,7 @@ jobs:
               python ./misc/copy_dir.py ./demo/addons/ ./artifacts/GD-EOS/addons/
 
         - name: Upload artifact ${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}
-          uses: actions/upload-artifact@v4
+          uses: actions/upload-artifact@v7
           with:
               name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
               path: ./artifacts/GD-EOS/
@@ -217,7 +217,7 @@ jobs:
             echo BUILD_VERSION=$(head -n 1 ./version) >> $GITHUB_ENV
 
         - name: Merge Artifacts to all in one
-          uses: actions/upload-artifact/merge@v4
+          uses: actions/upload-artifact/merge@v7
           with:
               name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
               pattern: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}*
