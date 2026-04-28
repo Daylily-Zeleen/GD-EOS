@@ -1,11 +1,22 @@
 #!user/bin/python
 # -*- coding: utf-8 -*-
 import os
-import tools.binding_generator
-from SCons.Script import BoolVariable
-from SCons.Script import Environment
+import sys
 
-_generated_doc_data_file :str = "gd_eos/gen/doc_data/doc_data.cpp"
+from SCons.Script import BoolVariable, Environment
+
+try:
+    import binding_generator.main as binding_generator
+except ImportError:
+    _tools_dir = os.path.dirname(os.path.abspath(__file__))
+    for key in list(sys.modules.keys()):
+        if key == "binding_generator" or key.startswith("binding_generator."):
+            del sys.modules[key]
+    sys.path.insert(0, _tools_dir)
+    import binding_generator.main as binding_generator
+
+_generated_doc_data_file: str = "gd_eos/gen/doc_data/doc_data.cpp"
+
 
 def generate(env: Environment):
     env.AddMethod(_generate_bindings, "GD_EOS_GENERATE_BINDINGS")
@@ -15,13 +26,21 @@ def generate(env: Environment):
     env.AddMethod(_generate_doc_data, "GD_EOS_GENERATE_DOC_DATA")
 
 
-def exists(env):
+def exists(_env):
     return True
 
 
-def options(opts, env):
-    opts.Add("min_field_count_to_expand_input_structs", "The min field count to expand input EOS Options structs (except 'ApiVersion' field).", "3")
-    opts.Add("min_field_count_to_expand_callback_structs", "The min field count to expand EOS CallbackInfo structs.", "1")
+def options(opts, _env):
+    opts.Add(
+        "min_field_count_to_expand_input_structs",
+        "The min field count to expand input EOS Options structs (except 'ApiVersion' field).",
+        "3",
+    )
+    opts.Add(
+        "min_field_count_to_expand_callback_structs",
+        "The min field count to expand EOS CallbackInfo structs.",
+        "1",
+    )
     opts.Add(
         BoolVariable(
             key="assume_only_one_local_user",
@@ -34,11 +53,12 @@ def options(opts, env):
 def _get_generated_files() -> tuple[list[str], list[str]]:
     files = []
 
-    is_generate_file = lambda fp: fp.endswith(".cpp") or fp.endswith(".c") or fp.endswith(".h") or fp.endswith(".hpp") or fp.endswith(".inl")
+    def is_generate_file(fp):
+        return fp.endswith(".cpp") or fp.endswith(".c") or fp.endswith(".h") or fp.endswith(".hpp") or fp.endswith(".inl")
 
-    gen_dir = os.path.join("gd_eos/", "gen")
-    for folder in ["include", "src"]:
-        dir = os.path.join(gen_dir, folder)
+    from binding_generator.config import gen_include_dir, gen_src_dir
+
+    for dir in [gen_include_dir, gen_src_dir]:
         for f in os.listdir(dir):
             fp = os.path.join(dir, f)
             if os.path.isfile(fp):
@@ -54,24 +74,28 @@ def _get_generated_files() -> tuple[list[str], list[str]]:
 
 
 def _generate_bindings(env: Environment) -> tuple[list[str], list[str]]:
-    # 不在清理时执行生成
-    if not env.GetOption('clean'):
-        tools.binding_generator.generate_bindings(int(env["min_field_count_to_expand_input_structs"]), int(env["min_field_count_to_expand_callback_structs"]), env["assume_only_one_local_user"])
+    if not env.GetOption("clean"):
+        from binding_generator.config import generate_config
+
+        generate_config.min_field_count_to_expand_input_structs = int(env["min_field_count_to_expand_input_structs"])
+        generate_config.min_field_count_to_expand_callback_structs = int(env["min_field_count_to_expand_callback_structs"])
+        generate_config.assume_only_one_local_user = env["assume_only_one_local_user"]
+        binding_generator.generate_bindings()
     return _get_generated_files()
 
 
 def _preprocess(env: Environment) -> None:
     # 清理时不预处理
-    if not env.GetOption('clean'):
-        tools.binding_generator.preprocess()
+    if not env.GetOption("clean"):
+        binding_generator.preprocess()
 
 
 def _postprocess(env: Environment) -> None:
     # 清理时后处理(尝试还原文件,如已预处理但编译被打断未正确进行后处理)
-    tools.binding_generator.postprocess()
+    binding_generator.postprocess()
 
 
-def _add_clean_files(env: Environment, target):
+def _add_clean_files(env: Environment, target: str) -> None:
     includes, sources = _get_generated_files()
     files = includes + sources
 
@@ -86,7 +110,7 @@ def _generate_doc_data(env: Environment) -> list[str]:
     # doc (godot-cpp 4.3 以上)
     if env["target"] in ["editor", "template_debug"]:
         try:
-            if not env.GetOption('clean'):
+            if not env.GetOption("clean"):
                 doc_data = env.GodotCPPDocData(_generated_doc_data_file, source=env.Glob("doc_classes/*.xml"))
                 return doc_data
             else:
