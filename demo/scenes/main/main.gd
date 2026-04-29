@@ -46,6 +46,7 @@ func _ready() -> void:
 	create_options.client_credentials = EOSPlatform_ClientCredentials.new()
 	create_options.client_credentials.client_id = _get_config(&"client_id")
 	create_options.client_credentials.client_secret = _get_config(&"client_secret")
+	create_options.rtc_options = EOSPlatform_RTCOptions.new()
 	create_options.encryption_key = _get_config(&"encryption_key")
 	if OS.get_name() == "Windows":
 		create_options.flags |= EOSPlatform.PF_DISABLE_OVERLAY
@@ -80,7 +81,7 @@ func _ready() -> void:
 	EOSP2P.set_relay_control(EOSP2P.RC_ForceRelays)
 
 func _exit_tree() -> void:
-	if _entered_lobby_id and EOSLobby.copy_lobby_details(_entered_lobby_id, _product_user_id).lobby_details.get_lobby_owner().is_equal(_product_user_id):
+	if _entered_lobby_id and EOSLobby.copy_lobby_details(_entered_lobby_id, _product_user_id).lobby_details.get_lobby_owner() == _product_user_id:
 		EOSLobby.destroy_lobby(_product_user_id, _entered_lobby_id)
 
 

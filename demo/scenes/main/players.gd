@@ -39,7 +39,7 @@ func _spawn_player(peer_id: int) -> void:
 	# Updata authority
 	_update_authority(details.get_lobby_owner())
 
-	if not details.get_lobby_owner().is_equal(_local_user_id):
+	if details.get_lobby_owner() != _local_user_id:
 		# Only lobby owner can spawn player.
 		return
 
@@ -60,7 +60,7 @@ func _despawn_player(peer_id: int) -> void:
 	# Updata authority
 	_update_authority(details.get_lobby_owner())
 
-	if not details.get_lobby_owner().is_equal(_local_user_id):
+	if details.get_lobby_owner() != _local_user_id:
 		# Only lobby owner can despawn player.
 		return
 
@@ -98,7 +98,7 @@ func _on_lobby_member_status_received(data: EOSLobby_LobbyMemberStatusReceivedCa
 # ====================
 func _update_authority(user_id: EOSProductUserId) -> void:
 	var host_peer_id := 0
-	if EOSMultiplayerPeer.get_local_user_id().is_equal(user_id):
+	if EOSMultiplayerPeer.get_local_user_id() == user_id:
 		host_peer_id = _local_peer.get_unique_id()
 	else:
 		host_peer_id = _local_peer.get_peer_id(user_id)
