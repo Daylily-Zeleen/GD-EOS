@@ -10,7 +10,7 @@ from binding_generator.doc.doc_processor import (
     insert_doc_property,
 )
 from binding_generator.models import Arg, Struct, StructField
-from binding_generator.utils.common import print_stack_and_exit
+from binding_generator.utils.common import assert_condition, print_stack_and_exit
 from binding_generator.utils.naming import (
     convert_handle_class_name,
     convert_to_signal_name,
@@ -361,25 +361,15 @@ def _gen_struct(
             if is_client_data_field(field_type, field):
                 continue
             if is_memory_func_type(field_type):
-                print(f"[struct_generator] 不支持的内存函数字段类型: '{field_type}'")
-
-                print_stack_and_exit()
+                print_stack_and_exit(f"[struct_generator] 不支持的内存函数字段类型: '{field_type}'")
             if is_platform_specific_options_field(field):
-                print(f"[struct_generator] 不支持的平台特定选项字段: '{field}'")
-
-                print_stack_and_exit()
+                print_stack_and_exit(f"[struct_generator] 不支持的平台特定选项字段: '{field}'")
             elif is_system_initialize_options_filed(field, field_type):
-                print(f"[struct_generator] 不支持的系统初始化选项字段: '{field}'")
-
-                print_stack_and_exit()
+                print_stack_and_exit(f"[struct_generator] 不支持的系统初始化选项字段: '{field}'")
             elif is_reserved_field(field, field_type):
-                print(f"[struct_generator] 不支持的保留字段: '{field}'")
-
-                print_stack_and_exit()
+                print_stack_and_exit(f"[struct_generator] 不支持的保留字段: '{field}'")
             elif is_nullable_float_pointer_field(field_type, field):
-                print(f"[struct_generator] 不支持的可空浮点指针字段: '{field}'")
-
-                print_stack_and_exit()
+                print_stack_and_exit(f"[struct_generator] 不支持的可空浮点指针字段: '{field}'")
             elif generate_config.assume_only_one_local_user and is_local_user_id(field) and need_ignore_local_user_id_struct(struct_type=struct_type):
                 if need_check_null_local_user_id_struct(struct_type):
                     r_structs_cpp.append(
@@ -392,12 +382,8 @@ def _gen_struct(
                     r_structs_cpp.append(f"\t{snake_case_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
                     r_structs_cpp.append(f"\t{snake_case_field} = p_origin.{field}->SocketName;")
             elif is_str_type(field_type, field):
-                if field.startswith("SocketName"):
-                    print("[struct_generator] 不可达代码: EOS_P2P_SocketId 不应被包装为 Godot 类")
-
-                    print_stack_and_exit()
-                else:
-                    r_structs_cpp.append(f"\t{snake_case_field} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
+                assert_condition(not field.startswith("SocketName"), "[struct_generator] EOS_P2P_SocketId 不应被包装为 Godot 类")
+                r_structs_cpp.append(f"\t{snake_case_field} = to_godot_type<{field_type}, CharString>(p_origin.{field});")
             elif is_str_arr_type(field_type, field):
                 r_structs_cpp.append(f"\t_FROM_EOS_STR_ARR({snake_case_field}, p_origin.{field}, p_origin.{find_count_field(field, fields.keys())});")
             elif is_pure_handle_type(decayed_field_type):
@@ -469,12 +455,8 @@ def _gen_struct(
                 elif is_reserved_field(field, field_type):
                     r_structs_cpp.append(f"\tp_data.{field} = nullptr;")
                 elif is_str_type(field_type, field):
-                    if field.startswith("SocketName"):
-                        print("[struct_generator] 不可达代码: EOS_P2P_SocketId 不应出现在 set_to_eos 中")
-
-                        print_stack_and_exit()
-                    else:
-                        r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
+                    assert_condition(not field.startswith("SocketName"), "[struct_generator] EOS_P2P_SocketId 不应出现在 set_to_eos 中")
+                    r_structs_cpp.append(f"\tp_data.{field} = to_eos_type<const CharString &, {field_type}>({snake_field_name});")
                 elif is_str_arr_type(field_type, field):
                     count_filed: str = find_count_field(field, fields.keys())
                     if get_str_arr_element_type(field_type) == "const char*":
@@ -505,9 +487,7 @@ def _gen_struct(
                     gd_type: str = convert_handle_class_name(decayed_field_type)
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
                 elif is_client_data_field(field_type, field):
-                    print(f"[struct_generator] 不支持的 ClientData 字段: 结构体 '{struct_type}'")
-
-                    print_stack_and_exit()
+                    print_stack_and_exit(f"[struct_generator] 不支持的 ClientData 字段: 结构体 '{struct_type}'")
                 elif is_internal_struct_arr_field(field_type, field, struct_type):
                     r_structs_cpp.append(
                         f"\t_TO_EOS_FIELD_STRUCT_ARR(p_data.{field}, {snake_field_name}, _shadow_{snake_field_name}, p_data.{find_count_field(field, fields.keys())});"
@@ -541,9 +521,7 @@ def _gen_struct(
                     elif field_type == "EOS_TitleStorage_OnFileTransferProgressCallback":
                         r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                     else:
-                        print(f"[struct_generator] 不支持的回调字段类型: '{field_type}'")
-
-                        print_stack_and_exit()
+                        print_stack_and_exit(f"[struct_generator] 不支持的回调字段类型: '{field_type}'")
                 else:
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD(p_data.{field.split('[')[0]}, {to_snake_case(field)});")
         r_structs_cpp.append("}")

@@ -139,9 +139,7 @@ def gen_packed_result_type(
         decayed_type = decay_eos_type(arg_type)
         snake_name: str = to_snake_case(strip_out_param_prefix(arg_name))
         if is_handle_arr_type(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_handle_type(decayed_type):
             handle_class: str = convert_handle_class_name(decayed_type)
             members_lines.append(f"\tRef<RefCounted> {snake_name};")
@@ -170,13 +168,9 @@ def gen_packed_result_type(
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif is_str_type(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的字符串类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的字符串类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
         elif is_str_arr_type(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的字符串数组类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的字符串数组类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1].type.endswith("int32_t*") and out_args[i + 1].name.endswith("Length"):
             members_lines.append(f"\tString {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
@@ -198,17 +192,11 @@ def gen_packed_result_type(
             bind_lines.append(f"\t_BIND_PROP_BOOL({snake_name})")
             i += 1
         elif is_arr_field(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_internal_struct_arr_field(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_audio_frames_type(arg_type, arg_name):
-            print(f"[packed_result_generator] 不支持的音频帧数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[packed_result_generator] 不支持的音频帧数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_enum_flags_type(arg_type):
             members_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
             setget_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_name})")

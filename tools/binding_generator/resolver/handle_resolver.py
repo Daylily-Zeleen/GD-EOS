@@ -17,9 +17,6 @@ from binding_generator.context import (
 )
 from binding_generator.models import (
     Arg,
-    Callback,
-    Constant,
-    Enum,
     FileInfo,
     Handle,
     Method,
@@ -33,7 +30,7 @@ from binding_generator.utils.naming import (
     convert_to_interface_lower,
     decay_eos_type,
 )
-from binding_generator.utils.common import print_stack_and_exit
+from binding_generator.utils.common import assert_condition
 from binding_generator.utils.type import (
     is_callback_type_name,
     is_handle_type,
@@ -233,9 +230,7 @@ def _route_by_cheat(
             if not len(cheat_handle_type):
                 print(f"[handle_resolver] 警告: {element_label} '{key}' 没有对应的句柄类型")
                 continue
-            if cheat_handle_type not in handles:
-                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
-                print_stack_and_exit()
+            assert_condition(cheat_handle_type in handles, f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
             routed.add(key)
             handles[cheat_handle_type].__dict__[attr_name][key] = items[key]
             to_remove.append(key)
@@ -375,8 +370,7 @@ def parse_all_file():
             else:
                 handles[interface_handle_type].doc = interface_doc
             file_lower2infos[il].interface_doc = []
-        if len(file_lower2infos[il].interface_doc) > 0:
-            print_stack_and_exit(f"[handle_resolver] 接口 '{il}' 的文档不为空，可能存在未处理的接口文档")
+        assert_condition(len(file_lower2infos[il].interface_doc) == 0, f"[handle_resolver] 接口 '{il}' 的文档不为空，可能存在未处理的接口文档")
 
     for il in file_lower2infos:
         infos: FileInfo = file_lower2infos[il]

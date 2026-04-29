@@ -420,14 +420,11 @@ def is_need_skip_enum_value(ori_enum_type: str, enum_value: str) -> bool:
 
 def get_enum_owned_interface(ori_enum_type: str) -> str:
     for infos in generate_infos.values():
-        if ori_enum_type in infos.enums:
-            print(f"[type] 不支持的枚举类型 '{ori_enum_type}'，已存在于生成信息中")
-            print_stack_and_exit()
+        assert_condition(ori_enum_type not in infos.enums, f"[type] 不支持的枚举类型 '{ori_enum_type}'，已存在于生成信息中")
         for h in infos.handles:
             if ori_enum_type in infos.handles[h].enums:
                 return convert_handle_class_name(h)
-    print(f"[type] 不支持的枚举类型 '{ori_enum_type}'，找不到对应的句柄类")
-    print_stack_and_exit()
+    print_stack_and_exit(f"[type] 不支持的枚举类型 '{ori_enum_type}'，找不到对应的句柄类")
 
 
 def is_reserved_field(field: str, type: str) -> bool:
@@ -588,11 +585,8 @@ def find_count_field(field: str, fields: list[str]) -> str:
                     break
             if similar > 0:
                 similar_fields.append(f)
-    if len(similar_fields) == 1:
-        return similar_fields[0]
-    print(f"[type] 字段 '{field}' 匹配到多个相似字段: {similar_fields}")
-    print(f"[type] 可用字段列表: {list(fields)}")
-    print_stack_and_exit()
+    assert_condition(len(similar_fields) == 1, f"[type] 字段 '{field}' 匹配到多个相似字段: {similar_fields}, 可用字段列表: {list(fields)}")
+    return similar_fields[0]
 
 
 def _has_count_field(field: str, fields: list[str]) -> bool:
@@ -757,7 +751,7 @@ def get_gd_type_of_local_user_id(field: str, eos_type: str) -> str:
 
 
 def _assert_is_local_user_id(field: str):
-    assert_condition(field == "LocalUserId")
+    assert_condition(field == "LocalUserId", f"[type] 字段 '{field}' 不是 'LocalUserId'")
 
 
 def is_enum_flags_type(type: str) -> bool:
@@ -968,8 +962,7 @@ def get_callback_infos(callback_type: str) -> Callback:
         for cb in callbacks:
             if cb == callback_type:
                 return callbacks[cb]
-    print(f"[type] 未知的回调类型: '{callback_type}'")
-    print_stack_and_exit()
+    print_stack_and_exit(f"[type] 未知的回调类型: '{callback_type}'")
 
 
 def is_base_handle_type(handle_type: str) -> bool:

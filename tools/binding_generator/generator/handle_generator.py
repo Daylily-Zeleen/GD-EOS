@@ -513,9 +513,7 @@ def _make_notify_code(
     elif "_EOS_METHOD_CALLBACK_EXPANDED" in cb:
         cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_SIMPLE_NOTIFY_CALLBACK_EXPANDED")
     else:
-        print(f"[handle_generator] 通知回调代码生成失败: 无法识别回调类型 '{callback_type}' 的回调宏")
-
-        print_stack_and_exit()
+        print_stack_and_exit(f"[handle_generator] 通知回调代码生成失败: 无法识别回调类型 '{callback_type}' 的回调宏")
 
     r_member_lines.append(f"\tEOS_NotificationId {id_identifier}{{EOS_INVALID_NOTIFICATIONID}};")
     r_setup_lines.append("\tif (m_handle){")
@@ -557,9 +555,7 @@ def _gen_method(
             break
 
     if (return_type == "Signal") and (len(packed_result_type) or len(remapped_return_type)):
-        print(f"[handle_generator] 方法 '{method_name}' 同时存在回调信号和打包返回，二者冲突")
-
-        print_stack_and_exit()
+        print_stack_and_exit(f"[handle_generator] 方法 '{method_name}' 同时存在回调信号和打包返回，二者冲突")
 
     if len(packed_result_type):
         return_type = f"Ref<{packed_result_type}>"
@@ -759,19 +755,18 @@ def _gen_method(
                     snake_method_name,
                 )
                 if len(converted_return_type):
-                    if len(converted_return_type) != 1:
-                        print(f"[handle_generator] 方法 '{method_name}' 的返回类型转换结果数量不为1: len={len(converted_return_type)}")
+                    assert_condition(len(converted_return_type) == 1, f"[handle_generator] 方法 '{method_name}' 的返回类型转换结果数量不为1: len={len(converted_return_type)}")
 
-                        print_stack_and_exit()
                     if return_type != "void" and not (return_type == "EOS_EResult" and converted_return_type[0] == "String"):
-                        print(f"[handle_generator] 方法 '{method_name}' 返回类型不匹配: 期望返回类型 '{return_type}' 与转换结果 '{converted_return_type[0]}' 不一致")
+                        print_stack_and_exit(
+                            f"[handle_generator] 方法 '{method_name}' 返回类型不匹配: 期望返回类型 '{return_type}' 与转换结果 '{converted_return_type[0]}' 不一致"
+                        )
 
-                        print_stack_and_exit()
                     return_type = converted_return_type[0]
                     if return_type != "EOS_EResult":
                         invalid_arg_return_val = "{}"
             else:
-                assert_condition(info.return_type == "EOS_EResult")
+                assert_condition(info.return_type == "EOS_EResult", f"[handle_generator] 方法 '{method_name}' 返回类型应为 EOS_EResult，实际为 '{info.return_type}'")
 
                 if is_handle_type(decayed_type):
                     gd_handle_class: str = convert_handle_class_name(decayed_type)
@@ -799,17 +794,13 @@ def _gen_method(
             prepare_lines.append(f"\tCharString utf8_{snake_name} = p_{snake_name}.utf8();")
             call_args.append(f"to_eos_type<const CharString &, {type}>(utf8_{snake_name})")
         elif is_str_arr_type(type, name):
-            print(f"[handle_generator] 不支持的字符串数组参数类型: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的字符串数组参数类型: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
         elif is_enum_flags_type(type):
             declare_args.append(f"BitField<{type}> p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
         elif is_handle_arr_type(type, name):
-            print(f"[handle_generator] 不支持的句柄数组参数: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的句柄数组参数: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
         elif is_handle_type(decayed_type):
             declare_args.append(f"const {remap_type(decayed_type, name)} &p_{snake_name}")
             bind_args.append(f'"{snake_name}"')
@@ -965,10 +956,7 @@ def _gen_callback(
     return_type: str = infos.return_type
     decayed_arg_type: str = decay_eos_type(arg_type)
 
-    if not is_struct_type(decayed_arg_type):
-        print(f"[handle_generator] 回调 '{callback_type}' 的参数类型 '{decayed_arg_type}' 不是结构体，无法生成回调代码")
-
-        print_stack_and_exit()
+    assert_condition(is_struct_type(decayed_arg_type), f"[handle_generator] 回调 '{callback_type}' 的参数类型 '{decayed_arg_type}' 不是结构体，无法生成回调代码")
 
     signal_name: str = convert_to_signal_name(callback_type)
     if not is_expanded_struct(decayed_arg_type):
@@ -980,9 +968,7 @@ def _gen_callback(
         elif len(return_type):
             if for_gen_signal_binding:
                 return ""
-            print(f"[handle_generator] 回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
         else:
             if not for_notification:
                 ret = f'_EOS_METHOD_CALLBACK({arg_type}, data, "{signal_name}", {gd_cb_info_type})'
@@ -1007,9 +993,7 @@ def _gen_callback(
         if len(return_type):
             if for_gen_signal_binding:
                 return ""
-            print(f"[handle_generator] 展开式回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 展开式回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
         else:
             if not for_notification:
                 ret = f'\n\t\t_EOS_METHOD_CALLBACK_EXPANDED({arg_type}, data, "{signal_name}"'
@@ -1213,9 +1197,7 @@ def _expand_input_struct(
             gd_type: str = convert_handle_class_name(decay_field_type)
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({options_field}, p_{snake_field}, {gd_type});")
         elif is_client_data_field(field_type, field):
-            print(f"[handle_generator] 不支持的 ClientData 字段类型: '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的 ClientData 字段类型: '{arg_type}'")
         elif is_internal_struct_arr_field(field_type, field, decayed_type):
             r_declare_args.append(f"const TypedArray<{convert_to_struct_class(decay_field_type)}> &p_{snake_field}")
             option_count_field: str = f"{arg_name}.{find_count_field(field, fields.keys())}"
@@ -1310,9 +1292,7 @@ def _make_packed_result(
         snake_name: str = to_snake_case(strip_out_param_prefix(arg_name))
 
         if is_handle_arr_type(arg_type, arg_name):
-            print(f"[handle_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_handle_type(decayed_type):
             r_prepare_lines.append(f"\t{decayed_type} {arg_name}{{ nullptr }};")
             r_call_args.append(f"&{arg_name}")
@@ -1417,10 +1397,7 @@ def _make_packed_result(
                 elif field in ["MaxDataSizeBytes"]:
                     length_variable = f"{options_identifier}.{field}"
                     break
-            if len(length_variable) <= 0:
-                print(f"[handle_generator] 找不到参数 '{arg_name}' 对应的长度变量")
-
-                print_stack_and_exit()
+            assert_condition(len(length_variable) > 0, f"[handle_generator] 找不到参数 '{arg_name}' 对应的长度变量")
 
             r_prepare_lines.append(f"\tPackedByteArray {arg_name};")
             r_prepare_lines.append(f"\t{arg_name}.resize({length_variable});")
@@ -1450,22 +1427,13 @@ def _make_packed_result(
 
             i += 1
         elif is_arr_field(arg_type, arg_name):
-            print(f"[handle_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_internal_struct_arr_field(arg_type, arg_name):
-            print(f"[handle_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_struct_ptr(arg_type):
-            print(f"[handle_generator] 不支持的结构体指针输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-
-            print_stack_and_exit()
+            print_stack_and_exit(f"[handle_generator] 不支持的结构体指针输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         else:
-            if not arg_type.endswith("*"):
-                print(f"[handle_generator] 不支持的输出参数: 方法 '{method_name}', 类型 '{arg_type}', 参数名 '{arg_name}'")
-
-                print_stack_and_exit()
+            assert_condition(arg_type.endswith("*"), f"[handle_generator] 不支持的输出参数: 方法 '{method_name}', 类型 '{arg_type}', 参数名 '{arg_name}'")
 
             r_prepare_lines.append(f"\t{arg_type.removesuffix('*')} {arg_name};")
             r_call_args.append(f"&{arg_name}")

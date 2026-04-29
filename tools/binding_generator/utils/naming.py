@@ -2,6 +2,7 @@
 
 import re
 from functools import lru_cache
+from binding_generator.utils.common import assert_condition
 
 _SNAKE_CASE_MULTI_UNDERSCORE = re.compile(r"_+")
 _VERSION_SUFFIX_PATTERN = re.compile(r"_v(\d+)$")
@@ -46,11 +47,7 @@ _HUNGARIAN_PREFIXES = ("b", "p", "n", "sz", "l", "dw", "h", "f")
 
 
 def remove_backslash_of_last_line(lines: list[str]):
-    if not len(lines):
-        print("[naming] 移除末尾反斜杠失败: 行列表为空")
-        from binding_generator.utils.common import print_stack_and_exit
-
-        print_stack_and_exit()
+    assert_condition(len(lines), "[naming] 移除末尾反斜杠失败: 行列表为空")
     lines[len(lines) - 1] = lines[len(lines) - 1].removesuffix("\\")
 
 
@@ -208,13 +205,7 @@ def convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
             for m in methods:
                 for a in methods[m].args:
                     if decay_eos_type(a.type) == callback_type:
-                        if len(method_name):
-                            print(f"[naming] 回调 '{callback_type}' 匹配到多个方法名: '{method_name}'")
-                            from binding_generator.utils.common import (
-                                print_stack_and_exit,
-                            )
-
-                            print_stack_and_exit()
+                        assert_condition(len(method_name) == 0, f"[naming] 回调 '{callback_type}' 匹配到多个方法名: '{method_name}'")
                         method_name = m
 
     ret: str = to_snake_case(callback_type.rsplit("_", 1)[1])
@@ -258,9 +249,7 @@ def convert_method_name(method_name: str, handle_type: str = "") -> str:
                         break
                 if len(handle_type):
                     break
-        if len(handle_type) == 0:
-            from binding_generator.utils.common import print_stack_and_exit
-            print_stack_and_exit(f"[naming] 找不到方法 '{method_name}' 对应的句柄类型")
+        assert_condition(len(handle_type) != 0, f"[naming] 找不到方法 '{method_name}' 对应的句柄类型")
         candidate_method_name: str = method_name.rsplit("_", 1)[1]
         valid: bool = False
         while not valid:

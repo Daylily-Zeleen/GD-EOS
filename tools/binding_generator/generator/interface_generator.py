@@ -239,7 +239,7 @@ def gen_files(file_base_name: str, infos: FileInfo):
     for m in infos.handles[interface_handle].methods:
         if m.endswith("Interface"):
             splits: list[str] = m.split("_")
-            assert_condition(len(splits) == 3)
+            assert_condition(len(splits) == 3, f"[interface_generator] 方法 '{m}' 的分割结果长度不为3: {splits}")
             owner_handle_type: str = splits[1]
             interface: str = splits[2].removesuffix("Interface").removeprefix("Get")
             interface_low: str = interface.lower()
@@ -255,7 +255,7 @@ def gen_files(file_base_name: str, infos: FileInfo):
 
             _disabled_macro: str = gen_disabled_macro(interface_handle_type)
 
-            assert_condition(len(_disabled_macro) > 0)
+            assert_condition(len(_disabled_macro) > 0, f"[interface_generator] 无法为接口句柄类型 '{interface_handle_type}' 生成禁用宏")
             if interface_low != "rtc" and (interface_low.startswith("rtc") or owner_handle_type == "RTC"):
                 interface_low = "rtc_" + interface_low.removeprefix("rtc")
 
