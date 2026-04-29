@@ -90,5 +90,5 @@ private:
 #define _EOS_NOTIFY_CALLBACK_EXPANDED(m_callback_info_ty, m_callback_identifier, ...)         \
     [](m_callback_info_ty m_callback_identifier) {                                            \
         EOSNotification *notification = (EOSNotification *)m_callback_identifier->ClientData; \
-        notification->notify(Array::make(##__VA_ARGS__));                                     \
+        notification->notify(Array::make(__VA_ARGS__));                                       \
     }
