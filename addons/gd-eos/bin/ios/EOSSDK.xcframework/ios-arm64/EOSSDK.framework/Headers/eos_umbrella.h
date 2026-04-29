@@ -1,4 +1,5 @@
 #pragma once
+#include <EOSSDK/eos_IOS.h>
 #include <EOSSDK/eos_IOS_base.h>
 #include <EOSSDK/eos_achievements.h>
 #include <EOSSDK/eos_achievements_types.h>
@@ -22,7 +23,6 @@
 #include <EOSSDK/eos_init.h>
 #include <EOSSDK/eos_integratedplatform.h>
 #include <EOSSDK/eos_integratedplatform_types.h>
-#include <EOSSDK/eos_ios.h>
 #include <EOSSDK/eos_kws.h>
 #include <EOSSDK/eos_kws_types.h>
 #include <EOSSDK/eos_leaderboards.h>
@@ -30,6 +30,7 @@
 #include <EOSSDK/eos_lobby.h>
 #include <EOSSDK/eos_lobby_types.h>
 #include <EOSSDK/eos_logging.h>
+
 #include <EOSSDK/eos_metrics.h>
 #include <EOSSDK/eos_metrics_types.h>
 #include <EOSSDK/eos_mods.h>
@@ -40,6 +41,7 @@
 #include <EOSSDK/eos_playerdatastorage.h>
 #include <EOSSDK/eos_playerdatastorage_types.h>
 #include <EOSSDK/eos_presence.h>
+#include <EOSSDK/eos_presence_localized_types.h>
 #include <EOSSDK/eos_presence_types.h>
 #include <EOSSDK/eos_progressionsnapshot.h>
 #include <EOSSDK/eos_progressionsnapshot_types.h>
