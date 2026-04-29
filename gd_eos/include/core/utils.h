@@ -7,8 +7,11 @@
 #define EOS_HOTFIX_VERSION 0
 #endif // EOS_HOTFIX_VERSION
 
-#define _EOS_VERSION_MIN_VERSION(major, minor, patch, hotfix) ( \
-        EOS_MAJOR_VERSION > major || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION > minor) || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION > patch) || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION == patch && EOS_HOTFIX_VERSION >= hotfix))
+#define _EOS_VERSION_MIN_VERSION(major, minor, patch, hotfix) (                                    \
+        EOS_MAJOR_VERSION > major ||                                                               \
+        (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION > minor) ||                               \
+        (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION > patch) || \
+        (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION == patch && EOS_HOTFIX_VERSION >= hotfix))
 
 #if _EOS_VERSION_MIN_VERSION(1, 18, 0, 0)
 #include <eos_presence_localized_types.h>

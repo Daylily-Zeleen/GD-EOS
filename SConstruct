@@ -34,12 +34,20 @@ gd_eos_tool.generate(env)
 
 # ─── SDK 版本检查 ─────────────────────────────────────────────────────────
 
-# 当 EOS SDK 版本大于等于 1.19.0 时禁止为 32 位 Windows 平台编译
-_eos_major, _eos_minor, _eos_patch, _ = env.GD_EOS_GET_SDK_VERSION()
+# 当 EOS SDK 版本大于 1.18.1.2 时禁止为 32 位 Windows 和 Android 平台编译
+_eos_major, _eos_minor, _eos_patch, _hotfix = env.GD_EOS_GET_SDK_VERSION()
+_skip_32bit = (_eos_major, _eos_minor, _eos_patch, _hotfix) > (1, 18, 1, 2)
+
 if env["platform"] == "windows" and "64" not in env["arch"]:
-    if _eos_major > 1 or (_eos_major == 1 and _eos_minor >= 19):
-        print(f"Error: EOS SDK {_eos_major}.{_eos_minor}.{_eos_patch} does not support 32-bit Windows platform.")
-        print("Please use 64-bit architecture or downgrade EOS SDK to version 1.18.x or earlier.")
+    if _skip_32bit:
+        print(f"Error: EOS SDK {_eos_major}.{_eos_minor}.{_eos_patch}.{_hotfix} does not support 32-bit Windows platform.")
+        print("Please use 64-bit architecture or downgrade EOS SDK to version 1.18.1.2 or earlier.")
+        Exit(1)
+
+if env["platform"] == "android" and "64" not in env["arch"]:
+    if _skip_32bit:
+        print(f"Error: EOS SDK {_eos_major}.{_eos_minor}.{_eos_patch}.{_hotfix} does not support 32-bit Android platform.")
+        print("Please use 64-bit architecture or downgrade EOS SDK to version 1.18.1.2 or earlier.")
         Exit(1)
 
 # ─── 路径配置 ─────────────────────────────────────────────────────────────

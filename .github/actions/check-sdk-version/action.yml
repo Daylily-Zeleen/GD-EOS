@@ -1,5 +1,5 @@
 name: Check EOS SDK Version
-description: Check EOS SDK version and determine if 32-bit Windows build should be skipped
+description: Check EOS SDK version and determine if 32-bit builds should be skipped
 
 outputs:
   major:
@@ -11,9 +11,12 @@ outputs:
   patch:
     description: EOS SDK patch version
     value: ${{ steps.check.outputs.patch }}
-  skip_32bit_windows:
-    description: Whether to skip 32-bit Windows build (SDK >= 1.19.0)
-    value: ${{ steps.check.outputs.skip_32bit_windows }}
+  hotfix:
+    description: EOS SDK hotfix version
+    value: ${{ steps.check.outputs.hotfix }}
+  skip_32bit:
+    description: Whether to skip 32-bit builds (SDK > 1.18.1.2)
+    value: ${{ steps.check.outputs.skip_32bit }}
 
 runs:
   using: composite
@@ -26,8 +29,8 @@ runs:
         import re
 
         version_file = "thirdparty/eos-sdk/SDK/Include/eos_version.h"
-        version = {"MAJOR": 0, "MINOR": 0, "PATCH": 0}
-        pattern = re.compile(r"#define\s+EOS_(MAJOR|MINOR|PATCH)_VERSION\s+(\d+)")
+        version = {"MAJOR": 0, "MINOR": 0, "PATCH": 0, "HOTFIX": 0}
+        pattern = re.compile(r"#define\s+EOS_(MAJOR|MINOR|PATCH|HOTFIX)_VERSION\s+(\d+)")
 
         with open(version_file, "r", encoding="utf-8") as f:
             for line in f:
@@ -35,13 +38,15 @@ runs:
                 if match:
                     version[match.group(1)] = int(match.group(2))
 
-        major, minor, patch = version["MAJOR"], version["MINOR"], version["PATCH"]
-        print(f"EOS SDK version: {major}.{minor}.{patch}")
+        major, minor, patch, hotfix = version["MAJOR"], version["MINOR"], version["PATCH"], version["HOTFIX"]
+        print(f"EOS SDK version: {major}.{minor}.{patch}.{hotfix}")
 
-        skip_32bit_windows = major > 1 or (major == 1 and minor >= 19)
+        # Skip 32-bit builds if version > 1.18.1.2
+        skip_32bit = (major, minor, patch, hotfix) > (1, 18, 1, 2)
 
         with open(os.environ["GITHUB_OUTPUT"], "a") as f:
             f.write(f"major={major}\n")
             f.write(f"minor={minor}\n")
             f.write(f"patch={patch}\n")
-            f.write(f"skip_32bit_windows={str(skip_32bit_windows).lower()}\n")
+            f.write(f"hotfix={hotfix}\n")
+            f.write(f"skip_32bit={str(skip_32bit).lower()}\n")
