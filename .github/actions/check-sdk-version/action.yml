@@ -1,0 +1,47 @@
+name: Check EOS SDK Version
+description: Check EOS SDK version and determine if 32-bit Windows build should be skipped
+
+outputs:
+  major:
+    description: EOS SDK major version
+    value: ${{ steps.check.outputs.major }}
+  minor:
+    description: EOS SDK minor version
+    value: ${{ steps.check.outputs.minor }}
+  patch:
+    description: EOS SDK patch version
+    value: ${{ steps.check.outputs.patch }}
+  skip_32bit_windows:
+    description: Whether to skip 32-bit Windows build (SDK >= 1.19.0)
+    value: ${{ steps.check.outputs.skip_32bit_windows }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check EOS SDK version
+      id: check
+      shell: python
+      run: |
+        import os
+        import re
+
+        version_file = "thirdparty/eos-sdk/SDK/Include/eos_version.h"
+        version = {"MAJOR": 0, "MINOR": 0, "PATCH": 0}
+        pattern = re.compile(r"#define\s+EOS_(MAJOR|MINOR|PATCH)_VERSION\s+(\d+)")
+
+        with open(version_file, "r", encoding="utf-8") as f:
+            for line in f:
+                match = pattern.match(line.strip())
+                if match:
+                    version[match.group(1)] = int(match.group(2))
+
+        major, minor, patch = version["MAJOR"], version["MINOR"], version["PATCH"]
+        print(f"EOS SDK version: {major}.{minor}.{patch}")
+
+        skip_32bit_windows = major > 1 or (major == 1 and minor >= 19)
+
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+            f.write(f"major={major}\n")
+            f.write(f"minor={minor}\n")
+            f.write(f"patch={patch}\n")
+            f.write(f"skip_32bit_windows={str(skip_32bit_windows).lower()}\n")

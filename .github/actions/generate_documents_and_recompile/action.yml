@@ -17,10 +17,10 @@ inputs:
     required: false
   force_compile:
     description: Force compile for host platform to generate documents.
-    default: false
+    default: "false"
     required: false
   platform:
-    description:  Target platform to recompile.
+    description: Target platform to recompile.
     required: true
   arch:
     description: Target architecture to recompile.
@@ -76,4 +76,4 @@ runs:
     - name: Compile extension with documents
       shell: sh
       run: |
-          scons target=template_debug platform=${{ inputs.platform }} arch=${{ inputs.arch }} ${{ inputs.sconsflags }}
+        scons target=template_debug platform=${{ inputs.platform }} arch=${{ inputs.arch }} ${{ inputs.sconsflags }}
