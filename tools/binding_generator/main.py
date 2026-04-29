@@ -10,7 +10,9 @@ from binding_generator.context import generate_infos
 from binding_generator.doc.doc_processor import preprocess_docs
 from binding_generator.generator.all_in_one_generator import gen_all_in_one
 from binding_generator.generator.interface_generator import gen_files
+from binding_generator.generator.union_generator import gen_variant_union_conversions
 from binding_generator.resolver.handle_resolver import parse_all_file
+from binding_generator.utils.type import collect_variant_union_infos
 
 
 def main(argv):
@@ -64,6 +66,14 @@ def print_help():
     print("")
 
 
+def _gen_variant_union_inl():
+    content = gen_variant_union_conversions()
+    inl_path = os.path.join(gen_include_dir, "core", "variant_union_conversions.inl")
+    os.makedirs(os.path.dirname(inl_path), exist_ok=True)
+    with open(inl_path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+
 def generate_bindings(
     p_min_field_count_to_expand_input_structs: int | None = None,
     p_min_field_count_to_expand_callback_structs: int | None = None,
@@ -94,6 +104,8 @@ def generate_bindings(
     parse_all_file()
     print("Parse finished")
 
+    collect_variant_union_infos()
+
     preprocess_docs()
     print("preprocess documents finished.")
 
@@ -102,6 +114,9 @@ def generate_bindings(
         print("Generated:", fbn)
 
     gen_all_in_one()
+
+    # Generate variant union conversions .inl file
+    _gen_variant_union_inl()
     print("Generate Completed!")
 
 

@@ -3,6 +3,20 @@
 #include <eos_sdk.h>
 #include <eos_version.h>
 
+#ifndef EOS_HOTFIX_VERSION
+#define EOS_HOTFIX_VERSION 0
+#endif // EOS_HOTFIX_VERSION
+
+#define _EOS_VERSION_MIN_VERSION(major, minor, patch, hotfix) ( \
+        EOS_MAJOR_VERSION > major || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION > minor) || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION > patch) || (EOS_MAJOR_VERSION == major && EOS_MINOR_VERSION == minor && EOS_PATCH_VERSION == patch && EOS_HOTFIX_VERSION >= hotfix))
+
+#if _EOS_VERSION_MIN_VERSION(1, 18, 0, 0)
+#include <eos_presence_localized_types.h>
+#endif // _EOS_VERSION_MIN_VERSION(1, 18, 0, 0)
+
+#include "godot_cpp/classes/weak_ref.hpp"
+#include "godot_cpp/templates/hash_map.hpp"
+#include "godot_cpp/variant/utility_functions.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
@@ -29,7 +43,47 @@ handle_int_t<T> handle_to_int(T p_handle) { return reinterpret_cast<handle_int_t
 
 namespace godot::eos::internal {
 
-#define _EOS_VERSION_GREATER_THAN_1_6_1 (EOS_MAJOR_VERSION > 1 || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION > 16) || (EOS_MAJOR_VERSION == 1 && EOS_MINOR_VERSION == 16 && EOS_PATCH_VERSION > 1))
+class HandleCache {
+private:
+    static godot::HashMap<uintptr_t, godot::Ref<godot::WeakRef>> m_cache;
+
+public:
+    template <typename EOSHandle, typename GDHandle>
+    static _FORCE_INLINE_ godot::Ref<GDHandle> get(EOSHandle p_handle) {
+        if (p_handle == nullptr) {
+            return {};
+        } else {
+            const auto it = m_cache.find(reinterpret_cast<uintptr_t>(p_handle));
+            if (it != m_cache.end()) {
+                godot::Ref<GDHandle> ret = it->value->get_ref();
+                if (ret.is_valid()) {
+                    return ret;
+                } else {
+                    m_cache.remove(it);
+                }
+            }
+
+            godot::Ref<GDHandle> ret;
+            ret.instantiate();
+            ret->set_handle(p_handle);
+
+            m_cache.insert(reinterpret_cast<uintptr_t>(p_handle), godot::UtilityFunctions::weakref(ret));
+            return ret;
+        }
+    }
+
+    template <typename EOSHandle>
+    static _FORCE_INLINE_ void remove(EOSHandle p_handle) {
+        m_cache.erase(reinterpret_cast<uintptr_t>(p_handle));
+    }
+
+    template <typename EOSHandle, typename GDHandle>
+    static _FORCE_INLINE_ void put(EOSHandle p_handle, const godot::Ref<GDHandle> &p_ref) {
+        if (p_handle != nullptr && p_ref.is_valid()) {
+            m_cache.insert(reinterpret_cast<uintptr_t>(p_handle), godot::UtilityFunctions::weakref(p_ref));
+        }
+    }
+};
 
 #define _BIND_ENUM_CONSTANT(enum_type_name, e, e_bind) \
     godot::ClassDB::bind_integer_constant(get_class_static(), godot::_gde_constant_get_enum_name<enum_type_name>(enum_type_name::e, e_bind), e_bind, (GDExtensionInt)enum_type_name::e);
@@ -516,129 +570,7 @@ inline void to_eos_data(const RefEOSData &p_in, OutT &r_out) {
     }
 }
 
-template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
-inline void variant_to_eos_union(const Variant &p_gd, EOSUnion &p_union, UnionType &r_union_type, CharString &r_str_cache) {
-    if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
-        switch (p_gd.get_type()) {
-            case Variant::OBJECT: {
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle;
-                p_union.ClientHandle = Object::cast_to<Object>(p_gd);
-            } break;
-            case Variant::INT: {
-                p_union.Int64 = p_gd;
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Int64;
-            } break;
-            case Variant::STRING:
-            case Variant::STRING_NAME:
-            case Variant::NODE_PATH: {
-                // Hack: 是否有不使用静态变量的方案
-                r_str_cache = String(p_gd).utf8();
-                p_union.String = r_str_cache.size() == 1 ? nullptr : r_str_cache.ptr();
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_String;
-            } break;
-            case Variant::VECTOR3:
-            case Variant::VECTOR3I: {
-                to_eos_type_out<Vector3, decltype(p_union.Vec3f)>(Vector3(p_gd), p_union.Vec3f);
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Vector3f;
-            } break;
-            case Variant::QUATERNION: {
-                to_eos_type_out<Quaternion, decltype(p_union.Quat)>(Quaternion(p_gd), p_union.Quat);
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat;
-            } break;
-#if _EOS_VERSION_GREATER_THAN_1_6_1
-            case Variant::FLOAT: {
-                p_union.Float = p_gd;
-                r_union_type = EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Float;
-            } break;
-#endif // _EOS_VERSION_GREATER_THAN_1_6_1
-            default: {
-                ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
-            } break;
-        }
-    } else if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>) {
-        switch (p_gd.get_type()) {
-            case Variant::INT: {
-                p_union.AsInt64 = p_gd;
-                r_union_type = EOS_EAttributeType::EOS_AT_INT64;
-            } break;
-            case Variant::FLOAT: {
-                p_union.AsDouble = p_gd;
-                r_union_type = EOS_EAttributeType::EOS_AT_DOUBLE;
-
-            } break;
-            case Variant::BOOL: {
-                p_union.AsBool = p_gd;
-                r_union_type = EOS_EAttributeType::EOS_AT_BOOLEAN;
-
-            } break;
-            case Variant::STRING:
-            case Variant::STRING_NAME:
-            case Variant::NODE_PATH: {
-                r_str_cache = String(p_gd).utf8();
-                p_union.AsUtf8 = r_str_cache.size() == 1 ? nullptr : r_str_cache.ptr();
-                r_union_type = EOS_EAttributeType::EOS_AT_STRING;
-            } break;
-            default: {
-                ERR_PRINT(vformat("Unsupport variant", Variant::get_type_name(p_gd.get_type())));
-            } break;
-        }
-    }
-}
-
-template <typename EOSUnion, typename UnionType, std::enable_if_t<std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType> || std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>> *_dummy = nullptr>
-inline Variant eos_union_to_variant(const EOSUnion &p_union, UnionType p_union_type) {
-    if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAntiCheatCommonEventParamType>) {
-        switch (p_union_type) {
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_ClientHandle: {
-                return Object::cast_to<Object>(p_union->ClientHandle); // (EOSAntiCheatCommon_Client *)
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Int32: {
-                return p_union.UInt32;
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Int32: {
-                return p_union.Int32;
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_UInt64: {
-                return p_union.UInt64;
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Int64: {
-                return p_union.Int64;
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_String: {
-                return p_union.String;
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Vector3f: {
-                return Vector3{ p_union.Vec3f.x, p_union.Vec3f.y, p_union.Vec3f.z };
-            } break;
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Quat: {
-                return Quaternion{ p_union.Quat.x, p_union.Quat.y, p_union.Quat.z, p_union.Quat.w };
-            } break;
-#if _EOS_VERSION_GREATER_THAN_1_6_1
-            case EOS_EAntiCheatCommonEventParamType::EOS_ACCEPT_Float: {
-                return p_union.Float;
-            } break;
-#endif // _EOS_VERSION_GREATER_THAN_1_6_1
-        }
-    } else if constexpr (std::is_same_v<std::decay_t<UnionType>, EOS_EAttributeType>) {
-        switch (p_union_type) {
-            case EOS_EAttributeType::EOS_AT_INT64: {
-                return p_union.AsInt64;
-            } break;
-            case EOS_EAttributeType::EOS_AT_DOUBLE: {
-                return p_union.AsDouble;
-            } break;
-            case EOS_EAttributeType::EOS_AT_BOOLEAN: {
-                return p_union.AsBool != EOS_FALSE;
-            } break;
-            case EOS_EAttributeType::EOS_AT_STRING: {
-                return String::utf8(p_union.AsUtf8);
-            } break;
-            default: {
-                ERR_FAIL_V_MSG({}, vformat("Unsupported AttributeType: ", (int)p_union_type));
-            } break;
-        }
-    }
-}
+#include <core/variant_union_conversions.inl>
 
 template <typename EOSUnion>
 inline void string_to_eos_union_account_id(const CharString &p_gd, EOSUnion &p_union, EOS_EMetricsAccountIdType p_union_type) {
@@ -711,17 +643,11 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
         gd_field[i] = gd_data_type::from_eos(eos_field[i]);                            \
     }
 #define _FROM_EOS_FIELD_HANDLER(gd_field, gd_type_to_cast, eos_field) \
-    if (gd_field.is_null()) {                                         \
-        gd_field.reference_ptr(memnew(gd_type_to_cast));              \
-    }                                                                 \
-    Object::cast_to<gd_type_to_cast>(gd_field.ptr())->set_handle(eos_field)
+    gd_field = HandleCache::get<decltype(eos_field), gd_type_to_cast>(eos_field)
 
-#define _FROM_EOS_FIELD_HANDLER_ARR(gd_field, gd_type, eos_field, eos_filed_count) \
-    for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {              \
-        Ref<gd_type> e;                                                            \
-        e.instantiate();                                                           \
-        e->set_handle(eos_field[i]);                                               \
-        gd_field.push_back(e);                                                     \
+#define _FROM_EOS_FIELD_HANDLER_ARR(gd_field, gd_type, eos_field, eos_filed_count)        \
+    for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                     \
+        gd_field.push_back(HandleCache::get<decltype(eos_field[i]), gd_type>(eos_field[i])); \
     }
 #define _FROM_EOS_FIELD_PURE_HANDLE(gd_field, eos_field) \
     gd_field = ::godot::eos::handle_to_int<decltype(eos_field)>(eos_field)
@@ -838,20 +764,14 @@ godot::TypedArray<GDDataClass> _to_godot_value_struct_arr(EOSArrayTy p_eos_arr, 
 
 template <typename GDHandle, typename EOSHandle>
 godot::Ref<GDHandle> _to_godot_handle(EOSHandle p_eos_handle) {
-    godot::Ref<GDHandle> ret;
-    ret.instantiate();
-    ret->set_handle(p_eos_handle);
-    return ret;
+    return HandleCache::get<EOSHandle, GDHandle>(p_eos_handle);
 }
 template <typename GDDataClass, typename EOSArrayTy, typename TInt>
 godot::TypedArray<GDDataClass> _to_godot_value_handle_arr(EOSArrayTy p_eos_arr, TInt p_count) {
     godot::TypedArray<GDDataClass> ret;
     ret.resize(p_count);
     for (decltype(p_count) i = 0; i < p_count; ++i) {
-        Ref<GDDataClass> e;
-        e.instantiate();
-        e->set_handle(p_eos_arr[i]);
-        ret[i] = e;
+        ret[i] = HandleCache::get<decltype(p_eos_arr[i]), GDDataClass>(p_eos_arr[i]);
     }
     return ret;
 }
@@ -961,13 +881,6 @@ private:
     BIND_CONSTANT(EOS_PATCH_VERSION)                                                                     \
     ClassDB::bind_static_method(get_class_static(), D_METHOD("get_eos_version"), &EOS::get_eos_version); \
     ClassDB::bind_static_method(get_class_static(), D_METHOD("get_last_result_code"), &EOS::get_last_result_code);
-
-// Handles
-#define _EOS_HANDLE_IS_EQUAL(m_handle_identifier, m_other_identifier) \
-    if (m_other_identifier.is_null()) {                               \
-        return m_handle_identifier == nullptr;                        \
-    }                                                                 \
-    return m_handle_identifier == m_other_identifier->get_handle()
 
 // Platform tick
 #define _EOS_PLATFORM_SETUP_TICK()                                                                                                                                                     \

@@ -6,6 +6,7 @@ from binding_generator.doc.doc_processor import (
     insert_doc_class_description,
 )
 from binding_generator.models import Arg, Method
+from binding_generator.utils.common import print_stack_and_exit
 from binding_generator.utils.naming import (
     convert_enum_type,
     convert_handle_class_name,
@@ -139,7 +140,6 @@ def gen_packed_result_type(
         snake_name: str = to_snake_case(strip_out_param_prefix(arg_name))
         if is_handle_arr_type(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_handle_type(decayed_type):
@@ -171,12 +171,10 @@ def gen_packed_result_type(
             bind_lines.append(f"\t_BIND_PROP({snake_name})")
         elif is_str_type(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的字符串类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_str_arr_type(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的字符串数组类型输出参数: 方法 '{method_name}', 参数 '{arg_name}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif arg_type == "char*" and (i + 1) < len(out_args) and out_args[i + 1].type.endswith("int32_t*") and out_args[i + 1].name.endswith("Length"):
@@ -201,17 +199,14 @@ def gen_packed_result_type(
             i += 1
         elif is_arr_field(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_internal_struct_arr_field(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_audio_frames_type(arg_type, arg_name):
             print(f"[packed_result_generator] 不支持的音频帧数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_enum_flags_type(arg_type):
@@ -272,5 +267,4 @@ def _find_method_handle_type(method_name: str) -> str:
         for m in handles[h].methods:
             if m == method_name:
                 return h
-    print(f"[packed_result_generator] 方法 '{method_name}' 没有对应的句柄类型")
-    exit()
+    print_stack_and_exit(f"[packed_result_generator] 方法 '{method_name}' 没有对应的句柄类型")

@@ -31,8 +31,8 @@ from binding_generator.utils.naming import (
     strip_out_param_prefix,
     to_snake_case,
 )
+from binding_generator.utils.common import assert_condition, print_stack_and_exit
 from binding_generator.utils.type import (
-    assert_condition,
     find_count_and_variant_type_fields_in_struct,
     find_count_field,
     get_api_latest_macro,
@@ -48,6 +48,7 @@ from binding_generator.utils.type import (
     is_api_version_field,
     is_arr_field,
     is_audio_frames_type,
+    is_base_handle_type,
     is_callback_type,
     is_client_data,
     is_client_data_field,
@@ -156,9 +157,9 @@ def gen_handle(
     r_register_lines: list[str],
     need_singleton: bool = False,
 ) -> list[str]:
-    is_base_handle_type: bool = _is_base_handle_type(handle_name)
+    base_handle_type: bool = is_base_handle_type(handle_name)
     base_class: str = get_base_class(handle_name)
-    if is_base_handle_type:
+    if base_handle_type:
         need_singleton = False
 
     method_infos: dict[str, Method] = infos.methods
@@ -303,7 +304,7 @@ def gen_handle(
                 r_cpp_lines.append("\tEOS_Shutdown();")
         r_cpp_lines.append("}")
 
-    if not is_base_handle_type:
+    if not base_handle_type:
         r_cpp_lines.append(f"void {klass}::set_handle({handle_name} p_handle) {{")
         r_cpp_lines.append("\tERR_FAIL_COND(m_handle); m_handle = p_handle;")
 
@@ -336,7 +337,7 @@ def gen_handle(
     ret.append(f"class {klass} : {inherits} {{")
     ret.append(f"\tGDCLASS({klass}, {base_class})")
     ret.append("")
-    if not is_base_handle_type:
+    if not base_handle_type:
         ret.append(f"\t{handle_name} m_handle{{ nullptr }};")
         ret.append("")
     if len(notifies_member_lines):
@@ -363,7 +364,7 @@ def gen_handle(
         ret.append(f"\t{klass}();")
     if len(release_method) or len(remove_notifies_lines):
         ret.append(f"\tvirtual ~{klass}() override;")
-    if not is_base_handle_type:
+    if not base_handle_type:
         ret.append(f"\tvoid set_handle({handle_name} p_handle);")
         ret.append(f"\t{handle_name} get_handle() const {{ return m_handle; }}")
         ret.append("")
@@ -434,10 +435,6 @@ def gen_handle(
     insert_doc_class_brief(klass, infos.doc)
     insert_doc_class_description(klass)
     return ret
-
-
-def _is_base_handle_type(handle_type: str) -> bool:
-    return handle_type in ["EOS", "EOS_HAntiCheatCommon"]
 
 
 def gen_disabled_macro(handle_type: str) -> str:
@@ -517,7 +514,6 @@ def _make_notify_code(
         cb = cb.replace("_EOS_METHOD_CALLBACK_EXPANDED", "_EOS_SIMPLE_NOTIFY_CALLBACK_EXPANDED")
     else:
         print(f"[handle_generator] 通知回调代码生成失败: 无法识别回调类型 '{callback_type}' 的回调宏")
-        from binding_generator.utils.type import print_stack_and_exit
 
         print_stack_and_exit()
 
@@ -562,7 +558,6 @@ def _gen_method(
 
     if (return_type == "Signal") and (len(packed_result_type) or len(remapped_return_type)):
         print(f"[handle_generator] 方法 '{method_name}' 同时存在回调信号和打包返回，二者冲突")
-        from binding_generator.utils.type import print_stack_and_exit
 
         print_stack_and_exit()
 
@@ -766,12 +761,10 @@ def _gen_method(
                 if len(converted_return_type):
                     if len(converted_return_type) != 1:
                         print(f"[handle_generator] 方法 '{method_name}' 的返回类型转换结果数量不为1: len={len(converted_return_type)}")
-                        from binding_generator.utils.type import print_stack_and_exit
 
                         print_stack_and_exit()
                     if return_type != "void" and not (return_type == "EOS_EResult" and converted_return_type[0] == "String"):
                         print(f"[handle_generator] 方法 '{method_name}' 返回类型不匹配: 期望返回类型 '{return_type}' 与转换结果 '{converted_return_type[0]}' 不一致")
-                        from binding_generator.utils.type import print_stack_and_exit
 
                         print_stack_and_exit()
                     return_type = converted_return_type[0]
@@ -807,7 +800,6 @@ def _gen_method(
             call_args.append(f"to_eos_type<const CharString &, {type}>(utf8_{snake_name})")
         elif is_str_arr_type(type, name):
             print(f"[handle_generator] 不支持的字符串数组参数类型: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_enum_flags_type(type):
@@ -816,7 +808,6 @@ def _gen_method(
             call_args.append(f"to_eos_type<{type}>(p_{snake_name})")
         elif is_handle_arr_type(type, name):
             print(f"[handle_generator] 不支持的句柄数组参数: 方法 '{method_name}', 参数 '{name}' 类型 '{type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_handle_type(decayed_type):
@@ -910,7 +901,7 @@ def _gen_method(
             r_define_lines.append(f"\treturn HandleCache::get<{decayed_return_type}, {gd_handle_class}>(return_handle);")
         else:
             r_define_lines.append("\tret->set_handle(return_handle);")
-            r_define_lines.append(f"\tHandleCache::put(return_handle, ret);")
+            r_define_lines.append("\tHandleCache::put(return_handle, ret);")
             r_define_lines.append("\treturn ret;")
     elif len(packed_result_type):
         if info.return_type == "EOS_EResult":
@@ -966,8 +957,7 @@ def _gen_callback(
 
     if not len(infos.args) == 1:
         if callback_type not in ["EOS_PlayerDataStorage_OnWriteFileDataCallback"]:
-            print(f"[handle_generator] 回调 '{callback_type}' 的参数数量不为1，无法生成回调代码")
-            exit()
+            print_stack_and_exit(f"[handle_generator] 回调 '{callback_type}' 的参数数量不为1，无法生成回调代码")
 
     arg: Arg = infos.args[0]
     arg_type: str = arg.type
@@ -977,7 +967,6 @@ def _gen_callback(
 
     if not is_struct_type(decayed_arg_type):
         print(f"[handle_generator] 回调 '{callback_type}' 的参数类型 '{decayed_arg_type}' 不是结构体，无法生成回调代码")
-        from binding_generator.utils.type import print_stack_and_exit
 
         print_stack_and_exit()
 
@@ -992,7 +981,6 @@ def _gen_callback(
             if for_gen_signal_binding:
                 return ""
             print(f"[handle_generator] 回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         else:
@@ -1020,7 +1008,6 @@ def _gen_callback(
             if for_gen_signal_binding:
                 return ""
             print(f"[handle_generator] 展开式回调 '{callback_type}' 具有非空返回类型 '{return_type}'，不支持生成信号绑定")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         else:
@@ -1227,7 +1214,6 @@ def _expand_input_struct(
             r_prepare_lines.append(f"\t_TO_EOS_FIELD_HANDLER({options_field}, p_{snake_field}, {gd_type});")
         elif is_client_data_field(field_type, field):
             print(f"[handle_generator] 不支持的 ClientData 字段类型: '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_internal_struct_arr_field(field_type, field, decayed_type):
@@ -1266,6 +1252,30 @@ def _expand_input_struct(
         r_required_arg_doc[field] = fields[field].doc
 
 
+def _gen_str_retry_lines(
+    arg_name: str,
+    length_name: str,
+    method_name: str,
+    r_call_args: list[str],
+    assign_expr: str,
+    indent: str,
+) -> list[str]:
+    lines: list[str] = []
+    lines.append(f"{indent}if (result_code == EOS_EResult::EOS_LimitExceeded) {{")
+    for ca in r_call_args:
+        if ca.endswith("StringBufferSizeBytes"):
+            lines.append(f"{indent}\t{ca} = {length_name};")
+            break
+    lines.append(f"{indent}\tchar *{arg_name}_retry = memnew_arr(char, {length_name});")
+    lines.append(f"{indent}\tmemset({arg_name}_retry, 0, {length_name});")
+    lines.append(f"{indent}\tresult_code = {method_name}({', '.join(r_call_args).replace(f'&{arg_name}[0]', f'&{arg_name}_retry[0]')});")
+    lines.append(f"{indent}\tif (result_code == EOS_EResult::EOS_Success) {{")
+    lines.append(f"{indent}\t\t{assign_expr} = String::utf8(&{arg_name}_retry[0]);")
+    lines.append(f"{indent}\t}}")
+    lines.append(f"{indent}\tmemdelete_arr({arg_name}_retry);")
+    return lines
+
+
 def _make_packed_result(
     packed_result_type: str,
     method_name: str,
@@ -1301,7 +1311,6 @@ def _make_packed_result(
 
         if is_handle_arr_type(arg_type, arg_name):
             print(f"[handle_generator] 不支持的句柄数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_handle_type(decayed_type):
@@ -1371,21 +1380,8 @@ def _make_packed_result(
             r_call_args.append(f"&{length_name}")
 
             if has_result_code and not has_macro:
-                str_retry_lines.append("\tif (result_code == EOS_EResult::EOS_LimitExceeded) {")
-                for ca in r_call_args:
-                    if ca.endswith("StringBufferSizeBytes"):
-                        str_retry_lines.append(f"\t\t{ca} = {length_name};")
-                        break
-                str_retry_lines.append(f"\t\tchar *{arg_name}_retry = memnew_arr(char, {length_name});")
-                str_retry_lines.append(f"\t\tmemset({arg_name}_retry, 0, {length_name});")
-                str_retry_lines.append(f"\t\tresult_code = {method_name}({', '.join(r_call_args).replace(f'&{arg_name}[0]', f'&{arg_name}_retry[0]')});")
-                str_retry_lines.append("\t\tif (result_code == EOS_EResult::EOS_Success) {")
-                if pack_result:
-                    str_retry_lines.append(f"\t\t\tret->{snake_name} = String::utf8(&{arg_name}_retry[0]);")
-                else:
-                    str_retry_lines.append(f"\t\t\tret = String::utf8(&{arg_name}_retry[0]);")
-                str_retry_lines.append("\t\t}")
-                str_retry_lines.append(f"\t\tmemdelete_arr({arg_name}_retry);")
+                retry_assign: str = f"ret->{snake_name}" if pack_result else "ret"
+                str_retry_lines.extend(_gen_str_retry_lines(arg_name, length_name, method_name, r_call_args, retry_assign, "\t"))
 
             if pack_result:
                 body_lines.append(f"{acl_indents}ret->{snake_name} = String::utf8(&{arg_name}[0]);")
@@ -1397,14 +1393,7 @@ def _make_packed_result(
                     if not has_macro:
                         body_lines.append(f"{acl_indents}if (result_code == EOS_EResult::EOS_Success) {{ ret = String::utf8(&{arg_name}[0]); }}")
                         body_lines.append(f"{acl_indents}else {{")
-                        body_lines.append(f"{acl_indents}\tif (result_code == EOS_EResult::EOS_LimitExceeded) {{")
-                        body_lines.append(f"{acl_indents}\t\tchar *{arg_name}_retry = memnew_arr(char, {length_name});")
-                        body_lines.append(f"{acl_indents}\t\tmemset({arg_name}_retry, 0, {length_name});")
-                        body_lines.append(f"{acl_indents}\t\tresult_code = {method_name}({', '.join(r_call_args).replace(f'&{arg_name}[0]', f'&{arg_name}_retry[0]')});")
-                        body_lines.append(f"{acl_indents}\t\tif (result_code == EOS_EResult::EOS_Success) {{")
-                        body_lines.append(f"{acl_indents}\t\t\tret = String::utf8(&{arg_name}_retry[0]);")
-                        body_lines.append(f"{acl_indents}\t\t}}")
-                        body_lines.append(f"{acl_indents}\t\tmemdelete_arr({arg_name}_retry);")
+                        body_lines.extend(_gen_str_retry_lines(arg_name, length_name, method_name, r_call_args, "ret", f"{acl_indents}\t"))
                         body_lines.append(f"{acl_indents}\t}}")
                         body_lines.append(f"{acl_indents}}}")
                         str_retry_lines.clear()
@@ -1430,7 +1419,6 @@ def _make_packed_result(
                     break
             if len(length_variable) <= 0:
                 print(f"[handle_generator] 找不到参数 '{arg_name}' 对应的长度变量")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
 
@@ -1463,23 +1451,19 @@ def _make_packed_result(
             i += 1
         elif is_arr_field(arg_type, arg_name):
             print(f"[handle_generator] 不支持的数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_internal_struct_arr_field(arg_type, arg_name):
             print(f"[handle_generator] 不支持的结构体数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         elif is_struct_ptr(arg_type):
             print(f"[handle_generator] 不支持的结构体指针输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
-            from binding_generator.utils.type import print_stack_and_exit
 
             print_stack_and_exit()
         else:
             if not arg_type.endswith("*"):
                 print(f"[handle_generator] 不支持的输出参数: 方法 '{method_name}', 类型 '{arg_type}', 参数名 '{arg_name}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
 

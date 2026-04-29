@@ -79,6 +79,24 @@ class Handle:
 
 
 @dataclass
+class VariantUnionField:
+    # 枚举成员与其联合体字段之间的映射信息
+    enum_member: str = ""  # 例如: EOS_ACCEPT_Int64
+    union_field_name: str = ""  # 例如: AsInt64
+    c_type: str = ""  # 例如: int64_t
+
+
+@dataclass
+class VariantUnionInfo:
+    # 描述一个变体联合体类型（联合体 + 伴随枚举）
+    struct_name: str = ""  # 例如: EOS_AntiCheatCommon_LogEventParamPair
+    union_field_name: str = ""  # 例如: ParamValue
+    type_field_name: str = ""  # 例如: ParamValueType
+    enum_type: str = ""  # 例如: EOS_EAntiCheatCommonEventParamType
+    fields: list[VariantUnionField] = field(default_factory=list)
+
+
+@dataclass
 class FileInfo:
     file: str = ""
     enums: dict[str, Enum] = field(default_factory=dict)

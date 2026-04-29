@@ -48,7 +48,7 @@ _HUNGARIAN_PREFIXES = ("b", "p", "n", "sz", "l", "dw", "h", "f")
 def remove_backslash_of_last_line(lines: list[str]):
     if not len(lines):
         print("[naming] 移除末尾反斜杠失败: 行列表为空")
-        from binding_generator.utils.type import print_stack_and_exit
+        from binding_generator.utils.common import print_stack_and_exit
 
         print_stack_and_exit()
     lines[len(lines) - 1] = lines[len(lines) - 1].removesuffix("\\")
@@ -210,7 +210,7 @@ def convert_to_signal_name(callback_type: str, method_name: str = "") -> str:
                     if decay_eos_type(a.type) == callback_type:
                         if len(method_name):
                             print(f"[naming] 回调 '{callback_type}' 匹配到多个方法名: '{method_name}'")
-                            from binding_generator.utils.type import (
+                            from binding_generator.utils.common import (
                                 print_stack_and_exit,
                             )
 
@@ -259,8 +259,8 @@ def convert_method_name(method_name: str, handle_type: str = "") -> str:
                 if len(handle_type):
                     break
         if len(handle_type) == 0:
-            print(f"[naming] 找不到方法 '{method_name}' 对应的句柄类型")
-            exit()
+            from binding_generator.utils.common import print_stack_and_exit
+            print_stack_and_exit(f"[naming] 找不到方法 '{method_name}' 对应的句柄类型")
         candidate_method_name: str = method_name.rsplit("_", 1)[1]
         valid: bool = False
         while not valid:

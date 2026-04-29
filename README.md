@@ -22,6 +22,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## Valid EOS SDK Version
 
+- EOS-SDK-36651368-v1.19.0.7
 - EOS-SDK-36651368-v1.16.4
 - EOS-SDK-Android-32303053-v1.16.3
 - EOS-SDK-32303053-v1.16.3

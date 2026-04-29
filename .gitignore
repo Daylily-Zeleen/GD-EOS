@@ -25,6 +25,7 @@ backup/
 _media/
 bin/
 .godot/
+tools/.binding_generator.py
 # thirdparty/eos-sdk/
 
 gd_eos/gen/

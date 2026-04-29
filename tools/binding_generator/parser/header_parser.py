@@ -62,7 +62,13 @@ def _parse_enum_members_from_include(include_path: str, enum_obj: Enum):
         args_str: str = m.group(2)
         args: list[str] = [a.strip() for a in args_str.split(",")]
         if len(args) >= 3:
-            member_name: str = args[0] + args[1]
+            # 两种 3 参数宏模式：
+            # 1. PROCESS_CATEGORY(CategoryName, EOSCategoryLabel, Value) — 第一个参数不以 _ 结尾，成员名 = args[1]
+            # 2. EOS_UI_KEY_MODIFIER(Prefix_, Name, Value) — 第一个参数以 _ 结尾，成员名 = args[0] + args[1]
+            if args[0].endswith("_"):
+                member_name: str = args[0] + args[1]
+            else:
+                member_name = args[1]
         elif len(args) == 2:
             if args[0].endswith("_"):
                 member_name = args[0] + args[1]
@@ -137,15 +143,15 @@ def parse_file(
     fp: str,
     r_file_lower2infos: dict[str, FileInfo],
     is_deprecated_file: bool = False,
-    _visited: set[str] | None = None,
-    _skip_includes: bool = False,
+    visited: set[str] | None = None,
+    skip_includes: bool = False,
 ):
-    if _visited is None:
-        _visited = set()
+    if visited is None:
+        visited = set()
     abs_fp: str = os.path.abspath(fp)
-    if abs_fp in _visited:
+    if abs_fp in visited:
         return
-    _visited.add(abs_fp)
+    visited.add(abs_fp)
 
     f = open(fp, "r")
     lines: list[str] = f.readlines()
@@ -182,7 +188,7 @@ def parse_file(
                         break
 
         if line.startswith("#include"):
-            if _skip_includes:
+            if skip_includes:
                 i += 1
                 continue
             include_match = re.search(r'"([^"]+)"', line)
@@ -206,7 +212,7 @@ def parse_file(
                         include_fp,
                         r_file_lower2infos,
                         is_deprecated_file=is_deprecated_file or include_deprecated,
-                        _visited=_visited,
+                        visited=visited,
                     )
                     if include_deprecated:
                         r_file_lower2infos[interface_lower].interface_doc = saved_interface_doc

@@ -33,10 +33,10 @@ from binding_generator.utils.naming import (
     convert_to_interface_lower,
     decay_eos_type,
 )
+from binding_generator.utils.common import print_stack_and_exit
 from binding_generator.utils.type import (
     is_callback_type_name,
     is_handle_type,
-    print_stack_and_exit,
 )
 
 _SPECIAL_METHOD_MAPPINGS: dict[str, str] = {
@@ -62,8 +62,15 @@ _INTERFACE_LOWER_TO_HANDLE: dict[str, str] = {
     "anticheatcommon": "EOS_HAntiCheatCommon",
 }
 
+# 枚举路由到 EOS（全局）的 interface_lower 集合
 _GLOBAL_ENUM_FILES: set[str] = {
     "platform",
+    "common",
+}
+
+# 常量路由到 EOS（全局）的 interface_lower 集合
+# 注意：platform（eos_types.h）的常量属于 EOS_HPlatform，不应路由到 EOS
+_GLOBAL_CONSTANT_FILES: set[str] = {
     "common",
 }
 
@@ -168,26 +175,119 @@ def _is_not_included_directly_header(fp: str) -> bool:
     return "This file is not intended to be included directly" in content
 
 
+_SKIP_HEADERS: set[str] = {
+    "eos_base.h",
+    "eos_version.h",
+    "eos_platform_prereqs.h",
+}
+
+
+def _route_by_interface(
+    file_lower2infos: dict[str, FileInfo],
+    attr_name: str,
+    routed: set[str],
+):
+    for il in file_lower2infos:
+        interface: str = convert_interface_class_name(il).removeprefix("EOS")
+        items: dict = getattr(file_lower2infos[il], attr_name)
+        if not items:
+            continue
+        if interface in interfaces:
+            global_files: set[str] = _GLOBAL_CONSTANT_FILES if attr_name == "constants" else _GLOBAL_ENUM_FILES
+            target_handle: str = "EOS" if il in global_files else "EOS_H" + interface
+            gen_file: str = "eos_common" if il in global_files else file_lower2infos[il].file
+            for key in items:
+                if key in routed:
+                    continue
+                routed.add(key)
+                handles[target_handle].__dict__[attr_name][key] = items[key]
+                generate_infos[gen_file].handles[target_handle].__dict__[attr_name][key] = items[key]
+            setattr(file_lower2infos[il], attr_name, type(items)())
+        else:
+            handle_type: str = _INTERFACE_LOWER_TO_HANDLE.get(il, "")
+            if handle_type and handle_type in handles:
+                for key in items:
+                    if key in routed:
+                        continue
+                    routed.add(key)
+                    handles[handle_type].__dict__[attr_name][key] = items[key]
+                    generate_infos[file_lower2infos[il].file].handles[handle_type].__dict__[attr_name][key] = items[key]
+                setattr(file_lower2infos[il], attr_name, type(items)())
+
+
+def _route_by_cheat(
+    file_lower2infos: dict[str, FileInfo],
+    attr_name: str,
+    cheat_fn,
+    routed: set[str],
+    element_label: str,
+):
+    for il in file_lower2infos:
+        items: dict = getattr(file_lower2infos[il], attr_name)
+        to_remove: list[str] = []
+        for key in items:
+            if key in routed:
+                to_remove.append(key)
+                continue
+            cheat_handle_type: str = cheat_fn(key)
+            if not len(cheat_handle_type):
+                print(f"[handle_resolver] 警告: {element_label} '{key}' 没有对应的句柄类型")
+                continue
+            if cheat_handle_type not in handles:
+                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
+                print_stack_and_exit()
+            routed.add(key)
+            handles[cheat_handle_type].__dict__[attr_name][key] = items[key]
+            to_remove.append(key)
+        for key in to_remove:
+            items.pop(key)
+
+
+def _collect_unhandled(
+    file_lower2infos: dict[str, FileInfo],
+):
+    for il in file_lower2infos:
+        info: FileInfo = file_lower2infos[il]
+        for attr_name, unhandled_dict in [
+            ("callbacks", unhandled_callbacks),
+            ("methods", unhandled_methods),
+            ("enums", unhandled_enums),
+            ("constants", unhandled_constants),
+        ]:
+            items: dict = getattr(info, attr_name)
+            for key in items:
+                unhandled_dict[key] = items[key]
+                generate_infos[info.file].__dict__[attr_name][key] = items[key]
+            if items:
+                if il not in unhandled_infos:
+                    unhandled_infos[il] = FileInfo()
+                setattr(unhandled_infos[il], attr_name, items.copy())
+                if attr_name == "constants":
+                    print(f"[handle_resolver] 未处理的常量: {list(items.keys())}")
+        info.callbacks = {}
+        info.methods = {}
+        info.enums = {}
+        info.constants = {}
+
+
 def parse_all_file():
     file_lower2infos: dict[str, FileInfo] = {}
     file_lower2infos[convert_to_interface_lower("eos_common.h")] = FileInfo(file="eos_common")
-    file_lower2infos["platform"] = FileInfo(file="eos_sdk")
 
-    _visited: set[str] = set()
-    parse_file("platform", os.path.join(sdk_include_dir, "eos_types.h"), file_lower2infos, _visited=_visited)
+    visited: set[str] = set()
+
+    file_lower2infos["platform"] = FileInfo(file="eos_sdk")
+    parse_file("platform", os.path.join(sdk_include_dir, "eos_types.h"), file_lower2infos, visited=visited)
+
     file_lower2infos["anticheatcommon"] = FileInfo(file="eos_anticheatcommon")
-    parse_file("anticheatcommon", os.path.join(sdk_include_dir, "eos_anticheatcommon_types.h"), file_lower2infos, _visited=_visited)
+    parse_file("anticheatcommon", os.path.join(sdk_include_dir, "eos_anticheatcommon_types.h"), file_lower2infos, visited=visited)
 
     for f in os.listdir(sdk_include_dir):
         fp: str = os.path.join(sdk_include_dir, f)
         if os.path.isdir(fp):
             continue
 
-        if f in [
-            "eos_base.h",
-            "eos_version.h",
-            "eos_platform_prereqs.h",
-        ]:
+        if f in _SKIP_HEADERS:
             continue
 
         if f.endswith(".inl") or f.endswith("_types.h"):
@@ -201,7 +301,7 @@ def parse_all_file():
         if interface_lower not in file_lower2infos.keys():
             file_lower2infos[interface_lower] = FileInfo(file=f.removesuffix("_types.h").removesuffix(".h"))
         skip_includes: bool = f == "eos_sdk.h"
-        parse_file(interface_lower, fp, file_lower2infos, is_deprecated_file=is_deprecated_file, _skip_includes=skip_includes, _visited=_visited)
+        parse_file(interface_lower, fp, file_lower2infos, is_deprecated_file=is_deprecated_file, skip_includes=skip_includes, visited=visited)
 
     parse_deferred_include_enums(file_lower2infos)
 
@@ -276,8 +376,7 @@ def parse_all_file():
                 handles[interface_handle_type].doc = interface_doc
             file_lower2infos[il].interface_doc = []
         if len(file_lower2infos[il].interface_doc) > 0:
-            print(f"[handle_resolver] 接口 '{il}' 的文档不为空，可能存在未处理的接口文档")
-            exit()
+            print_stack_and_exit(f"[handle_resolver] 接口 '{il}' 的文档不为空，可能存在未处理的接口文档")
 
     for il in file_lower2infos:
         infos: FileInfo = file_lower2infos[il]
@@ -312,92 +411,14 @@ def parse_all_file():
         file_lower2infos[il].structs = {}
 
     _routed_enums: set[str] = set()
-    for il in file_lower2infos:
-        interface: str = convert_interface_class_name(il).removeprefix("EOS")
-        if interface in interfaces:
-            if il in _GLOBAL_ENUM_FILES:
-                for e in file_lower2infos[il].enums:
-                    if e in _routed_enums:
-                        continue
-                    _routed_enums.add(e)
-                    handles["EOS"].enums[e] = file_lower2infos[il].enums[e]
-                    generate_infos["eos_common"].handles["EOS"].enums[e] = file_lower2infos[il].enums[e]
-            else:
-                for e in file_lower2infos[il].enums:
-                    if e in _routed_enums:
-                        continue
-                    _routed_enums.add(e)
-                    handles["EOS_H" + interface].enums[e] = file_lower2infos[il].enums[e]
-                    generate_infos[file_lower2infos[il].file].handles["EOS_H" + interface].enums[e] = file_lower2infos[il].enums[e]
-            file_lower2infos[il].enums = {}
-        else:
-            handle_type: str = _INTERFACE_LOWER_TO_HANDLE.get(il, "")
-            if handle_type and handle_type in handles:
-                for e in file_lower2infos[il].enums:
-                    if e in _routed_enums:
-                        continue
-                    _routed_enums.add(e)
-                    handles[handle_type].enums[e] = file_lower2infos[il].enums[e]
-                    generate_infos[file_lower2infos[il].file].handles[handle_type].enums[e] = file_lower2infos[il].enums[e]
-                file_lower2infos[il].enums = {}
+    _route_by_interface(file_lower2infos, "enums", _routed_enums)
 
     _routed_constants: set[str] = set()
-    for il in file_lower2infos:
-        interface = convert_interface_class_name(il).removeprefix("EOS")
-        if interface in interfaces:
-            for e in file_lower2infos[il].constants:
-                if e in _routed_constants:
-                    continue
-                _routed_constants.add(e)
-                handles["EOS_H" + interface].constants[e] = file_lower2infos[il].constants[e]
-                generate_infos[file_lower2infos[il].file].handles["EOS_H" + interface].constants[e] = file_lower2infos[il].constants[e]
-            file_lower2infos[il].constants = {}
-        else:
-            handle_type: str = _INTERFACE_LOWER_TO_HANDLE.get(il, "")
-            if handle_type and handle_type in handles:
-                for e in file_lower2infos[il].constants:
-                    if e in _routed_constants:
-                        continue
-                    _routed_constants.add(e)
-                    handles[handle_type].constants[e] = file_lower2infos[il].constants[e]
-                    generate_infos[file_lower2infos[il].file].handles[handle_type].constants[e] = file_lower2infos[il].constants[e]
-                file_lower2infos[il].constants = {}
+    _route_by_interface(file_lower2infos, "constants", _routed_constants)
 
-    for il in file_lower2infos:
-        methods = file_lower2infos[il].methods
-        to_remove: list[str] = []
-        for m in methods:
-            cheat_handle_type: str = _cheat_as_handle_method(m)
-            if not len(cheat_handle_type):
-                print(f"[handle_resolver] 警告: 方法 '{m}' 没有对应的句柄类型")
-                continue
-            if cheat_handle_type not in handles:
-                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'，可用句柄: {list(handles.keys())}")
-                print_stack_and_exit()
-            handles[cheat_handle_type].methods[m] = methods[m]
-            to_remove.append(m)
-        for m in to_remove:
-            methods.pop(m)
+    _route_by_cheat(file_lower2infos, "methods", _cheat_as_handle_method, set(), "方法")
 
-    for il in file_lower2infos:
-        enums: dict[str, Enum] = file_lower2infos[il].enums
-        to_remove = []
-        for e in enums:
-            if e in _routed_enums:
-                to_remove.append(e)
-                continue
-            cheat_handle_type = _cheat_as_handle_enum(e)
-            if not len(cheat_handle_type):
-                print(f"[handle_resolver] 警告: 枚举类型 '{e}' 没有对应的句柄类型")
-                continue
-            if cheat_handle_type not in handles:
-                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
-                print_stack_and_exit()
-            _routed_enums.add(e)
-            handles[cheat_handle_type].enums[e] = enums[e]
-            to_remove.append(e)
-        for e in to_remove:
-            enums.pop(e)
+    _route_by_cheat(file_lower2infos, "enums", _cheat_as_handle_enum, _routed_enums, "枚举类型")
 
     to_remove_enum_types: list[str] = []
     for enum in handles["EOS_HPlatform"].enums:
@@ -412,45 +433,8 @@ def parse_all_file():
         for m in extra_handles_methods[h]:
             handles[h].methods[m] = extra_handles_methods[h][m]
 
-    _routed_callbacks: set[str] = set()
-    for il in file_lower2infos:
-        callbacks: dict[str, Callback] = file_lower2infos[il].callbacks
-        to_remove = []
-        for cb in callbacks:
-            if cb in _routed_callbacks:
-                to_remove.append(cb)
-                continue
-            _routed_callbacks.add(cb)
-            cheat_handle_type = _cheat_as_handle_callback(cb)
-            if not len(cheat_handle_type):
-                print(f"[handle_resolver] 警告: 回调类型 '{cb}' 没有对应的句柄类型")
-                continue
-            if cheat_handle_type not in handles:
-                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
-                print_stack_and_exit()
-            handles[cheat_handle_type].callbacks[cb] = callbacks[cb]
-            to_remove.append(cb)
-        for cb in to_remove:
-            callbacks.pop(cb)
-
-    for il in file_lower2infos:
-        constants: dict[str, Constant] = file_lower2infos[il].constants
-        to_remove = []
-        for c in constants:
-            if c in _routed_constants:
-                to_remove.append(c)
-                continue
-            cheat_handle_type = _cheat_as_handle_constant(c)
-            if not len(cheat_handle_type):
-                print(f"[handle_resolver] 警告: 常量 '{c}' 没有对应的句柄类型")
-                continue
-            if cheat_handle_type not in handles:
-                print(f"[handle_resolver] 未知的句柄类型 '{cheat_handle_type}'")
-                print_stack_and_exit()
-            handles[cheat_handle_type].constants[c] = constants[c]
-            to_remove.append(c)
-        for c in to_remove:
-            constants.pop(c)
+    _route_by_cheat(file_lower2infos, "callbacks", _cheat_as_handle_callback, set(), "回调类型")
+    _route_by_cheat(file_lower2infos, "constants", _cheat_as_handle_constant, _routed_constants, "常量")
 
     handles["EOS_HTitleStorageFileTransferRequest"].callbacks["EOS_TitleStorage_OnReadFileCompleteCallback"] = handles["EOS_HTitleStorage"].callbacks[
         "EOS_TitleStorage_OnReadFileCompleteCallback"
@@ -462,41 +446,7 @@ def parse_all_file():
         "EOS_PlayerDataStorage_OnWriteFileCompleteCallback"
     ]
 
-    for il in file_lower2infos:
-        info = file_lower2infos[il]
-        for cb in info.callbacks:
-            unhandled_callbacks[cb] = info.callbacks[cb]
-            generate_infos[info.file].callbacks[cb] = info.callbacks[cb]
-        for m in info.methods:
-            unhandled_methods[m] = info.methods[m]
-            generate_infos[info.file].methods[m] = info.methods[m]
-        for e in info.enums:
-            unhandled_enums[e] = info.enums[e]
-            generate_infos[info.file].enums[e] = info.enums[e]
-        for c in info.constants:
-            unhandled_constants[c] = info.constants[c]
-            generate_infos[info.file].constants[c] = info.constants[c]
-        if len(info.callbacks):
-            if il not in unhandled_infos:
-                unhandled_infos[il] = FileInfo()
-            unhandled_infos[il].callbacks = info.callbacks.copy()
-        if len(info.methods):
-            if il not in unhandled_infos:
-                unhandled_infos[il] = FileInfo()
-            unhandled_infos[il].methods = info.methods.copy()
-        if len(info.enums):
-            if il not in unhandled_infos:
-                unhandled_infos[il] = FileInfo()
-            unhandled_infos[il].enums = info.enums.copy()
-        if len(info.constants):
-            if il not in unhandled_infos:
-                unhandled_infos[il] = FileInfo()
-            print(f"[handle_resolver] 未处理的常量: {list(info.constants.keys())}")
-            unhandled_infos[il].constants = info.constants.copy()
-        info.callbacks = {}
-        info.methods = {}
-        info.enums = {}
-        info.constants = {}
+    _collect_unhandled(file_lower2infos)
 
     classes: list[str] = []
     for il in file_lower2infos.keys():

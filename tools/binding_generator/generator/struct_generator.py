@@ -10,6 +10,7 @@ from binding_generator.doc.doc_processor import (
     insert_doc_property,
 )
 from binding_generator.models import Arg, Struct, StructField
+from binding_generator.utils.common import print_stack_and_exit
 from binding_generator.utils.naming import (
     convert_handle_class_name,
     convert_to_signal_name,
@@ -361,27 +362,22 @@ def _gen_struct(
                 continue
             if is_memory_func_type(field_type):
                 print(f"[struct_generator] 不支持的内存函数字段类型: '{field_type}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
             if is_platform_specific_options_field(field):
                 print(f"[struct_generator] 不支持的平台特定选项字段: '{field}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
             elif is_system_initialize_options_filed(field, field_type):
                 print(f"[struct_generator] 不支持的系统初始化选项字段: '{field}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
             elif is_reserved_field(field, field_type):
                 print(f"[struct_generator] 不支持的保留字段: '{field}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
             elif is_nullable_float_pointer_field(field_type, field):
                 print(f"[struct_generator] 不支持的可空浮点指针字段: '{field}'")
-                from binding_generator.utils.type import print_stack_and_exit
 
                 print_stack_and_exit()
             elif generate_config.assume_only_one_local_user and is_local_user_id(field) and need_ignore_local_user_id_struct(struct_type=struct_type):
@@ -398,7 +394,6 @@ def _gen_struct(
             elif is_str_type(field_type, field):
                 if field.startswith("SocketName"):
                     print("[struct_generator] 不可达代码: EOS_P2P_SocketId 不应被包装为 Godot 类")
-                    from binding_generator.utils.type import print_stack_and_exit
 
                     print_stack_and_exit()
                 else:
@@ -476,7 +471,6 @@ def _gen_struct(
                 elif is_str_type(field_type, field):
                     if field.startswith("SocketName"):
                         print("[struct_generator] 不可达代码: EOS_P2P_SocketId 不应出现在 set_to_eos 中")
-                        from binding_generator.utils.type import print_stack_and_exit
 
                         print_stack_and_exit()
                     else:
@@ -512,7 +506,6 @@ def _gen_struct(
                     r_structs_cpp.append(f"\t_TO_EOS_FIELD_HANDLER(p_data.{field}, {snake_field_name}, {gd_type});")
                 elif is_client_data_field(field_type, field):
                     print(f"[struct_generator] 不支持的 ClientData 字段: 结构体 '{struct_type}'")
-                    from binding_generator.utils.type import print_stack_and_exit
 
                     print_stack_and_exit()
                 elif is_internal_struct_arr_field(field_type, field, struct_type):
@@ -549,7 +542,6 @@ def _gen_struct(
                         r_structs_cpp.append(f"\tp_data.{field} = &godot::eos::internal::file_transfer_progress_callback<{eos_cb_type}, {gd_cb_type}, {signal_name}>;")
                     else:
                         print(f"[struct_generator] 不支持的回调字段类型: '{field_type}'")
-                        from binding_generator.utils.type import print_stack_and_exit
 
                         print_stack_and_exit()
                 else:

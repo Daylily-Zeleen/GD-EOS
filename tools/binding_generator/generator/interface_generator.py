@@ -20,8 +20,8 @@ from binding_generator.utils.naming import (
     convert_handle_class_name,
     remove_backslash_of_last_line,
 )
+from binding_generator.utils.common import assert_condition
 from binding_generator.utils.type import (
-    assert_condition,
     is_expanded_struct,
     is_need_skip_struct,
 )
@@ -133,7 +133,7 @@ def gen_files(file_base_name: str, infos: FileInfo):
         additional_include_lines: list[str] = []
         if has_packed_result:
             additional_include_lines.append(f"#include <packed_results/{file_base_name + '.packed_results.h'}>")
-        additional_include_lines.append(f"#include <{eos_types_header}>")
+        additional_include_lines.append(f"#include <{eos_header}>")
         additional_include_lines.append("#include <core/utils.h>")
 
         if generate_config.assume_only_one_local_user and file_base_name == "eos_common":

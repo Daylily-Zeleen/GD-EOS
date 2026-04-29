@@ -31,6 +31,7 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSNotification);
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSDataClass);
+    GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSIntegratedPlatformInitOptions);
     GDREGISTER_ABSTRACT_CLASS(godot::eos::EOSPackedResult);
 
 #if !defined(EOS_ANTICHEATCLIENT_DISABLED) || !defined(EOS_ANTICHEATSERVER_DISABLED)

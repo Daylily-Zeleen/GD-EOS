@@ -30,4 +30,14 @@ public:
     Dictionary to_dict() const;
 };
 
+class EOSIntegratedPlatformInitOptions : public EOSDataClass {
+    GDCLASS(EOSIntegratedPlatformInitOptions, EOSDataClass)
+
+protected:
+    static void _bind_methods() {}
+
+public:
+    virtual void *to_eos_ptr() { return nullptr; }
+};
+
 }; //namespace godot::eos

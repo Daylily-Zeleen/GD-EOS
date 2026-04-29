@@ -24,6 +24,7 @@ def generate(env: Environment):
     env.AddMethod(_postprocess, "GD_EOS_POSTPROCESS")
     env.AddMethod(_add_clean_files, "GD_EOS_ADD_CLEAN_FILES")
     env.AddMethod(_generate_doc_data, "GD_EOS_GENERATE_DOC_DATA")
+    env.AddMethod(_get_sdk_version, "GD_EOS_GET_SDK_VERSION")
 
 
 def exists(_env):
@@ -48,6 +49,34 @@ def options(opts, _env):
             default=False,
         )
     )
+
+
+def get_sdk_version() -> tuple[int, int, int, int]:
+    # 从 eos_version.h 获取 SDK 版本（major, minor, patch, hotfix）
+    import re
+
+    _tools_dir = os.path.dirname(os.path.abspath(__file__))
+    eos_version_file = os.path.join(_tools_dir, "..", "thirdparty", "eos-sdk", "SDK", "Include", "eos_version.h")
+
+    version_pattern = re.compile(r"#define\s+EOS_(MAJOR|MINOR|PATCH|HOTFIX)_VERSION\s+(\d+)")
+
+    version: dict[str, int] = {}
+    with open(eos_version_file, "r", encoding="utf-8") as f:
+        for line in f:
+            match = version_pattern.match(line.strip())
+            if match:
+                version[match.group(1)] = int(match.group(2))
+
+    return (
+        version.get("MAJOR", 0),
+        version.get("MINOR", 0),
+        version.get("PATCH", 0),
+        version.get("HOTFIX", 0),
+    )
+
+
+def _get_sdk_version(env: Environment) -> tuple[int, int, int, int]:
+    return get_sdk_version()
 
 
 def _get_generated_files() -> tuple[list[str], list[str]]:

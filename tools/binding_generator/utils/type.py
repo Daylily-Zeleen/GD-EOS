@@ -15,8 +15,9 @@ from binding_generator.context import (
     unhandled_constants,
     unhandled_enums,
     unhandled_methods,
+    variant_unions,
 )
-from binding_generator.models import Arg, Callback, Method, StructField
+from binding_generator.models import Arg, Callback, EnumMember, Method, StructField, VariantUnionField, VariantUnionInfo
 from binding_generator.utils.naming import (
     convert_handle_class_name,
     convert_to_struct_class,
@@ -52,6 +53,19 @@ _SPECIAL_BUILTIN_TYPES = frozenset(("EOS_AntiCheatCommon_Vec3f", "EOS_AntiCheatC
 
 def is_special_builtin_type(type: str) -> bool:
     return type in _SPECIAL_BUILTIN_TYPES
+
+
+def get_special_builtin_godot_type(eos_type: str) -> str | None:
+    # 获取特殊内置 EOS 类型对应的 Godot 类型名称
+    # 使用现有的 remap_type 映射指针版本
+    # 来发现 Godot 类型（例如：EOS_AntiCheatCommon_Vec3f* → Vector3）
+    if not is_special_builtin_type(eos_type):
+        return None
+    ptr_type = eos_type + "*"
+    result = remap_type(ptr_type, "")
+    if result == ptr_type:
+        return None
+    return result
 
 
 def is_struct_type(type: str) -> bool:
@@ -341,9 +355,17 @@ def make_additional_method_requirements():
             - (1 if "ApiVersion" in fields else 0)
             - (1 if generate_config.assume_only_one_local_user and "LocalUserId" in fields and need_ignore_local_user_id_struct(struct_type) else 0)
         )
-        if generate_config.min_field_count_to_expand_input_structs > 0 and field_count <= generate_config.min_field_count_to_expand_input_structs and is_method_input_only_struct(struct_type):
+        if (
+            generate_config.min_field_count_to_expand_input_structs > 0
+            and field_count <= generate_config.min_field_count_to_expand_input_structs
+            and is_method_input_only_struct(struct_type)
+        ):
             expanded_as_args_structs.append(struct_type)
-        if generate_config.min_field_count_to_expand_callback_structs > 0 and field_count <= generate_config.min_field_count_to_expand_callback_structs and _is_callback_output_only_struct(struct_type):
+        if (
+            generate_config.min_field_count_to_expand_callback_structs > 0
+            and field_count <= generate_config.min_field_count_to_expand_callback_structs
+            and _is_callback_output_only_struct(struct_type)
+        ):
             expanded_as_args_structs.append(struct_type)
 
 
@@ -950,7 +972,7 @@ def get_callback_infos(callback_type: str) -> Callback:
     print_stack_and_exit()
 
 
-def _is_base_handle_type(handle_type: str) -> bool:
+def is_base_handle_type(handle_type: str) -> bool:
     return handle_type in ["EOS", "EOS_HAntiCheatCommon"]
 
 
@@ -963,38 +985,231 @@ def get_base_class(handle_type: str) -> str:
         return "RefCounted"
 
 
-def _gen_disabled_macro(handle_type: str) -> str:
-    if handle_type in ["EOS", "EOS_HPlatform"]:
-        return ""
-    return "EOS_" + handle_type.removeprefix("EOS_H").upper() + "_DISABLED"
+from binding_generator.utils.common import assert_condition, print_stack_and_exit  # noqa: E402
 
 
-def _get_callback_type_of_method(method_info: "Method") -> str:
-    if len(method_info.args) > 0:
-        arg: Arg = method_info.args[-1]
-        decayed_type: str = decay_eos_type(arg.type)
-        if is_callback_type(decayed_type):
-            return decayed_type
-    return ""
+# ─── Variant Union Collection ───────────────────────────────────────────────
+
+# Enum typedef mapping: typedef name → original enum name
+_ENUM_TYPEDEF_MAP: dict[str, str] = {
+    "EOS_ESessionAttributeType": "EOS_EAttributeType",
+    "EOS_ELobbyAttributeType": "EOS_EAttributeType",
+}
 
 
-def print_stack_and_exit():
-    import traceback
+def _resolve_enum_typedef(enum_type: str) -> str:
+    # 解析枚举 typedef 链，返回最终的原始枚举类型名称
+    visited: set[str] = set()
+    current: str = enum_type
+    while current in _ENUM_TYPEDEF_MAP and current not in visited:
+        visited.add(current)
+        current = _ENUM_TYPEDEF_MAP[current]
+    return current
 
-    for line in traceback.format_stack():
-        print(line)
-    exit(1)
+
+def _parse_union_type_string(union_type: str) -> dict[str, str]:
+    # 解析 'Union{c_type : field_name, ...}' 字符串，返回 {field_name: c_type}
+    inner: str = union_type[len("Union{") : -1]
+    result: dict[str, str] = {}
+    for pair in inner.split(","):
+        pair = pair.strip()
+        if " : " not in pair:
+            continue
+        c_type, field_name = pair.rsplit(" : ", 1)
+        result[field_name.strip()] = c_type.strip()
+    return result
 
 
-def assert_condition(condition: bool, msg: str = ""):
-    if condition:
-        return
-    import traceback
+def _find_enum_for_union_type_field(struct_info, type_field_name: str) -> str | None:
+    # 在结构体中查找类型字段的枚举类型名称（支持 typedef 解析）
+    if type_field_name in struct_info.fields:
+        enum_type: str = struct_info.fields[type_field_name].type
+        if is_enum_type(enum_type):
+            return enum_type
+        resolved: str = _resolve_enum_typedef(enum_type)
+        if resolved != enum_type and is_enum_type(resolved):
+            return enum_type
+    return None
 
-    for line in traceback.format_stack():
-        print(line)
-    if len(msg) > 0:
-        print(f"[type] 断言失败: {msg}")
-    else:
-        print("[type] 断言失败")
-    exit(1)
+
+def _get_enum_members_full(enum_type: str) -> list[EnumMember]:
+    # 获取枚举类型的所有 EnumMember 对象（支持 typedef 解析）
+    for h in handles:
+        if enum_type in handles[h].enums:
+            return handles[h].enums[enum_type].members
+    if enum_type in unhandled_enums:
+        return unhandled_enums[enum_type].members
+    resolved: str = _resolve_enum_typedef(enum_type)
+    if resolved != enum_type:
+        return _get_enum_members_full(resolved)
+    return []
+
+
+# 用于匹配枚举成员文档注释中 C 类型的正则表达式
+# 匹配模式如：uint32_t, const char*, EOS_AntiCheatCommon_Vec3f 等
+_C_TYPE_DOC_PATTERN = re.compile(r"^((?:const\s+)?\w+(?:\s*\*+)?)\s*(?:\*/)?\s*$")
+
+
+def _extract_c_type_from_enum_doc(doc: list[str], union_c_types: set[str]) -> str | None:
+    # 尝试从枚举成员文档中提取与已知联合体字段 C 类型匹配的 C 类型
+    #
+    # 某些 EOS 枚举（如 EOS_EAntiCheatCommonEventParamType）为每个成员
+    # 记录了它所代表的确切 C 类型（例如 '/** uint32_t */'）
+    # 此函数检测并提取该 C 类型，并根据已知的联合体字段类型进行验证
+    for line in doc:
+        line = line.strip()
+        if not line:
+            continue
+        m = _C_TYPE_DOC_PATTERN.match(line)
+        if m:
+            c_type = m.group(1).strip()
+            if c_type in union_c_types:
+                return c_type
+    return None
+
+
+def _match_enum_member_to_union_field(enum_member: str, union_fields: dict[str, str], enum_type: str = "") -> str | None:
+    # 使用多种策略将枚举成员匹配到联合体字段
+    #
+    # 策略（按顺序）:
+    # 1. 直接后缀匹配（不区分大小写）
+    # 2. 去除前缀匹配（从联合体字段名中移除 "As"/"Is"）
+    # 3. 前缀匹配（枚举后缀是去除前缀的联合体字段名的前缀，或反之）
+    # 4. 子字符串匹配（联合体字段名包含在枚举成员名中）
+    # 5. C 类型类别匹配（枚举后缀关键字映射到 C 类型类别）
+    # 6. 缩写规范化（例如 "Vector" → "Vec"）
+    enum_suffix: str = enum_member.rsplit("_", 1)[-1]
+
+    # 策略 1: 直接后缀匹配
+    for uf in union_fields:
+        if uf == enum_suffix or uf.lower() == enum_suffix.lower():
+            return uf
+
+    # 策略 2: 去除前缀匹配
+    _FIELD_PREFIXES = ("As", "Is")
+    for uf in union_fields:
+        stripped = uf
+        for pfx in _FIELD_PREFIXES:
+            if stripped.startswith(pfx) and len(stripped) > len(pfx):
+                stripped = stripped[len(pfx) :]
+                break
+        if stripped == enum_suffix or stripped.lower() == enum_suffix.lower():
+            return uf
+
+    # 策略 3: 前缀匹配
+    for uf in union_fields:
+        stripped = uf
+        for pfx in _FIELD_PREFIXES:
+            if stripped.startswith(pfx) and len(stripped) > len(pfx):
+                stripped = stripped[len(pfx) :]
+                break
+        if stripped.lower().startswith(enum_suffix.lower()) or enum_suffix.lower().startswith(stripped.lower()):
+            return uf
+
+    # 策略 4: 子字符串匹配
+    for uf in union_fields:
+        if uf.lower() in enum_member.lower():
+            return uf
+
+    # 策略 5: C 类型类别匹配
+    _SUFFIX_CATEGORIES: dict[str, list[str]] = {
+        "STRING": ["const char*"],
+        "BOOL": ["EOS_Bool"],
+        "DOUBLE": ["double"],
+        "FLOAT": ["float", "double"],
+        "INT": ["int64_t", "uint64_t", "int32_t", "uint32_t"],
+    }
+    suffix_upper = enum_suffix.upper()
+    for keyword, c_types in _SUFFIX_CATEGORIES.items():
+        if keyword in suffix_upper:
+            for c_type in c_types:
+                for uf, uf_c_type in union_fields.items():
+                    if uf_c_type == c_type:
+                        return uf
+
+    # 策略 6: 缩写规范化
+    _ABBREVIATION_MAP = {"Vector": "Vec"}
+    normalized = enum_suffix
+    for long, short in _ABBREVIATION_MAP.items():
+        normalized = normalized.replace(long, short)
+    if normalized != enum_suffix:
+        for uf in union_fields:
+            if uf == normalized or uf.lower() == normalized.lower():
+                return uf
+
+    return None
+
+
+def collect_variant_union_infos():
+    # 遍历所有结构体并将变体联合体信息收集到 context.variant_unions
+    variant_unions.clear()
+
+    for struct_name, struct_info in structs.items():
+        for field_name, field_info in struct_info.fields.items():
+            if not field_info.type.startswith("Union"):
+                continue
+            if not is_variant_union_type(field_info.type, field_name):
+                continue
+
+            # Find companion type enum field
+            type_field_name: str = field_name + "Type"
+            enum_type: str | None = _find_enum_for_union_type_field(struct_info, type_field_name)
+            if enum_type is None:
+                for fn in struct_info.fields:
+                    if fn.endswith("Type") and fn.removesuffix("Type") == field_name:
+                        enum_type = _find_enum_for_union_type_field(struct_info, fn)
+                        type_field_name = fn
+                        break
+                if enum_type is None:
+                    print(f"[type] Warning: variant union '{field_name}' in struct '{struct_name}' has no companion enum field")
+                    continue
+
+            # Parse union type string
+            union_fields: dict[str, str] = _parse_union_type_string(field_info.type)
+            union_c_types: set[str] = set(union_fields.values())
+
+            # Get enum members with docs
+            enum_members: list[EnumMember] = _get_enum_members_full(enum_type)
+
+            # Match enum members to union fields
+            matched_fields: list[VariantUnionField] = []
+            for em in enum_members:
+                if em.name.endswith("_Invalid") or em.name.endswith("_INVALID"):
+                    continue
+                if em.deprecated:
+                    continue
+
+                # Try doc-based C type matching first
+                doc_c_type = _extract_c_type_from_enum_doc(em.doc, union_c_types)
+                if doc_c_type is not None:
+                    # Find the union field with this C type
+                    for uf_name, uf_c_type in union_fields.items():
+                        if uf_c_type == doc_c_type:
+                            matched_fields.append(
+                                VariantUnionField(
+                                    enum_member=em.name,
+                                    union_field_name=uf_name,
+                                    c_type=uf_c_type,
+                                )
+                            )
+                            break
+                    continue
+
+                # Fall back to name-based matching
+                uf_name: str | None = _match_enum_member_to_union_field(em.name, union_fields, enum_type)
+                if uf_name is not None:
+                    matched_fields.append(
+                        VariantUnionField(
+                            enum_member=em.name,
+                            union_field_name=uf_name,
+                            c_type=union_fields[uf_name],
+                        )
+                    )
+
+            variant_unions[enum_type] = VariantUnionInfo(
+                struct_name=struct_name,
+                union_field_name=field_name,
+                type_field_name=type_field_name,
+                enum_type=enum_type,
+                fields=matched_fields,
+            )

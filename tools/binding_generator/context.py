@@ -9,6 +9,7 @@ from binding_generator.models import (
     Handle,
     Method,
     Struct,
+    VariantUnionInfo,
 )
 
 struct2additional_method_requirements: dict[str, dict[str, bool]] = {}
@@ -57,3 +58,6 @@ doc_keyword_map_callback: dict[str, str] = {}
 doc_keyword_map_struct: dict[str, str] = {}
 
 callback_to_method: dict[str, str] = {}
+
+# variant union info: enum type name → VariantUnionInfo
+variant_unions: dict[str, VariantUnionInfo] = {}
