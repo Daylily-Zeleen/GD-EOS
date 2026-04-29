@@ -43,9 +43,11 @@ handle_int_t<T> handle_to_int(T p_handle) { return reinterpret_cast<handle_int_t
 
 namespace godot::eos::internal {
 
+using HandleIntPtr = std::conditional_t<sizeof(EOS_HPlatform) == sizeof(uint64_t), uint64_t, uint32_t>;
+
 class HandleCache {
 private:
-    static godot::HashMap<uintptr_t, godot::Ref<godot::WeakRef>> m_cache;
+    static godot::HashMap<HandleIntPtr, godot::Ref<godot::WeakRef>> m_cache;
 
 public:
     template <typename EOSHandle, typename GDHandle>
@@ -53,7 +55,7 @@ public:
         if (p_handle == nullptr) {
             return {};
         } else {
-            const auto it = m_cache.find(reinterpret_cast<uintptr_t>(p_handle));
+            const auto it = m_cache.find(reinterpret_cast<HandleIntPtr>(p_handle));
             if (it != m_cache.end()) {
                 godot::Ref<GDHandle> ret = it->value->get_ref();
                 if (ret.is_valid()) {
@@ -67,20 +69,20 @@ public:
             ret.instantiate();
             ret->set_handle(p_handle);
 
-            m_cache.insert(reinterpret_cast<uintptr_t>(p_handle), godot::UtilityFunctions::weakref(ret));
+            m_cache.insert(reinterpret_cast<HandleIntPtr>(p_handle), godot::UtilityFunctions::weakref(ret));
             return ret;
         }
     }
 
     template <typename EOSHandle>
     static _FORCE_INLINE_ void remove(EOSHandle p_handle) {
-        m_cache.erase(reinterpret_cast<uintptr_t>(p_handle));
+        m_cache.erase(reinterpret_cast<HandleIntPtr>(p_handle));
     }
 
     template <typename EOSHandle, typename GDHandle>
     static _FORCE_INLINE_ void put(EOSHandle p_handle, const godot::Ref<GDHandle> &p_ref) {
         if (p_handle != nullptr && p_ref.is_valid()) {
-            m_cache.insert(reinterpret_cast<uintptr_t>(p_handle), godot::UtilityFunctions::weakref(p_ref));
+            m_cache.insert(reinterpret_cast<HandleIntPtr>(p_handle), godot::UtilityFunctions::weakref(p_ref));
         }
     }
 };
@@ -645,8 +647,8 @@ String to_godot_data_union(const FromUnion &p_from, EOS_EMetricsAccountIdType p_
 #define _FROM_EOS_FIELD_HANDLER(gd_field, gd_type_to_cast, eos_field) \
     gd_field = HandleCache::get<decltype(eos_field), gd_type_to_cast>(eos_field)
 
-#define _FROM_EOS_FIELD_HANDLER_ARR(gd_field, gd_type, eos_field, eos_filed_count)        \
-    for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                     \
+#define _FROM_EOS_FIELD_HANDLER_ARR(gd_field, gd_type, eos_field, eos_filed_count)           \
+    for (decltype(eos_filed_count) i = 0; i < eos_filed_count; ++i) {                        \
         gd_field.push_back(HandleCache::get<decltype(eos_field[i]), gd_type>(eos_field[i])); \
     }
 #define _FROM_EOS_FIELD_PURE_HANDLE(gd_field, eos_field) \

@@ -16,7 +16,7 @@
 
 namespace godot::eos {
 
-inline godot::HashMap<uintptr_t, godot::Ref< godot::WeakRef>>  godot::eos::internal::HandleCache::m_cache {};
+inline godot::HashMap<internal::HandleIntPtr, godot::Ref<godot::WeakRef>> godot::eos::internal::HandleCache::m_cache{};
 
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_internal_directory"
 #define EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY "GD_EOS/platforms/android/optional_external_directory"
