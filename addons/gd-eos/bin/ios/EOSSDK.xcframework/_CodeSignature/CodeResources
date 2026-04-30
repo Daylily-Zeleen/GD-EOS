@@ -6,7 +6,11 @@
 	<dict>
 		<key>ios-arm64/EOSSDK.framework/EOSSDK</key>
 		<data>
-		9qXTgNru+e9xldhK8D7EB6Gcw4w=
+		Ce8uxc1eTUeeoyP6KaY98IE22wE=
+		</data>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_IOS.h</key>
+		<data>
+		n9h0GDIwtgrpN4HK9eAXT68N6O0=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_IOS_base.h</key>
 		<data>
@@ -14,11 +18,11 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_achievements.h</key>
 		<data>
-		H7VOm3CAHT02pq/AgktTImJM6rU=
+		8UIfnmVYG+NUAnABJg4Xn8PgLnY=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_achievements_types.h</key>
 		<data>
-		DKtE72IsD09PXZNU/dsFgL2wSzg=
+		hPSMTA13ME3CJFVE/P3m9/rCFtI=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_achievements_types_deprecated.inl</key>
 		<data>
@@ -26,35 +30,35 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatclient.h</key>
 		<data>
-		zNSs4xccKI8P5QpqwPMJ5SXvjqk=
+		PF1Yw1WE8MZZbavUAsTYrFfCqVY=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatclient_types.h</key>
 		<data>
-		ghAdIPDRZPuZdQ6lVgz/0K6CYDM=
+		CQRT3w++kZxAXSv/t5gP2Cx0jdc=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatclient_types_deprecated.inl</key>
 		<data>
-		6cBco5C0KFTVscR+avvsB+fFEIY=
+		kuxU3PGdvolz//JbboOXbplNOkA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatcommon_types.h</key>
 		<data>
-		tGVLfTc1jMuEz+rL84lE530ofh8=
+		SReH1apZTq5VDXPHzybNnvi3SDI=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatserver.h</key>
 		<data>
-		dDFk/Nfi7A6gPubRC4lMfBvdn24=
+		BxqAqXyBTrECTslo8DAtMWV86Kw=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatserver_types.h</key>
 		<data>
-		Ay7bRvD9+1shcd0uDWTfzxS7RWQ=
+		AC+cjEb38/fMd3Ux/8gx2LcqUyE=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth.h</key>
 		<data>
-		1XsJ9DKE7q5lEK1Vqlf5GhioprA=
+		oRuMMVKucgTgdq899OsDd3NK/EU=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth_types.h</key>
 		<data>
-		wmOgaXJFqMbuftPXIEEA5kvowq8=
+		GOOQ3DRZ1J/beMHKcX6BXiljxlM=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth_types_deprecated.inl</key>
 		<data>
@@ -66,35 +70,35 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_common.h</key>
 		<data>
-		6iC72O7bOOC02t+AMUiiJH/qQRA=
+		S9bFBvZiqrOQ2yJo7H2d+bg2Xdg=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_connect.h</key>
 		<data>
-		gRHlw0bNKzc0qAjY+i2M3m4S3hc=
+		YvDf2tdJVDLMNQdDqSjjG9jYkio=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_connect_types.h</key>
 		<data>
-		Psmylar5IZGsX4bqCyY4byCQhGs=
+		GVt6/FpC+ti5OnYk8W0b838HIIU=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_custominvites.h</key>
 		<data>
-		suyJSyBWJnQRT9V6YSUtD+OETiE=
+		lgmws8wvMO+4AB8x+Hfzpg96aP0=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_custominvites_types.h</key>
 		<data>
-		tAfe4kaakKvvWS/iJf/erstzIsg=
+		GPXm7edbcAIPHNpmbuamN9xEHjk=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ecom.h</key>
 		<data>
-		lmT1PiX2hHdL4kOlvolJovZHucE=
+		1qcoOWnFdGaIQPMrtoleCnY7hg4=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ecom_types.h</key>
 		<data>
-		OymBupo1nlaop1YSOyElsArrXjY=
+		8KIMah3wbgJNmF0Yg1BHgvfBTbg=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_friends.h</key>
 		<data>
-		+Uw0rPP8/bVAerodCq90FOlCl4Q=
+		8kq61ezTXj9DjTGrf3WtxYW3VO4=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_friends_types.h</key>
 		<data>
@@ -102,31 +106,27 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_init.h</key>
 		<data>
-		pAAvC70oUkqwRFslvbWqj8l4N8g=
+		G3XaQ6UanxFjciAlB16Cks3XK8k=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_integratedplatform.h</key>
 		<data>
-		wLHLscbWkaiIetq8TaNQSE8pkbA=
+		QsK2SXDVArI0CANFXp7Pe4XteBY=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_integratedplatform_types.h</key>
 		<data>
-		NKwtP9yxMdyB7pm1Lurkvl/o8qc=
-		</data>
-		<key>ios-arm64/EOSSDK.framework/Headers/eos_ios.h</key>
-		<data>
-		n9h0GDIwtgrpN4HK9eAXT68N6O0=
+		dzwAWlLaL4+wmX4sE6KTozTn4Sk=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_kws.h</key>
 		<data>
-		hTcKF8r6Wz93+Y/4M3BzDpBJvDo=
+		wlj7nEm/SaJXeNLzJfV6dlBeLTQ=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_kws_types.h</key>
 		<data>
-		QM88mmHdZhpVdZf7rulfz6VyRII=
+		Mk7u3gUXZKyAlJPxP8Mu3thmiyQ=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_leaderboards.h</key>
 		<data>
-		SxjzoWuQONTwCLl2nqrF9PaD8xA=
+		2aw2lqQOWi1R7HCxD8Dsz9PF2Rc=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_leaderboards_types.h</key>
 		<data>
@@ -138,19 +138,23 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_lobby.h</key>
 		<data>
-		7ofXD32XWgM7NNUgiFSmFmVKc/M=
+		568WqQ7Ai0aPP2oXG+CzTvhLuS8=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_lobby_types.h</key>
 		<data>
-		YoKOeU4zhzqIUc3dhRLEpAp3ZD0=
+		EJyTwfCIH6ofa3x6FSjm2VxC1gA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_logging.h</key>
 		<data>
-		9r7KxdCSGaeQOhZii6um3y0GFJ4=
+		svPtT9wRJu9JDDzwOiaCXIdhiD0=
+		</data>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_logging_categories.h</key>
+		<data>
+		R/qKP0xP0hyu9JA//WhANsi1Gho=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_metrics.h</key>
 		<data>
-		N/YKy/1NxUtHjHOeUEjGNkWDNV8=
+		ZbeH2T9Pq7DIagoQLGx2VSolX8E=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_metrics_types.h</key>
 		<data>
@@ -158,7 +162,7 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_mods.h</key>
 		<data>
-		DoszYaMx2tdzzJXPx1eBrpKb4Zw=
+		2XzWhuECt0RCJCgTGu8PzsfVJ5U=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_mods_types.h</key>
 		<data>
@@ -166,11 +170,11 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_p2p.h</key>
 		<data>
-		2Sj3SVJcC+P4CApTQylZTp0HamE=
+		UeV8nm9wL8ROm+NixyR35zPJAtw=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_p2p_types.h</key>
 		<data>
-		2Qd03hMYDCiXUhyDhZdXKyzeMdQ=
+		G/s1XYoWDgNRmggLJaOVqz1ISTM=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_platform_prereqs.h</key>
 		<data>
@@ -178,31 +182,35 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_playerdatastorage.h</key>
 		<data>
-		Py89v2Mw2oBCEsyGOmPs1wUteX0=
+		1KYKjbH3Nh0m8cqTztRnDRM84o8=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_playerdatastorage_types.h</key>
 		<data>
-		Jq5om/KOvR9177sTFm4F2QucTqs=
+		hTd9iL6v9PN86NkQ3AvWVkpsF08=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence.h</key>
 		<data>
-		Qf0zcpNxyI5CJL6hPGnIOP8xWn4=
+		e7yg/AQzboQ2ORTyhh1BQLVYzn4=
+		</data>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence_localized_types.h</key>
+		<data>
+		nNZ2hKmYtmUpFtgF1FvegokuEbs=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence_types.h</key>
 		<data>
-		Po1dPegMh5nrg0BZzC11IqBiJMY=
+		cH16HoSEj1otmveD4IM878T3lio=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_progressionsnapshot.h</key>
 		<data>
-		UO332C0hm/OGoZ3DUSn+S0fSipY=
+		+ezQ9Lt7RljDar4ViwJFmYkm0dQ=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_progressionsnapshot_types.h</key>
 		<data>
-		v5GWsXTO7687bA/Zvn9ki1myrts=
+		XrekjifXybE0H1GFywIrW4bqBPQ=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_reports.h</key>
 		<data>
-		ASyVMV9SrKzrCoJyV5OxnoSgBzw=
+		1GaOM9S2d2VaPC1OFVUWPn7fL3E=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_reports_types.h</key>
 		<data>
@@ -210,27 +218,27 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_result.h</key>
 		<data>
-		0OPLfZkCNh6q2M9Li/8iIUnQ1KQ=
+		Bl/8vB4C0nr25gW7fzRT02gTmi4=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc.h</key>
 		<data>
-		tVetJeJQ+Syevyqn34S15LRv+vQ=
+		3ucibO5sNwHqaKjcB4Ub5t6sr4g=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_admin.h</key>
 		<data>
-		VuTncBr9a/DVlW//F+LHixPIqwk=
+		a2y8sy50YH4Hy9ZvSnefcxCdGSA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_admin_types.h</key>
 		<data>
-		ev7FuBzHvmO0EdtELHjjX2Rb4z0=
+		Ek/IeMEVWa/up19c23yH23J7x+I=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio.h</key>
 		<data>
-		x7+9qG0VFiy+KDQazICvAs++W4o=
+		4g5p7ZFtIbTsEOj31lXvZpvmao0=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio_types.h</key>
 		<data>
-		5haMIvuNhXqcnKBf9ZYXXjK2Orw=
+		kYxbItQJl6jRsska9/sjKzYUi98=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio_types_deprecated.inl</key>
 		<data>
@@ -238,19 +246,19 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_data.h</key>
 		<data>
-		4y9dm11wWcWXqYBlRHZ8gTCKTYI=
+		Hz+m965yQqW6miogCfsjAliinFo=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_data_types.h</key>
 		<data>
-		wEvemjKyPCJrDb1q3jHGoUQfqOs=
+		rGP9IEXTtFh1BkqtuqVtCyXkDLU=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_types.h</key>
 		<data>
-		TozKG14Nsy5/h6kmR7o9cH75+0c=
+		ai5RDr9idsu8fzCllQO3K0IQCSk=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sanctions.h</key>
 		<data>
-		MAZy8eYQHkfIDcVC5KajwqaKV5g=
+		ksRy0ueRpugUpxc+rRZPdANoxk0=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sanctions_types.h</key>
 		<data>
@@ -258,27 +266,27 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sdk.h</key>
 		<data>
-		cZZvrWC7WivtC8z/0eEfwRm8UPw=
+		B08N5BmhFnDoQqPfMOQV20Dxw0U=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sessions.h</key>
 		<data>
-		X5inA+4Qy0hvnE5loqI9sFmyqOQ=
+		kGbIXNWND35XCANjDzUUGBxNvTA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sessions_types.h</key>
 		<data>
-		+SwlV7j+HYLlg0I9sEV+qlHyjnI=
+		20j13Q+WT3cx7yv1nzspON98HGw=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_stats.h</key>
 		<data>
-		mmfxvvMOViE50m6Q7LNZFG+IqT4=
+		9ZfsYa0Ge8Vn8WmgTAK24jjlQ/s=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_stats_types.h</key>
 		<data>
-		QsBK1nzWprGOlaAmIORwEamyTLE=
+		hgG0sKOvG3kC6uiZi56Ncqq1eVA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_titlestorage.h</key>
 		<data>
-		cPYSKBjadS7CNKkpeXzebhNwwog=
+		wQckwfKkBUWwm/keF4emOKXUGfg=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_titlestorage_types.h</key>
 		<data>
@@ -286,11 +294,11 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_types.h</key>
 		<data>
-		aDTK9Cn/OQ4d0ci0jvuQED+i0pw=
+		8TPS8XKcxOwk1ykg6CA4INqUOGA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui.h</key>
 		<data>
-		uapbZ2hiTtOKqTfd6L1b43jRQWM=
+		3Lad3Ic4BizrD8I0ociXV8esot8=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui_buttons.h</key>
 		<data>
@@ -298,19 +306,19 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui_keys.h</key>
 		<data>
-		hxlwpE4JlZmXlfC0t4MJQ1z18Qw=
+		FsbNm+HKn/8CjhFwUuKx2Px0Rn4=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui_types.h</key>
 		<data>
-		s7JZUOYHjrgQJ1vUpbeb5wElx0k=
+		nNeZnhodaBVRxVghMN/as3l1f6Y=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_umbrella.h</key>
 		<data>
-		NAASn0/vNfPXUwcjocpZRO1epIc=
+		IbkIL2/ekaUwx1704yyvXPSToc8=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_userinfo.h</key>
 		<data>
-		OkFYrbjRNDJxJGWuz+VNn4tDL5s=
+		Sf3iuqTRRg2gMvhuCDcowy365+c=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_userinfo_types.h</key>
 		<data>
@@ -318,15 +326,15 @@
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_version.h</key>
 		<data>
-		RhBWzGm3hsRfV+OnZj3Fu8rAmcU=
+		Pn46YyxpkMARcwJeUql45huI+2Y=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Info.plist</key>
 		<data>
-		myarHj8Gak9AuhW2zhhxU6CpRls=
+		ovENT/49GeVhPB/AON16lPSQBCA=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/Modules/module.modulemap</key>
 		<data>
-		GWEaUMdaUM1WXSF1OW1RKWujJqU=
+		sNFL6pX7Tdue3S4ZUKnP7LhBOdU=
 		</data>
 		<key>ios-arm64/EOSSDK.framework/PrivacyInfo.xcprivacy</key>
 		<data>
@@ -339,11 +347,22 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			9qXTgNru+e9xldhK8D7EB6Gcw4w=
+			Ce8uxc1eTUeeoyP6KaY98IE22wE=
 			</data>
 			<key>hash2</key>
 			<data>
-			uilDPwu7fgQfxui6NNFuDl9w8jR3HuV3zptOuWvIHEI=
+			HjV0OvNqBBND4Zsf43ojmIBjVKLzCJ6LiR7w0HzJHKw=
+			</data>
+		</dict>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_IOS.h</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			n9h0GDIwtgrpN4HK9eAXT68N6O0=
+			</data>
+			<key>hash2</key>
+			<data>
+			NAdG05xgKvO1LZASVf36AOT20f+0JKcl1aPPEsdAY/E=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_IOS_base.h</key>
@@ -361,22 +380,22 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			H7VOm3CAHT02pq/AgktTImJM6rU=
+			8UIfnmVYG+NUAnABJg4Xn8PgLnY=
 			</data>
 			<key>hash2</key>
 			<data>
-			z/R61u8Rcjlr0w6xZ7i9caNHIkVE5UkVrAEXeuP9ikA=
+			sy7ZJ9l63sx4fPJg3HiTFfMDs29ldZB/fRiznpOPoZY=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_achievements_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			DKtE72IsD09PXZNU/dsFgL2wSzg=
+			hPSMTA13ME3CJFVE/P3m9/rCFtI=
 			</data>
 			<key>hash2</key>
 			<data>
-			vS+WESVb8oXhmcjDlGsG9cL74zHssee++WnxSI+xsZA=
+			/dsalcJv7G+EcA3frXzmEqpZFmFqrq/cnH7NL/H3B38=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_achievements_types_deprecated.inl</key>
@@ -394,88 +413,88 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			zNSs4xccKI8P5QpqwPMJ5SXvjqk=
+			PF1Yw1WE8MZZbavUAsTYrFfCqVY=
 			</data>
 			<key>hash2</key>
 			<data>
-			NG9wsLqgt72zWQcqnS/HTUBhlpfe55CNtm1/ew4MLqQ=
+			TPvB3JmBdVGM5uB0e7ZRXlAdamV4noVDYpJmLuqeyyo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatclient_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			ghAdIPDRZPuZdQ6lVgz/0K6CYDM=
+			CQRT3w++kZxAXSv/t5gP2Cx0jdc=
 			</data>
 			<key>hash2</key>
 			<data>
-			ljFDfbWescOx7fPTuzo5mWCW1hUMfoYm3VKRpdtiUjc=
+			Tz7Y6NA4tiNtvmP+KKCaBAb4sS3Y3/nArTQOGpVr71k=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatclient_types_deprecated.inl</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			6cBco5C0KFTVscR+avvsB+fFEIY=
+			kuxU3PGdvolz//JbboOXbplNOkA=
 			</data>
 			<key>hash2</key>
 			<data>
-			M7TYWeFAaQYO06s4NbJVJR/szpPrPWv4RmCu8Tq72UQ=
+			M8hmp+K5K215ZWcz/EFG4G9jozmbJXXZXWQsRVp5Cu8=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatcommon_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			tGVLfTc1jMuEz+rL84lE530ofh8=
+			SReH1apZTq5VDXPHzybNnvi3SDI=
 			</data>
 			<key>hash2</key>
 			<data>
-			Lpj4MSNK4DzQ1rlifkydFXqodTDyFK5dSvDnwMUexo0=
+			3Kn/YQ/eaMFHcJl7FpXrrHHmEf37MYBjVFkCW3Gnwgs=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatserver.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			dDFk/Nfi7A6gPubRC4lMfBvdn24=
+			BxqAqXyBTrECTslo8DAtMWV86Kw=
 			</data>
 			<key>hash2</key>
 			<data>
-			iStbDiLu2SqS29ioW2yCGqHFRLEupjK4HdR73b7F7bc=
+			AmMffU+m1ZkSrJ6pVbWB+J6109iTqRm8rEZ8iIQ98GY=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_anticheatserver_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Ay7bRvD9+1shcd0uDWTfzxS7RWQ=
+			AC+cjEb38/fMd3Ux/8gx2LcqUyE=
 			</data>
 			<key>hash2</key>
 			<data>
-			mBOjGejZeMzRCUm7vXg0JngGMbc5vRkZO5lfjOZjCyo=
+			xjfDH4Ts861xFwuWocQjS+wUNVxc1CbSVaul22FYuSo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			1XsJ9DKE7q5lEK1Vqlf5GhioprA=
+			oRuMMVKucgTgdq899OsDd3NK/EU=
 			</data>
 			<key>hash2</key>
 			<data>
-			mxFNQxbS6xLD5XN5rocMwUWC33BtTeA46yaJ19I4/sY=
+			Gi9tjO7Ix7Qkm+GbOUz2QDm3g9ClYoL4xD3OmYQhLVc=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			wmOgaXJFqMbuftPXIEEA5kvowq8=
+			GOOQ3DRZ1J/beMHKcX6BXiljxlM=
 			</data>
 			<key>hash2</key>
 			<data>
-			pH1GZ5fdBwUblV8ER5BLlvGv3vzPZESA3eM3UbgVfls=
+			of9Wn4ENR0z4l16vJFLKXMdtXJGfOKgkiRuYqu7Py7w=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_auth_types_deprecated.inl</key>
@@ -504,88 +523,88 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			6iC72O7bOOC02t+AMUiiJH/qQRA=
+			S9bFBvZiqrOQ2yJo7H2d+bg2Xdg=
 			</data>
 			<key>hash2</key>
 			<data>
-			lIjleykIrK7p+7YoOHLxFR+hxTXr74p/fjIEhhrOvK0=
+			tqzUzEyhCpcf06Inx+NJLLtbL/DE/7bdii+u0hZimwg=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_connect.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			gRHlw0bNKzc0qAjY+i2M3m4S3hc=
+			YvDf2tdJVDLMNQdDqSjjG9jYkio=
 			</data>
 			<key>hash2</key>
 			<data>
-			0rw8hcn/6XijqItSvGLNXDfCY8w+KX/5UFOGKSiyx/Q=
+			98OI7uaD+eez7ur9S/mM0qnIqee/0dgkcHegLY6RVgo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_connect_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Psmylar5IZGsX4bqCyY4byCQhGs=
+			GVt6/FpC+ti5OnYk8W0b838HIIU=
 			</data>
 			<key>hash2</key>
 			<data>
-			tyIQw/xqddSqTZXsYRnYMxaUnpc1PZd2jDcz+Y/i0G4=
+			INueLBSCs6qdmA78msHx5Yxgcl8FGUefR5HX88ZuROE=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_custominvites.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			suyJSyBWJnQRT9V6YSUtD+OETiE=
+			lgmws8wvMO+4AB8x+Hfzpg96aP0=
 			</data>
 			<key>hash2</key>
 			<data>
-			yQgBMjFmRaThCKIq0JibXBh+sFFEyNqZqwbQhD/2v94=
+			ZSYWeuKht/taXPoMPwy0cacL4jHqX0mF1OBwamO3KMc=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_custominvites_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			tAfe4kaakKvvWS/iJf/erstzIsg=
+			GPXm7edbcAIPHNpmbuamN9xEHjk=
 			</data>
 			<key>hash2</key>
 			<data>
-			Fpaj6MDLtzuN0dFFKu+bapEV1632W9i/iuRuf1aVGUA=
+			uHxFMs+s26R9KXvr3GYBUOiabnehOo8d7GIFBK3zJHw=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ecom.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			lmT1PiX2hHdL4kOlvolJovZHucE=
+			1qcoOWnFdGaIQPMrtoleCnY7hg4=
 			</data>
 			<key>hash2</key>
 			<data>
-			H6UQSPqf8L25k85I5Gi3zGDjquxXluekzNpZfA6+ZUw=
+			09ZayWe0Z7J2gbStDJHXMlzzHXi+Au5EW/kWRCpS7Cc=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ecom_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			OymBupo1nlaop1YSOyElsArrXjY=
+			8KIMah3wbgJNmF0Yg1BHgvfBTbg=
 			</data>
 			<key>hash2</key>
 			<data>
-			ZDzwizVyDV0h8mHtX3U3yL4ulohV1ubjCiwQsgpTBSU=
+			RGaftBnrnO2Y3yKup8hgISjQLuKsvQ8j7n3SMd3kh3Y=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_friends.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			+Uw0rPP8/bVAerodCq90FOlCl4Q=
+			8kq61ezTXj9DjTGrf3WtxYW3VO4=
 			</data>
 			<key>hash2</key>
 			<data>
-			qOkk/PAQQrE1VarfosH5SCLZ+RqNo2pC+DcsjUv0Pf0=
+			FSwQQhey14YJAiwFY1b5nxv4BwHKkToz3dPkIix7mKk=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_friends_types.h</key>
@@ -603,77 +622,66 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			pAAvC70oUkqwRFslvbWqj8l4N8g=
+			G3XaQ6UanxFjciAlB16Cks3XK8k=
 			</data>
 			<key>hash2</key>
 			<data>
-			ryRkMYZA+GZapcSmi1OnINQRuQqQOCWzlTeW5cDcI7k=
+			MpXeIpD1LNpFasWqpH0qsFI6Qv3/5njBEmgE4mPuF8g=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_integratedplatform.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			wLHLscbWkaiIetq8TaNQSE8pkbA=
+			QsK2SXDVArI0CANFXp7Pe4XteBY=
 			</data>
 			<key>hash2</key>
 			<data>
-			yyeCRbmahJd9v2RD80rJx3VEDb8GYdfIlk7Fi1V9GNU=
+			lTjeLa6NV/OWjqslRW0UL5uA4LnaoZRInaUr5dMecAA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_integratedplatform_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			NKwtP9yxMdyB7pm1Lurkvl/o8qc=
+			dzwAWlLaL4+wmX4sE6KTozTn4Sk=
 			</data>
 			<key>hash2</key>
 			<data>
-			jzU+3CiR2evTbH/4YwU1FQjPYUJV4Dep15fdrMMXQds=
-			</data>
-		</dict>
-		<key>ios-arm64/EOSSDK.framework/Headers/eos_ios.h</key>
-		<dict>
-			<key>hash</key>
-			<data>
-			n9h0GDIwtgrpN4HK9eAXT68N6O0=
-			</data>
-			<key>hash2</key>
-			<data>
-			NAdG05xgKvO1LZASVf36AOT20f+0JKcl1aPPEsdAY/E=
+			UQHdBRNxvtgX72SJgcM4gQ+SwiNMiP3FLJJao41FUO4=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_kws.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			hTcKF8r6Wz93+Y/4M3BzDpBJvDo=
+			wlj7nEm/SaJXeNLzJfV6dlBeLTQ=
 			</data>
 			<key>hash2</key>
 			<data>
-			eIkEqq9Y1mVI6l2TM1syjhdeExtFV0o1hUuU1dWvbnk=
+			XrYi7yLDmwMKMUsLDSpLPJeABVChGc32KYmIgv+Na6M=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_kws_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			QM88mmHdZhpVdZf7rulfz6VyRII=
+			Mk7u3gUXZKyAlJPxP8Mu3thmiyQ=
 			</data>
 			<key>hash2</key>
 			<data>
-			b63+MhH2kl65QQwmFbznwn6JiBkm2fNLmex4vxIYyc8=
+			FkX1je4o4knt4v6TLn7iS0EaOG9MN3hFWJIcPzNfO0I=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_leaderboards.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			SxjzoWuQONTwCLl2nqrF9PaD8xA=
+			2aw2lqQOWi1R7HCxD8Dsz9PF2Rc=
 			</data>
 			<key>hash2</key>
 			<data>
-			iOTg5819E9PzsmFsZHd0tvXlybVw2+APXllrUlQtMOk=
+			r5+PbZmTHchR5udIglElMYC7BccKSpn8ikXP1BW/e/s=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_leaderboards_types.h</key>
@@ -702,44 +710,55 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			7ofXD32XWgM7NNUgiFSmFmVKc/M=
+			568WqQ7Ai0aPP2oXG+CzTvhLuS8=
 			</data>
 			<key>hash2</key>
 			<data>
-			7VKzVwpPMlwEFLWVUszyt9V3DvzhF4+DKYSbq0X9Iv8=
+			qQT7ARWt/bK2BVtHl5feGcXYCRjb5vi1t43TfHHRWYU=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_lobby_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			YoKOeU4zhzqIUc3dhRLEpAp3ZD0=
+			EJyTwfCIH6ofa3x6FSjm2VxC1gA=
 			</data>
 			<key>hash2</key>
 			<data>
-			oYJuUXXHTo0tBzAkEbyoxLP+h/X55EctNoVq7MDcqXA=
+			vQbMTWanP3wTiRN7uVtaiY9KULKT6FmudjqDICtWzoo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_logging.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			9r7KxdCSGaeQOhZii6um3y0GFJ4=
+			svPtT9wRJu9JDDzwOiaCXIdhiD0=
 			</data>
 			<key>hash2</key>
 			<data>
-			9t8/9m/iF7QVLKPSPkyz4CeiHaiIaeztDqZwxvKCPFk=
+			3eOV2eOx6m/9w50P9EMz5UQfvfirVBkU7P/Pw4xeT6Q=
+			</data>
+		</dict>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_logging_categories.h</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			R/qKP0xP0hyu9JA//WhANsi1Gho=
+			</data>
+			<key>hash2</key>
+			<data>
+			k+o18dHyaH0UdRmm1IjkY1EHNVjvveHaAc3pIL8LgfE=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_metrics.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			N/YKy/1NxUtHjHOeUEjGNkWDNV8=
+			ZbeH2T9Pq7DIagoQLGx2VSolX8E=
 			</data>
 			<key>hash2</key>
 			<data>
-			vpmgMuZk62Se1ebixX4IfWn7PKSO8UXJGq6efAcW9j4=
+			I6b6jmgweLE1B8P67kHSBIPdEomlWDOvc5pQ3JEKJqg=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_metrics_types.h</key>
@@ -757,11 +776,11 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			DoszYaMx2tdzzJXPx1eBrpKb4Zw=
+			2XzWhuECt0RCJCgTGu8PzsfVJ5U=
 			</data>
 			<key>hash2</key>
 			<data>
-			PEaAJfHb5neVlmVDtZlFXxsQK6ogEe3rI9SCacWvpAo=
+			mwJofxIf9byk0JUR+pUzv+Wyd7v/PyS60NVKZkQUr4w=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_mods_types.h</key>
@@ -779,22 +798,22 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			2Sj3SVJcC+P4CApTQylZTp0HamE=
+			UeV8nm9wL8ROm+NixyR35zPJAtw=
 			</data>
 			<key>hash2</key>
 			<data>
-			oUfJ3usMO3Ir5bCwrr3MQF77110CpZUlLEdiQSIhGiM=
+			UfOPSZvQ/DjKXsSS3ygkVlCcELSM6fbx0s9ew6BqwDA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_p2p_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			2Qd03hMYDCiXUhyDhZdXKyzeMdQ=
+			G/s1XYoWDgNRmggLJaOVqz1ISTM=
 			</data>
 			<key>hash2</key>
 			<data>
-			id7tJ++dietOA70AnT2jYkbFvK/RHvuNQjxId4ktPf8=
+			niiJo3Fv56Lt/X+6GgT+QVL0DPKdW18e8QjqByWymh8=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_platform_prereqs.h</key>
@@ -812,77 +831,88 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			Py89v2Mw2oBCEsyGOmPs1wUteX0=
+			1KYKjbH3Nh0m8cqTztRnDRM84o8=
 			</data>
 			<key>hash2</key>
 			<data>
-			8mmlZwP2wnlxcV0MB8A0seJBjMWzNfnpCd8dbM1vgSY=
+			FVWotwCsrNQiGOJuJYTLal2ydtjYrjHh928ukFcesqE=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_playerdatastorage_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Jq5om/KOvR9177sTFm4F2QucTqs=
+			hTd9iL6v9PN86NkQ3AvWVkpsF08=
 			</data>
 			<key>hash2</key>
 			<data>
-			eX1yahAnkX1s4oE6JXh2LDyhS8v5dtc+Dl0sAAM+eyw=
+			FMFifCC3jckibPzKKNeWC0G0/ShB2hesDF3fRyXJZ80=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Qf0zcpNxyI5CJL6hPGnIOP8xWn4=
+			e7yg/AQzboQ2ORTyhh1BQLVYzn4=
 			</data>
 			<key>hash2</key>
 			<data>
-			3VanZ3dO0KH7rj471bP4kWE7kgwjjG29mNbSQiJ9Cmo=
+			Zn+YlJq5olRjJr8tmRRxN/rpP6jV1PNk6Yj0BnSnPVI=
+			</data>
+		</dict>
+		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence_localized_types.h</key>
+		<dict>
+			<key>hash</key>
+			<data>
+			nNZ2hKmYtmUpFtgF1FvegokuEbs=
+			</data>
+			<key>hash2</key>
+			<data>
+			P0uiqVVPDerYfNp46DHQRv4gW8rYHphfrzIZ51SXXRU=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_presence_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			Po1dPegMh5nrg0BZzC11IqBiJMY=
+			cH16HoSEj1otmveD4IM878T3lio=
 			</data>
 			<key>hash2</key>
 			<data>
-			3bIa2+t5HtUZdE7fihsiW9YgDJZTg74THVSiRi2xxnA=
+			evBm4pKPmdmukiaXGVmrCJvHVhSaoS1iyinoPo5fqnw=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_progressionsnapshot.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			UO332C0hm/OGoZ3DUSn+S0fSipY=
+			+ezQ9Lt7RljDar4ViwJFmYkm0dQ=
 			</data>
 			<key>hash2</key>
 			<data>
-			387qh/lnlI7Zrd7l+hrOjC8dbKyeNXEw+CyPcr+rsso=
+			eGNdRrpKKK+E0dRtWem1ofxWPomUlxWKOZMcAR58y/Y=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_progressionsnapshot_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			v5GWsXTO7687bA/Zvn9ki1myrts=
+			XrekjifXybE0H1GFywIrW4bqBPQ=
 			</data>
 			<key>hash2</key>
 			<data>
-			tc8F270Wn71p3SOWNYaCEw4jGzNY5O7V1GzB9as4diY=
+			0T4HAWeLM6GH3Y4oaqrPjlGHGOGm+33dL8XHCpMXomo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_reports.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			ASyVMV9SrKzrCoJyV5OxnoSgBzw=
+			1GaOM9S2d2VaPC1OFVUWPn7fL3E=
 			</data>
 			<key>hash2</key>
 			<data>
-			OPE/57AZQq8VGf2qkcPl60kxqkVRl2YKWYjhLYlqtF4=
+			tWF77+zDdl0edbdM9FVs0EQ68NpClRJpos6YFbqXucI=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_reports_types.h</key>
@@ -900,66 +930,66 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			0OPLfZkCNh6q2M9Li/8iIUnQ1KQ=
+			Bl/8vB4C0nr25gW7fzRT02gTmi4=
 			</data>
 			<key>hash2</key>
 			<data>
-			v9qTcfkrJgSIt2PF3/q94hIh/9jppZKOBD7B+ui+6yY=
+			nJehaTozKD6rVdVQPOGyi9WamZ4WJNGsWbJXnQsesWM=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			tVetJeJQ+Syevyqn34S15LRv+vQ=
+			3ucibO5sNwHqaKjcB4Ub5t6sr4g=
 			</data>
 			<key>hash2</key>
 			<data>
-			pCa2hwUli5GYBfX2HLP2qTvoMM+yJ9Q5IZwuBAp09i8=
+			oKuEX7/84BHb+1xYeQ+WBa62r0S2ml7HxjQouP3wFVY=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_admin.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			VuTncBr9a/DVlW//F+LHixPIqwk=
+			a2y8sy50YH4Hy9ZvSnefcxCdGSA=
 			</data>
 			<key>hash2</key>
 			<data>
-			V2SCEs5Z0BsaspH1XFSz9hG6btnWtHJIA7yDRjmlEY4=
+			ibmC40nvOQa0AKlt3pEAQs00f9muu/MzFB6JOBtF5Ms=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_admin_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			ev7FuBzHvmO0EdtELHjjX2Rb4z0=
+			Ek/IeMEVWa/up19c23yH23J7x+I=
 			</data>
 			<key>hash2</key>
 			<data>
-			1ZXH32I9m1QMdcKfIOhhnMTEHmejCXW8qKX3OIFMi4A=
+			O9+vVJpOhu00r1dRaTJL/kHF8LB6iIl2WuoUvD6XQVA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			x7+9qG0VFiy+KDQazICvAs++W4o=
+			4g5p7ZFtIbTsEOj31lXvZpvmao0=
 			</data>
 			<key>hash2</key>
 			<data>
-			TnKkpaReHjv2R9bHewxtUfxsoObaNn7c3dK+ScxV5Ac=
+			820mo2jaqzZAPIkjYRt8Lj7H5V/R1LIROAjj1cA8cyo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			5haMIvuNhXqcnKBf9ZYXXjK2Orw=
+			kYxbItQJl6jRsska9/sjKzYUi98=
 			</data>
 			<key>hash2</key>
 			<data>
-			B22hETJ/7BfmEc6ImeVuokq6ayoJLqCb4Ep2SAr6OXY=
+			cAmUwtqCit2WfaEpwwBbccde6i9iJM3FsGhPcHM3Qh4=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_audio_types_deprecated.inl</key>
@@ -977,44 +1007,44 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			4y9dm11wWcWXqYBlRHZ8gTCKTYI=
+			Hz+m965yQqW6miogCfsjAliinFo=
 			</data>
 			<key>hash2</key>
 			<data>
-			YQci9ImQqK/cPEdBZ6lX+3vmG0CDryCeTYSshGQ7pak=
+			I9e9eIweTSdArBHYwzLzg6Ty/HtNaIsdCXRIyWxvLq0=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_data_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			wEvemjKyPCJrDb1q3jHGoUQfqOs=
+			rGP9IEXTtFh1BkqtuqVtCyXkDLU=
 			</data>
 			<key>hash2</key>
 			<data>
-			ajnXzdRQGZXhZxEHtUhufy/uE4SjdMHBMKgIupr8s+M=
+			s27ZukcPATiY7F25Hv3WTH1U0nfy1OQD/VcaQYpM6Q0=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_rtc_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			TozKG14Nsy5/h6kmR7o9cH75+0c=
+			ai5RDr9idsu8fzCllQO3K0IQCSk=
 			</data>
 			<key>hash2</key>
 			<data>
-			FfNB7P0HiHZc4z+Q2W6DVPqLynH051OORY/N5blmTsg=
+			orqLk18ILQOTEmKfI6GOFsb47Y+1xJDFDnGHj/dcToY=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sanctions.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			MAZy8eYQHkfIDcVC5KajwqaKV5g=
+			ksRy0ueRpugUpxc+rRZPdANoxk0=
 			</data>
 			<key>hash2</key>
 			<data>
-			WGKG4AT/eRyks6KA0sj8Pi5iPad6F2vEuKqO9Ksljgk=
+			u+72YLKIKrikHjVYPKN6SKlg707mDg6uU/iu05HHr70=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sanctions_types.h</key>
@@ -1032,66 +1062,66 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			cZZvrWC7WivtC8z/0eEfwRm8UPw=
+			B08N5BmhFnDoQqPfMOQV20Dxw0U=
 			</data>
 			<key>hash2</key>
 			<data>
-			ZwI+S7vhjwr0rhGwY32/q1Yp18MNJGjgve/2L6VX2Kw=
+			wbpE4b5rH5TwHqFjrUIIKdKYWZ5LabhDmS1ybMUHxJ4=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sessions.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			X5inA+4Qy0hvnE5loqI9sFmyqOQ=
+			kGbIXNWND35XCANjDzUUGBxNvTA=
 			</data>
 			<key>hash2</key>
 			<data>
-			FIAdnc8Ol74KlUcr0OOl5JJjMIxfbDmvol7h8u9Twr8=
+			a0wdH/5yr39lh2lMhqTSJMSHXKhtCuvHAe46P8u0kbA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_sessions_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			+SwlV7j+HYLlg0I9sEV+qlHyjnI=
+			20j13Q+WT3cx7yv1nzspON98HGw=
 			</data>
 			<key>hash2</key>
 			<data>
-			90s/tKZuIYYA7TPeCfCN92G1lSaPvjQFYFPT5VClQpA=
+			nGnylgfsktj9ubRa4TVpJDGF8bjdAgHmGp4uTjmHjrk=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_stats.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			mmfxvvMOViE50m6Q7LNZFG+IqT4=
+			9ZfsYa0Ge8Vn8WmgTAK24jjlQ/s=
 			</data>
 			<key>hash2</key>
 			<data>
-			WT6mEEABF7IUdbB3zghbfNxXxflT+BVrayHKtYfxmPU=
+			Cy2v8zbNmPbpf3Qjhh5WVyZ/bfD7Cd60BbS+LT8svuc=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_stats_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			QsBK1nzWprGOlaAmIORwEamyTLE=
+			hgG0sKOvG3kC6uiZi56Ncqq1eVA=
 			</data>
 			<key>hash2</key>
 			<data>
-			FhJgGhOEjvFO7XzHvMxIQ1Fxg5PPsfpgKk8IeEdrRnM=
+			Ty1Z0NgCDQ8nCb8+m2ErAVVr6V9g0juSOoJyyQmAUIQ=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_titlestorage.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			cPYSKBjadS7CNKkpeXzebhNwwog=
+			wQckwfKkBUWwm/keF4emOKXUGfg=
 			</data>
 			<key>hash2</key>
 			<data>
-			sr+icTkQ+0XGhG4uRuj93laIQlGbfoqDMMEeBCkBphM=
+			4ucu4gBJM5r9mrM2Ct8moguBvNdiYlQ+JaOp8v/RVyo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_titlestorage_types.h</key>
@@ -1109,22 +1139,22 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			aDTK9Cn/OQ4d0ci0jvuQED+i0pw=
+			8TPS8XKcxOwk1ykg6CA4INqUOGA=
 			</data>
 			<key>hash2</key>
 			<data>
-			pZAY0YDrsX/0n+CSB/PDPebQ9mFex9hx9Gwc/s7VSPU=
+			VZ6UGGc3pNAxhl74wB2CZWhvqu/RTK3Fy+MLSWvKric=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			uapbZ2hiTtOKqTfd6L1b43jRQWM=
+			3Lad3Ic4BizrD8I0ociXV8esot8=
 			</data>
 			<key>hash2</key>
 			<data>
-			o2aI5wJevXPkrhrVzhrp/kdsFUrFceAdwH8lY/PKH0g=
+			8r/xEZdfkK/NXziga69Sz6KerPfWRJg1P8C/ETzcDNA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui_buttons.h</key>
@@ -1142,44 +1172,44 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			hxlwpE4JlZmXlfC0t4MJQ1z18Qw=
+			FsbNm+HKn/8CjhFwUuKx2Px0Rn4=
 			</data>
 			<key>hash2</key>
 			<data>
-			XYxdmUXprfAkKx7oCdL1AelA3RHczVgb6PPuDQYhz/E=
+			AtTgCStA9g7YKrKpNEjYlBq08UZW8crwvhowmwuVZBo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_ui_types.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			s7JZUOYHjrgQJ1vUpbeb5wElx0k=
+			nNeZnhodaBVRxVghMN/as3l1f6Y=
 			</data>
 			<key>hash2</key>
 			<data>
-			wbnWZTRfWnQ/yzBpg/r1DRccgOkV70y7NlrUpiaCC+M=
+			bEf7RedhnR94mrsGyLniDUC5J3z94qlVuyv4/oopDwo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_umbrella.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			NAASn0/vNfPXUwcjocpZRO1epIc=
+			IbkIL2/ekaUwx1704yyvXPSToc8=
 			</data>
 			<key>hash2</key>
 			<data>
-			/h8yFeHxzkAm2pKmq34crHUWdr5KnsiX8g92sfkv1vY=
+			LEJVvBKkV+STG9fyJRRcK0hc9SZwv5ZggbZM1zm75AA=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_userinfo.h</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			OkFYrbjRNDJxJGWuz+VNn4tDL5s=
+			Sf3iuqTRRg2gMvhuCDcowy365+c=
 			</data>
 			<key>hash2</key>
 			<data>
-			0ZG/ET3D+dN0dzIPsJt4n9EzZjsLYvmUZ7TTdEDMbVM=
+			s2khYDOruZTAk4Zg/DAeGQy8oQiCfwB3O5RqzpOUY+M=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Headers/eos_userinfo_types.h</key>
@@ -1197,33 +1227,33 @@
 		<dict>
 			<key>hash</key>
 			<data>
-			RhBWzGm3hsRfV+OnZj3Fu8rAmcU=
+			Pn46YyxpkMARcwJeUql45huI+2Y=
 			</data>
 			<key>hash2</key>
 			<data>
-			U/wLd0Joqd0ZWrvZRGOB0+kXysbhaHYfNtzw9U1KfCs=
+			UiIaPmPwYTyRCnPmyK3uy38W1kxPTfh/tnJ3Q4wrGXQ=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Info.plist</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			myarHj8Gak9AuhW2zhhxU6CpRls=
+			ovENT/49GeVhPB/AON16lPSQBCA=
 			</data>
 			<key>hash2</key>
 			<data>
-			0bu8D3AaM3i+9x2LvFqyqmuo+GfReNBT0hscPSdm8cg=
+			ueDlS+zIvW3UjZqMBqIWR/hK4t1JQsUnbll7pbJWec4=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/Modules/module.modulemap</key>
 		<dict>
 			<key>hash</key>
 			<data>
-			GWEaUMdaUM1WXSF1OW1RKWujJqU=
+			sNFL6pX7Tdue3S4ZUKnP7LhBOdU=
 			</data>
 			<key>hash2</key>
 			<data>
-			3cOK4IyAI13MVJmI6eCc7cT1DzO1/fo6gKTyg/GwCn8=
+			0XDnX+ipIxIJkmU2HB8OCmV8PwLlZA0FaNDb4NAwcWo=
 			</data>
 		</dict>
 		<key>ios-arm64/EOSSDK.framework/PrivacyInfo.xcprivacy</key>
