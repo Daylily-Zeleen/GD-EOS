@@ -161,6 +161,7 @@ jobs:
           repository: Daylily-Zeleen/eos-sdk
           path: thirdparty/eos-sdk
           ref: main
+          lfs: true
 
       # ─── SDK Version Check ─────────────────────────────────────────────────
       - name: Check EOS SDK version
