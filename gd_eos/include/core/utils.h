@@ -1009,24 +1009,27 @@ void *get_system_initialize_options();
 
 } //namespace godot::eos
 
-#define _CODE_SNIPPET_LOCAL_ID_DECLARE(gd_id_type)                                                                                                                                     \
-private:                                                                                                                                                                               \
-    static Ref<gd_id_type> local_user_id;                                                                                                                                              \
-                                                                                                                                                                                       \
-public:                                                                                                                                                                                \
-    _FORCE_INLINE_ static auto get_local() { return local_user_id; }                                                                                                                   \
-                                                                                                                                                                                       \
-    _FORCE_INLINE_ static void _set_local(decltype(gd_id_type::m_handle) p_other) { local_user_id->set_handle(p_other); }                                                              \
-    _FORCE_INLINE_ static auto _get_local_native() { return local_user_id->get_handle(); }                                                                                             \
-    _FORCE_INLINE_ static bool _is_valid_local_id(decltype(gd_id_type::m_handle) p_other) { return local_user_id->get_handle() == nullptr || local_user_id->get_handle() == p_other; } \
-    static void _init_local() {                                                                                                                                                        \
-        ERR_FAIL_COND(local_user_id.is_valid());                                                                                                                                       \
-        local_user_id.instantiate();                                                                                                                                                   \
-    }                                                                                                                                                                                  \
-    static void _deinit_local() {                                                                                                                                                      \
-        ERR_FAIL_NULL(local_user_id);                                                                                                                                                  \
-        local_user_id.unref();                                                                                                                                                         \
-    }
+#define _CODE_SNIPPET_LOCAL_ID_DECLARE(gd_id_type)                                                                              \
+private:                                                                                                                        \
+    static Ref<gd_id_type> local_user_id;                                                                                       \
+    ~gd_id_type() {                                                                                                             \
+        if (m_handle) {                                                                                                         \
+            internal::HandleCache::remove(m_handle);                                                                            \
+        }                                                                                                                       \
+    }                                                                                                                           \
+                                                                                                                                \
+public:                                                                                                                         \
+    _FORCE_INLINE_ static auto get_local() { return local_user_id; }                                                            \
+                                                                                                                                \
+    _FORCE_INLINE_ static void _set_local(decltype(gd_id_type::m_handle) p_other) {                                             \
+        if (p_other) {                                                                                                          \
+            local_user_id = internal::HandleCache::get<decltype(gd_id_type::m_handle), gd_id_type>(p_other);                    \
+        } else {                                                                                                                \
+            local_user_id.unref();                                                                                              \
+        }                                                                                                                       \
+    }                                                                                                                           \
+    _FORCE_INLINE_ static auto _get_local_native() { return local_user_id.is_valid() ? local_user_id->get_handle() : nullptr; } \
+    _FORCE_INLINE_ static bool _is_valid_local_id(decltype(gd_id_type::m_handle) p_other) { return local_user_id.is_null() || local_user_id->get_handle() == nullptr || local_user_id->get_handle() == p_other; }
 
 #define _CODE_SNIPPET_LOCAL_ID_DEFINE(eos_id_type) \
     Ref<eos_id_type> eos_id_type::local_user_id;
