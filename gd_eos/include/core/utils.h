@@ -763,7 +763,7 @@ inline void _convert_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Loca
     eos_field##Type = gd_field##_type;
 
 // 绑定
-#define _MAKE_PROP_INFO(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
+#define _MAKE_PROP_INFO_OBJ(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
 #define _MAKE_PROP_INFO_TYPED_ARR(m_class, m_name) PropertyInfo(Variant::ARRAY, #m_name, PROPERTY_HINT_ARRAY_TYPE, m_class::get_class_static())
 #define _MAKE_PROP_INFO_ENUM(m_name, enum_owner, enum_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_CLASS_IS_ENUM, #enum_owner "." #enum_type)
 

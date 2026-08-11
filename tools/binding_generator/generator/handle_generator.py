@@ -960,7 +960,7 @@ def _gen_callback(
 
     signal_name: str = convert_to_signal_name(callback_type)
     if not is_expanded_struct(decayed_arg_type):
-        r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO({convert_to_struct_class(decayed_arg_type)}, {to_snake_case(arg_name)})));')
+        r_bind_signal_lines.append(f'\tADD_SIGNAL(MethodInfo("{signal_name}", _MAKE_PROP_INFO_OBJ({convert_to_struct_class(decayed_arg_type)}, {to_snake_case(arg_name)})));')
         gd_cb_info_type: str = remap_type(decayed_arg_type, arg_name).removeprefix("Ref<").removesuffix(">")
         ret: str = ""
         if callback_type == "EOS_IntegratedPlatform_OnUserPreLogoutCallback":
@@ -1028,7 +1028,7 @@ def _gen_callback(
                 signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {get_enum_owned_interface(field_type)}, {convert_enum_type(field_type)})"
             elif is_pure_handle_type(decayed_field_type):
                 ret += f"_EXPAND_TO_GODOT_VAL_PURE_HANDLE(data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({remap_type(field_type, field, struct_name=decayed_arg_type)}, {snake_case_field})"
+                signal_bind_args += f"_MAKE_PROP_INFO_OBJ({remap_type(field_type, field, struct_name=decayed_arg_type)}, {snake_case_field})"
             elif is_socket_id_type(decayed_field_type, field):
                 ret += f"String(data->{field}.SocketName)"
                 signal_bind_args += f'PropertyInfo(Variant::STRING, "{snake_case_field}")'
@@ -1043,13 +1043,13 @@ def _gen_callback(
                 signal_bind_args += f'PropertyInfo(Variant::ARRAY, "{snake_case_field}", PROPERTY_HINT_ARRAY_TYPE, "{convert_to_struct_class(decayed_field_type)}")'
             elif is_internal_struct_field(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_STRUCT({remap_type(decayed_field_type, field, struct_name=decayed_arg_type)}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({convert_to_struct_class(decayed_field_type)}, {snake_case_field})"
+                signal_bind_args += f"_MAKE_PROP_INFO_OBJ({convert_to_struct_class(decayed_field_type)}, {snake_case_field})"
             elif is_handle_arr_type(field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_HANDLER_ARR({convert_handle_class_name(decayed_field_type)}, data->{field}, {find_count_field(field, fields.keys())})"
                 signal_bind_args += f"_MAKE_PROP_INFO_TYPED_ARR({convert_handle_class_name(decayed_field_type)}, {snake_case_field})"
             elif is_handle_type(decayed_field_type, field):
                 ret += f"_EXPAND_TO_GODOT_VAL_HANDLER({convert_handle_class_name(decayed_field_type)}, data->{field})"
-                signal_bind_args += f"_MAKE_PROP_INFO({convert_handle_class_name(decayed_field_type)}, {snake_case_field})"
+                signal_bind_args += f"_MAKE_PROP_INFO_OBJ({convert_handle_class_name(decayed_field_type)}, {snake_case_field})"
             elif is_arr_field(field_type, field, decayed_arg_type):
                 ret += (
                     f"_EXPAND_TO_GODOT_VAL_ARR({remap_type(field_type, field, struct_name=decayed_arg_type)}, data->{field}, data->{find_count_field(field, fields.keys())})"
