@@ -1149,7 +1149,7 @@ def _expand_input_struct(
             r_prepare_lines.append(
                 f'\t\tERR_PRINT(vformat("EOS: Socket name \\"%s\\"\'s length is greater than %d (in ASCII), will be truncated.", p_{snake_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));'
             )
-            r_prepare_lines.append(f"\t\tascii_{snake_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+            r_prepare_lines.append(f"\t\tinternal::resize_char_string(ascii_{snake_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
             r_prepare_lines.append(f"\t\tascii_{snake_field}.set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);")
             r_prepare_lines.append("\t}")
             r_prepare_lines.append(f"\tEOS_P2P_SocketId {field};")

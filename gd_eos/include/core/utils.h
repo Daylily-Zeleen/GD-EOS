@@ -23,6 +23,7 @@
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
+#include <godot_cpp/core/version.hpp>
 
 namespace godot::eos {
 
@@ -45,6 +46,16 @@ handle_int_t<T> handle_to_int(T p_handle) { return reinterpret_cast<handle_int_t
 } //namespace godot::eos
 
 namespace godot::eos::internal {
+
+template<typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize), void>> *_dummy= nullptr>
+void resize_char_string(CharStringTy &p_char_string, SizeTy p_size) {
+    p_char_string.resize(p_size);
+}
+
+template<typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize_uninitialized), void>> *_dummy= nullptr>
+void resize_char_string(CharStringTy &p_char_string, SizeTy p_size) {
+    p_char_string.resize_uninitialized(p_size);
+}
 
 using HandleIntPtr = std::conditional_t<sizeof(EOS_HPlatform) == sizeof(uint64_t), uint64_t, uint32_t>;
 
@@ -137,7 +148,7 @@ public:
         auto ascii = p_val.ascii();                                                                                                                                \
         if ((ascii).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (ascii).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
             ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            (ascii).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            resize_char_string((ascii), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
             (ascii).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
         }                                                                                                                                                          \
         memset(&(field).SocketName[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                       \
@@ -150,7 +161,7 @@ public:
         field = p_val.ascii();                                                                                                                                     \
         if ((field).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (field).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
             ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            (field).resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            resize_char_string((field), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
             (field).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
         }                                                                                                                                                          \
     }
@@ -515,7 +526,7 @@ inline void to_eos_type_out(gd_arg_t<From> p_from, To &r_to) {
 template <>
 inline void to_eos_type_out<const CharString &, eos_p2p_socketid_socked_name_t>(const CharString &p_from, eos_p2p_socketid_socked_name_t &r_to) {
     if (p_from.size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && p_from.get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {
-        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", String(p_from), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
+        WARN_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", String(p_from.ptr()), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));
     }
     memset(&r_to[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);
     memcpy(&r_to[0], p_from.ptr(), MIN(p_from.size(), EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1));

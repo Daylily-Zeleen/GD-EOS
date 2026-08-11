@@ -379,7 +379,7 @@ def _gen_struct(
                 if additional_methods_requirements["set_to"]:
                     r_structs_cpp.append(f"\tmemcpy(&{snake_case_field}.SocketName[0], &p_origin.{field}.SocketName[0], EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
                 else:
-                    r_structs_cpp.append(f"\t{snake_case_field}.resize(EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
+                    r_structs_cpp.append(f"\tinternal::resize_char_string({snake_case_field}, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);")
                     r_structs_cpp.append(f"\t{snake_case_field} = p_origin.{field}->SocketName;")
             elif is_str_type(field_type, field):
                 assert_condition(not field.startswith("SocketName"), "[struct_generator] EOS_P2P_SocketId 不应被包装为 Godot 类")

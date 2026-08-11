@@ -305,7 +305,7 @@ bool EOSPacketPeerMediator::next_packet_is_peer_id_packet(const String &socket_i
     ERR_FAIL_COND_V_MSG(!socket_packet_queues.has(socket_id), false, "Failed to check next packet. Socket \"%s\" does not exist.");
     if (socket_packet_queues[socket_id].size() == 0)
         return false;
-    const SharedPtr<PacketData> &packet = socket_packet_queues[socket_id][0];
+    const SharedPtr<PacketData> &packet = socket_packet_queues[socket_id].front()->get();
     uint8_t event = packet->get_data().ptr()[EOSMultiplayerPeer::INDEX_EVENT_TYPE];
 
     return event == EOSMultiplayerPeer::EVENT_RECEIVE_PEER_ID;
