@@ -25,6 +25,7 @@ _hint_keys = [
     "min_field_count_to_expand_input_structs",
     "min_field_count_to_expand_callback_structs",
     "assume_only_one_local_user",
+    "generate_eos_bindings",
 ]
 _hint = ", ".join(f"'{k}'" for k in _hint_keys if k in ARGUMENTS)
 if _hint:

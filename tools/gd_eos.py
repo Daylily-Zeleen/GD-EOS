@@ -49,6 +49,13 @@ def options(opts, _env):
             default=False,
         )
     )
+    opts.Add(
+        BoolVariable(
+            key="generate_eos_bindings",
+            help='If true, generate EOS bindings.',
+            default=True,
+        )
+    )
 
 
 def get_sdk_version() -> tuple[int, int, int, int]:
@@ -109,7 +116,8 @@ def _generate_bindings(env: Environment) -> tuple[list[str], list[str]]:
         generate_config.min_field_count_to_expand_input_structs = int(env["min_field_count_to_expand_input_structs"])
         generate_config.min_field_count_to_expand_callback_structs = int(env["min_field_count_to_expand_callback_structs"])
         generate_config.assume_only_one_local_user = env["assume_only_one_local_user"]
-        binding_generator.generate_bindings()
+        if env["generate_eos_bindings"]:
+            binding_generator.generate_bindings()
     return _get_generated_files()
 
 
