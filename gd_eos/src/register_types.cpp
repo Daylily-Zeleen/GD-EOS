@@ -6,7 +6,7 @@
 #include "eos_packet_peer_mediator.h"
 #endif // !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
 
-#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
+#if false && (defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)) // 不需要导出插件进行文件导出，仅做备份
 #include <editor/eos_editor_plugin.h>
 #include <godot_cpp/classes/editor_plugin_registration.hpp>
 #endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
@@ -17,7 +17,7 @@ void initialize_gdeos_module(ModuleInitializationLevel p_level) {
 #if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         godot::eos::setup_eos_project_settings();
-#ifdef false
+#ifdef false // 不需要导出插件进行文件导出，仅做备份
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSExportPlugin);
         GDREGISTER_INTERNAL_CLASS(godot::eos::editor::EOSEditorPlugin);
         EditorPlugins::add_by_type<godot::eos::editor::EOSEditorPlugin>();

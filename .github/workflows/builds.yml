@@ -205,13 +205,13 @@ jobs:
         if: "matrix.platform != 'ios' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
         shell: sh
         run: |
-          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
 
       - name: (iOS) Compile extension
         if: matrix.platform == 'ios'
         shell: sh
         run: |
-          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
           chmod +x ./tools/postprocess_ios.sh
           ./tools/postprocess_ios.sh target=${{ matrix.target }}
 

@@ -33,7 +33,7 @@ runs:
       if: ${{ inputs.force_compile }}
       shell: sh
       run: |
-        scons target=template_debug ${{ inputs.sconsflags }}
+        scons target=template_debug ${{ inputs.sconsflags }} build_profile=./build_profile.json
 
     - name: (Windows) Download Godot and generate documents
       if: ${{ inputs.host_platform == 'windows' }}
@@ -76,4 +76,4 @@ runs:
     - name: Compile extension with documents
       shell: sh
       run: |
-        scons target=template_debug platform=${{ inputs.platform }} arch=${{ inputs.arch }} ${{ inputs.sconsflags }}
+        scons target=template_debug platform=${{ inputs.platform }} arch=${{ inputs.arch }} ${{ inputs.sconsflags }} build_profile=./build_profile.json
