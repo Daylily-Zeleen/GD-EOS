@@ -226,10 +226,12 @@ static Variant::Type get_variant_type() {
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(get_variant_type<decltype(_BINDING_CLASS::field)>(), #field), "set_" #field, "get_" #field);
 
-#define _BIND_PROP_FLAGS(field)                                                         \
-    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
-    ADD_PROPERTY(PropertyInfo(Variant::INT, #field), "set_" #field, "get_" #field);
+#define _BIND_PROP_BITFIELD(field, bitfield_owner, bitfield_type)                                                \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                              \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                       \
+    ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_CLASS_IS_BITFIELD, \
+                              #bitfield_owner "." #bitfield_type),                                            \
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_STRUCT_PTR(field, struct_ty)                                         \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
@@ -766,6 +768,7 @@ inline void _convert_to_eos_handle_vector(const TypedArray<GDFrom> &p_from, Loca
 #define _MAKE_PROP_INFO_OBJ(m_class, m_name) PropertyInfo(Variant::OBJECT, #m_name, {}, "", PROPERTY_USAGE_DEFAULT, m_class::get_class_static())
 #define _MAKE_PROP_INFO_TYPED_ARR(m_class, m_name) PropertyInfo(Variant::ARRAY, #m_name, PROPERTY_HINT_ARRAY_TYPE, m_class::get_class_static())
 #define _MAKE_PROP_INFO_ENUM(m_name, enum_owner, enum_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_CLASS_IS_ENUM, #enum_owner "." #enum_type)
+#define _MAKE_PROP_INFO_BITFIELD(m_name, bitfield_owner, bitfield_type) PropertyInfo(Variant::INT, #m_name, {}, "", PROPERTY_USAGE_CLASS_IS_BITFIELD, #bitfield_owner "." #bitfield_type)
 
 // 展开转换
 template <typename GDDataClass, typename EOSArrayTy, typename TInt>

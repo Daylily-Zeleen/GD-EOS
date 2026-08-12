@@ -1020,11 +1020,11 @@ def _gen_callback(
                 ret += ",\n\t\t\t"
                 signal_bind_args += ", "
 
-            if is_enum_type(field_type):
-                if is_enum_flags_type(field_type):
-                    ret += f"_EXPAND_TO_GODOT_VAL_FLAGS({remap_type(field_type, field, struct_name=decayed_arg_type)}, data->{field})"
-                else:
-                    ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type, field, struct_name=decayed_arg_type)}, data->{field})"
+            if is_enum_flags_type(field_type):
+                ret += f"_EXPAND_TO_GODOT_VAL_FLAGS({remap_type(field_type, field, struct_name=decayed_arg_type)}, data->{field})"
+                signal_bind_args += f"_MAKE_PROP_INFO_BITFIELD({snake_case_field}, {get_enum_owned_interface(field_type)}, {convert_enum_type(field_type)})"
+            elif is_enum_type(field_type):
+                ret += f"_EXPAND_TO_GODOT_VAL({remap_type(field_type, field, struct_name=decayed_arg_type)}, data->{field})"
                 signal_bind_args += f"_MAKE_PROP_INFO_ENUM({snake_case_field}, {get_enum_owned_interface(field_type)}, {convert_enum_type(field_type)})"
             elif is_pure_handle_type(decayed_field_type):
                 ret += f"_EXPAND_TO_GODOT_VAL_PURE_HANDLE(data->{field})"
@@ -1330,7 +1330,7 @@ def _make_packed_result(
             else:
                 r_return_type_if_convert_to_return.append("String")
                 body_lines.append(f"{acl_indents}String ret{{ &{arg_name}.SocketName[0] }};")
-        elif is_enum_type(decayed_type):
+        elif is_enum_type(decayed_type, False):
             r_prepare_lines.append(f"\t{convert_enum_type(decayed_type)} {arg_name};")
             r_call_args.append(f"&{arg_name}")
 

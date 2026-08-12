@@ -17,7 +17,7 @@ from binding_generator.context import (
     unhandled_methods,
     variant_unions,
 )
-from binding_generator.models import Arg, Callback, EnumMember, Method, StructField, VariantUnionField, VariantUnionInfo
+from binding_generator.models import Callback, EnumMember, StructField, VariantUnionField, VariantUnionInfo
 from binding_generator.utils.naming import (
     convert_handle_class_name,
     convert_to_struct_class,
@@ -27,7 +27,10 @@ from binding_generator.utils.naming import (
 )
 
 
-def is_enum_type(type: str) -> bool:
+def is_enum_type(type: str, pure_enum: bool = True) -> bool:
+    if pure_enum and (type.endswith("Flags") or type.endswith("Combination")):
+        return False
+
     for h in handles:
         if type in handles[h].enums:
             return True
@@ -35,6 +38,10 @@ def is_enum_type(type: str) -> bool:
         print(f"[type] 警告: 枚举类型 '{type}' 未被处理")
         return True
     return False
+
+
+def is_enum_flags_type(type: str) -> bool:
+    return is_enum_type(type, False) and (type.endswith("Flags") or type.endswith("Combination"))
 
 
 def is_handle_type(type: str, field: str = "") -> bool:
@@ -441,7 +448,7 @@ def is_internal_platform_specific_field(field: str) -> bool:
 
 
 def remap_type(type: str, field: str = "", forward_declare: bool = False, struct_name: str = "") -> str:
-    if is_enum_type(type):
+    if is_enum_type(type, False):
         return type
     if is_struct_type(type):
         if forward_declare:
@@ -754,10 +761,6 @@ def _assert_is_local_user_id(field: str):
     assert_condition(field == "LocalUserId", f"[type] 字段 '{field}' 不是 'LocalUserId'")
 
 
-def is_enum_flags_type(type: str) -> bool:
-    return is_enum_type(type) and (type.endswith("Flags") or type.endswith("Combination"))
-
-
 def need_ignore_local_user_id_struct(struct_type: str) -> bool:
     struct_type = decay_eos_type(struct_type)
     for prefix in [
@@ -1017,10 +1020,10 @@ def _find_enum_for_union_type_field(struct_info, type_field_name: str) -> str | 
     # 在结构体中查找类型字段的枚举类型名称（支持 typedef 解析）
     if type_field_name in struct_info.fields:
         enum_type: str = struct_info.fields[type_field_name].type
-        if is_enum_type(enum_type):
+        if is_enum_type(enum_type, False):
             return enum_type
         resolved: str = _resolve_enum_typedef(enum_type)
-        if resolved != enum_type and is_enum_type(resolved):
+        if resolved != enum_type and is_enum_type(resolved, False):
             return enum_type
     return None
 

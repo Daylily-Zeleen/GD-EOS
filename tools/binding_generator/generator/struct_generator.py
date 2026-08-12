@@ -12,6 +12,7 @@ from binding_generator.doc.doc_processor import (
 from binding_generator.models import Arg, Struct, StructField
 from binding_generator.utils.common import assert_condition, print_stack_and_exit
 from binding_generator.utils.naming import (
+    convert_enum_type,
     convert_handle_class_name,
     convert_to_signal_name,
     convert_to_struct_class,
@@ -24,6 +25,7 @@ from binding_generator.utils.type import (
     find_count_field,
     get_api_latest_macro,
     get_callback_infos,
+    get_enum_owned_interface,
     get_gd_type_of_local_user_id,
     get_login_interface_of_local_user_id,
     get_str_arr_element_type,
@@ -33,6 +35,7 @@ from binding_generator.utils.type import (
     is_callback_type,
     is_client_data_field,
     is_enum_flags_type,
+    is_enum_type,
     is_expanded_struct,
     is_handle_arr_type,
     is_handle_type,
@@ -236,10 +239,17 @@ def _gen_struct(
             setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
             member_lines.append(f"\t{remapped_type} {snake_field_name}{{}};")
         elif is_enum_flags_type(type):
-            bind_lines.append(f"\t_BIND_PROP_FLAGS({snake_field_name})")
+            bitfield_owner: str = get_enum_owned_interface(type)
+            bind_lines.append(f"\t_BIND_PROP_BITFIELD({snake_field_name}, {bitfield_owner}, {convert_enum_type(type)})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_field_name})")
             setget_define_lines.append(f"_DEFINE_SETGET_FLAGS({typename}, {snake_field_name})")
             member_lines.append(f"\tBitField<{type}> {snake_field_name}{{{type}{{}}}};")
+        elif is_enum_type(type):
+            enum_owner: str = get_enum_owned_interface(type)
+            bind_lines.append(f"\t_BIND_PROP_ENUM({snake_field_name}, {enum_owner}, {convert_enum_type(type)})")
+            setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")
+            setget_define_lines.append(f"_DEFINE_SETGET({typename}, {snake_field_name})")
+            member_lines.append(f"\t{type} {snake_field_name}{{}};")
         elif is_audio_frames_type(type, field):
             bind_lines.append(f"\t_BIND_PROP({snake_field_name})")
             setget_declare_lines.append(f"\t_DECLARE_SETGET({snake_field_name})")

@@ -156,6 +156,12 @@ def gen_packed_result_type(
             setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_OBJ({snake_name}, {remap_type(arg_type).removesuffix('*')})")
+        elif is_enum_flags_type(decayed_type):
+            bitfield_owner: str = get_enum_owned_interface(decayed_type)
+            members_lines.append(f"\t{decayed_type} {snake_name};")
+            setget_lines.append(f"\t_DECLARE_SETGET({snake_name})")
+            r_cpp_lines.append(f"_DEFINE_SETGET({typename}, {snake_name})")
+            bind_lines.append(f"\t_BIND_PROP_BITFIELD({snake_name}, {bitfield_owner}, {convert_enum_type(decayed_type)})")
         elif is_enum_type(decayed_type):
             enum_owner: str = get_enum_owned_interface(decayed_type)
             members_lines.append(f"\t{decayed_type} {snake_name};")
@@ -198,7 +204,7 @@ def gen_packed_result_type(
         elif is_audio_frames_type(arg_type, arg_name):
             print_stack_and_exit(f"[packed_result_generator] 不支持的音频帧数组输出参数: 方法 '{method_name}', 类型 '{arg_type}'")
         elif is_enum_flags_type(arg_type):
-            members_lines.append(f"\tBitField<{decayed_type}> {snake_name};")
+            members_lines.append(f"\tBitField<{decayed_type}> {snake_name}{{{type}{{}}}};")
             setget_lines.append(f"\t_DECLARE_SETGET_FLAGS({snake_name})")
             r_cpp_lines.append(f"_DEFINE_SETGET_FLAGS({typename}, {snake_name})")
             bind_lines.append(f"\t_BIND_PROP_BITFIELD({snake_name})")
@@ -233,7 +239,7 @@ def gen_packed_result_type(
     r_cpp_lines.append(f"void {typename}::_bind_methods() {{")
     r_cpp_lines.append(f"\t_BIND_BEGIN({typename});")
     if method_info.return_type == "EOS_EResult":
-        r_cpp_lines.append(f"\t_BIND_PROP_ENUM(result_code, EOS_Common, {convert_enum_type('EOS_EResult')})")
+        r_cpp_lines.append(f"\t_BIND_PROP_ENUM(result_code, {get_enum_owned_interface('EOS_EResult')}, {convert_enum_type('EOS_EResult')})")
     r_cpp_lines += bind_lines
     r_cpp_lines.append("\t_BIND_END();")
     r_cpp_lines.append("}")
