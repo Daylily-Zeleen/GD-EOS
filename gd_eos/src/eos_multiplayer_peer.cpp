@@ -119,11 +119,11 @@ void EOSMultiplayerPeer::_bind_methods() {
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "polling"), "set_is_polling", "is_polling");
 
     ADD_SIGNAL(MethodInfo("peer_connection_established", EOSMultiPlayerConnectionInfo::make_property_info(),
-            PropertyInfo(Variant::INT, "connection_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionEstablishedType")),
-            PropertyInfo(Variant::INT, "network_type", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "NetworkConnectionType"))));
+                          PropertyInfo(Variant::INT, "connection_type", {}, "", PROPERTY_USAGE_CLASS_IS_ENUM, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionEstablishedType")),
+                          PropertyInfo(Variant::INT, "network_type", {}, "", PROPERTY_USAGE_CLASS_IS_ENUM, vformat("%s.%s", EOSP2P::get_class_static(), "NetworkConnectionType"))));
     ADD_SIGNAL(MethodInfo("peer_connection_interrupted", EOSMultiPlayerConnectionInfo::make_property_info()));
     ADD_SIGNAL(MethodInfo("peer_connection_closed", EOSMultiPlayerConnectionInfo::make_property_info(),
-            PropertyInfo(Variant::INT, "reason", {}, "", {}, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionClosedReason"))));
+                          PropertyInfo(Variant::INT, "reason", {}, "", PROPERTY_USAGE_CLASS_IS_ENUM, vformat("%s.%s", EOSP2P::get_class_static(), "ConnectionClosedReason"))));
     ADD_SIGNAL(MethodInfo("incoming_connection_request", EOSMultiPlayerConnectionInfo::make_property_info()));
 
     BIND_ENUM_CONSTANT(MODE_NONE);
@@ -1147,7 +1147,7 @@ void EOSMultiplayerPeer::_disconnect_remote_user(EOS_ProductUserId remote_user_i
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPeerConnectionEstablishedInfo *data) {
     if (data->ConnectionType == EOS_EConnectionEstablishedType::EOS_CET_NewConnection &&
-            active_mode != MODE_CLIENT) { //We're either a server or mesh
+        active_mode != MODE_CLIENT) { //We're either a server or mesh
         //Send peer id to connected peer
         EOSPacket packet;
         packet.set_event(EVENT_RECEIVE_PEER_ID);
@@ -1160,13 +1160,13 @@ void EOSMultiplayerPeer::peer_connection_established_callback(const EOS_P2P_OnPe
     }
 
     emit_signal(SNAME("peer_connection_established"),
-            EOSMultiPlayerConnectionInfo::make(
-                    data->SocketId->SocketName,
+                EOSMultiPlayerConnectionInfo::make(
+                        data->SocketId->SocketName,
 #ifndef EOS_ASSUME_ONLY_ONE_USER
-                    data->LocalUserId,
+                        data->LocalUserId,
 #endif // !EOS_ASSUME_ONLY_ONE_USER
-                    data->RemoteUserId),
-            data->ConnectionType, data->NetworkType);
+                        data->RemoteUserId),
+                data->ConnectionType, data->NetworkType);
 }
 
 /****************************************
@@ -1210,13 +1210,13 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
     }
 
     emit_signal(SNAME("peer_connection_closed"),
-            EOSMultiPlayerConnectionInfo::make(
-                    data->SocketId->SocketName,
+                EOSMultiPlayerConnectionInfo::make(
+                        data->SocketId->SocketName,
 #ifndef EOS_ASSUME_ONLY_ONE_USER
-                    data->LocalUserId,
+                        data->LocalUserId,
 #endif // !EOS_ASSUME_ONLY_ONE_USER
-                    data->RemoteUserId),
-            data->Reason);
+                        data->RemoteUserId),
+                data->Reason);
 }
 
 /****************************************
@@ -1228,12 +1228,12 @@ void EOSMultiplayerPeer::remote_connection_closed_callback(const EOS_P2P_OnRemot
  ****************************************/
 void EOSMultiplayerPeer::peer_connection_interrupted_callback(const EOS_P2P_OnPeerConnectionInterruptedInfo *data) {
     emit_signal(SNAME("peer_connection_interrupted"),
-            EOSMultiPlayerConnectionInfo::make(
-                    data->SocketId->SocketName,
+                EOSMultiPlayerConnectionInfo::make(
+                        data->SocketId->SocketName,
 #ifndef EOS_ASSUME_ONLY_ONE_USER
-                    data->LocalUserId,
+                        data->LocalUserId,
 #endif // !EOS_ASSUME_ONLY_ONE_USER
-                    data->RemoteUserId));
+                        data->RemoteUserId));
 }
 
 /****************************************
