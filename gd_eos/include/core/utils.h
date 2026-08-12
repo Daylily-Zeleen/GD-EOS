@@ -21,9 +21,9 @@
 #include "godot_cpp/templates/hash_map.hpp"
 #include "godot_cpp/variant/utility_functions.hpp"
 #include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/core/version.hpp>
 #include <godot_cpp/templates/local_vector.hpp>
 #include <godot_cpp/variant/variant.hpp>
-#include <godot_cpp/core/version.hpp>
 
 namespace godot::eos {
 
@@ -47,12 +47,12 @@ handle_int_t<T> handle_to_int(T p_handle) { return reinterpret_cast<handle_int_t
 
 namespace godot::eos::internal {
 
-template<typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize), void>> *_dummy= nullptr>
+template <typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize), void>> *_dummy = nullptr>
 void resize_char_string(CharStringTy &p_char_string, SizeTy p_size) {
     p_char_string.resize(p_size);
 }
 
-template<typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize_uninitialized), void>> *_dummy= nullptr>
+template <typename CharStringTy, typename SizeTy, std::enable_if_t<!std::is_same_v<decltype(&CharStringTy::resize_uninitialized), void>> *_dummy = nullptr>
 void resize_char_string(CharStringTy &p_char_string, SizeTy p_size) {
     p_char_string.resize_uninitialized(p_size);
 }
@@ -148,7 +148,7 @@ public:
         auto ascii = p_val.ascii();                                                                                                                                \
         if ((ascii).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (ascii).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
             ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            resize_char_string((ascii), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            resize_char_string((ascii), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                         \
             (ascii).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
         }                                                                                                                                                          \
         memset(&(field).SocketName[0], 0, EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                       \
@@ -161,7 +161,7 @@ public:
         field = p_val.ascii();                                                                                                                                     \
         if ((field).size() > (EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) && (field).get(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1) != 0) {                                   \
             ERR_PRINT(vformat("EOS: Socket name \"%s\"'s length is greater than %d (in ASCII), will be truncated.", p_val, EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1)); \
-            resize_char_string((field), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                                      \
+            resize_char_string((field), EOS_P2P_SOCKETID_SOCKETNAME_SIZE);                                                                                         \
             (field).set(EOS_P2P_SOCKETID_SOCKETNAME_SIZE - 1, 0);                                                                                                  \
         }                                                                                                                                                          \
     }
@@ -235,39 +235,39 @@ static Variant::Type get_variant_type() {
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant(struct_ty()).get_type(), #field),                 \
-            "set_" #field, "get_" #field);
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_STR(field)                                                           \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant::STRING, #field),                                 \
-            "set_" #field, "get_" #field);
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_STR_ARR(field)                                                       \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);        \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, #field),                    \
-            "set_" #field, "get_" #field);
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_OBJ(field, obj_ty)                                                                  \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                       \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                \
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
-                         obj_ty::get_class_static()),                                                  \
-            "set_" #field, "get_" #field);
+                              obj_ty::get_class_static()),                                             \
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_TYPED_ARR(field, obj_ty)                                                                  \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                             \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                      \
     ADD_PROPERTY(PropertyInfo(Variant::ARRAY, #field, PROPERTY_HINT_ARRAY_TYPE, obj_ty::get_class_static()), \
-            "set_" #field, "get_" #field);
+                 "set_" #field, "get_" #field);
 
-#define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                               \
-    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                    \
-    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);             \
-    ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT, \
-                         #enum_owner "." #enum_type),                                               \
-            "set_" #field, "get_" #field);
+#define _BIND_PROP_ENUM(field, enum_owner, enum_type)                                                     \
+    ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                          \
+    ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                   \
+    ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_CLASS_IS_ENUM, \
+                              #enum_owner "." #enum_type),                                                \
+                 "set_" #field, "get_" #field);
 
 #define _BIND_PROP_BOOL(field)                                                          \
     ClassDB::bind_method(D_METHOD("is_" #field), &_BINDING_CLASS::is_##field);          \
