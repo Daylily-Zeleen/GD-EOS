@@ -4,10 +4,6 @@
 
 #include <godot_cpp/classes/ref_counted.hpp>
 
-#ifdef DEBUG_ENABLED
-#include "godot_cpp/templates/local_vector.hpp"
-#endif // DEBUG_ENABLED
-
 namespace godot::eos {
 
 class EOSDataClass : public RefCounted {

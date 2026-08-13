@@ -1,5 +1,5 @@
-[submodule "godot-cpp"]
-	path = godot-cpp
+[submodule "thirdparty/godot-cpp"]
+	path = thirdparty/godot-cpp
 	url = https://github.com/godotengine/godot-cpp.git
 	branch = 4.2
 [submodule "thirdparty/eos-sdk"]

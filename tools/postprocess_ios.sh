@@ -6,7 +6,7 @@ if [ "$1" = "target=release"] || [ "$1" = "target=template_release" ] ; then
 fi
 
 gdeos_ios_bin_dir=./demo/addons/gd-eos/bin/ios
-godotcpp_bin_dir=./godot-cpp/bin
+godotcpp_bin_dir=./thirdparty/godot-cpp/bin
 
 # Delete existing libgodot-cpp xcframework if any
 rm -rf ${gdeos_ios_bin_dir}/libgodot-cpp.ios.template*

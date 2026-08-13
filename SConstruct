@@ -10,7 +10,7 @@ from SCons.Variables import Variables
 
 os.system("chcp 65001")
 
-env: Environment = SConscript("godot-cpp/SConstruct")
+env: Environment = SConscript("thirdparty/godot-cpp/SConstruct")
 
 # ─── 构建选项 ─────────────────────────────────────────────────────────────
 
