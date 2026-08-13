@@ -15,7 +15,10 @@ except ImportError:
     sys.path.insert(0, _tools_dir)
     import binding_generator.main as binding_generator
 
-_generated_doc_data_file: str = "gd_eos_editor/gen/doc_data/doc_data.cpp"
+_editor_gen_dir: str = os.path.join("gd_eos_editor", "gen")
+_editor_gen_include_dir: str = os.path.join(_editor_gen_dir, "include")
+_editor_gen_src_dir: str = os.path.join(_editor_gen_dir, "src")
+_editor_doc_data_file: str = os.path.join(_editor_gen_dir, "doc_data", "doc_data.cpp")
 
 
 def generate(env: Environment):
@@ -52,7 +55,7 @@ def options(opts, _env):
     opts.Add(
         BoolVariable(
             key="generate_eos_bindings",
-            help='If true, generate EOS bindings.',
+            help="If true, generate EOS bindings.",
             default=True,
         )
     )
@@ -86,27 +89,40 @@ def _get_sdk_version(env: Environment) -> tuple[int, int, int, int]:
     return get_sdk_version()
 
 
-def _get_generated_files() -> tuple[list[str], list[str]]:
+def _get_generated_files(gen_include_dir: str, gen_src_dir: str) -> tuple[list[str], list[str]]:
     files = []
 
-    def is_generate_file(fp):
-        return fp.endswith(".cpp") or fp.endswith(".c") or fp.endswith(".h") or fp.endswith(".hpp") or fp.endswith(".inl")
+    def is_generated_file(fp: str) -> bool:
+        return fp.endswith((".cpp", ".c", ".h", ".hpp", ".inl"))
 
-    from binding_generator.config import gen_include_dir, gen_src_dir
+    for generated_dir in [gen_include_dir, gen_src_dir]:
+        # A target may be evaluated before its own generated files exist.
+        if not os.path.isdir(generated_dir):
+            continue
 
-    for dir in [gen_include_dir, gen_src_dir]:
-        for f in os.listdir(dir):
-            fp = os.path.join(dir, f)
-            if os.path.isfile(fp):
-                if is_generate_file(fp):
-                    files.append(fp)
-            else:
-                files += filter(is_generate_file, map(lambda x: os.path.join(fp, x), os.listdir(fp)))
+        for root, _, filenames in os.walk(generated_dir):
+            files.extend(os.path.join(root, filename) for filename in filenames if is_generated_file(os.path.join(root, filename)))
 
-    sources = list(filter(lambda fp: fp.endswith(".cpp") or fp.endswith(".c"), files))
-    includes = list(filter(lambda fp: not (fp.endswith(".cpp") or fp.endswith(".c")), files))
+    sources = [fp for fp in files if fp.endswith((".cpp", ".c"))]
+    includes = [fp for fp in files if not fp.endswith((".cpp", ".c"))]
 
     return includes, sources
+
+
+def _get_runtime_generated_files() -> tuple[list[str], list[str]]:
+    from binding_generator.config import gen_include_dir, gen_src_dir
+
+    return _get_generated_files(gen_include_dir, gen_src_dir)
+
+
+def _get_editor_generated_files() -> list[str]:
+    includes, sources = _get_generated_files(_editor_gen_include_dir, _editor_gen_src_dir)
+    files = includes + sources
+
+    if os.path.isfile(_editor_doc_data_file):
+        files.append(_editor_doc_data_file)
+
+    return files
 
 
 def _generate_bindings(env: Environment) -> tuple[list[str], list[str]]:
@@ -118,7 +134,7 @@ def _generate_bindings(env: Environment) -> tuple[list[str], list[str]]:
         generate_config.assume_only_one_local_user = env["assume_only_one_local_user"]
         if env["generate_eos_bindings"]:
             binding_generator.generate_bindings()
-    return _get_generated_files()
+    return _get_runtime_generated_files()
 
 
 def _preprocess(env: Environment) -> None:
@@ -132,13 +148,14 @@ def _postprocess(env: Environment) -> None:
     binding_generator.postprocess()
 
 
-def _add_clean_files(env: Environment, target: str) -> None:
-    includes, sources = _get_generated_files()
-    files = includes + sources
-
-    doc_data_file = _generated_doc_data_file
-    if os.path.exists(doc_data_file):
-        files.append(doc_data_file)
+def _add_clean_files(env: Environment, target: str, file_group: str) -> None:
+    if file_group == "runtime":
+        includes, sources = _get_runtime_generated_files()
+        files = includes + sources
+    elif file_group == "editor":
+        files = _get_editor_generated_files()
+    else:
+        raise ValueError(f"Unknown generated file group: {file_group}")
 
     env.Clean(target, files)
 
@@ -147,10 +164,10 @@ def _generate_doc_data(env: Environment) -> list[str]:
     # Editor documentation is generated for every supported godot-cpp target.
     try:
         if not env.GetOption("clean"):
-            doc_data = env.GodotCPPDocData(_generated_doc_data_file, source=env.Glob("doc_classes/*.xml"))
+            doc_data = env.GodotCPPDocData(_editor_doc_data_file, source=env.Glob("doc_classes/*.xml"))
             return doc_data
         else:
-            return [_generated_doc_data_file]
+            return [_editor_doc_data_file]
     except AttributeError:
         print("Not including class reference as we're targeting a pre-4.3 baseline.")
         return []

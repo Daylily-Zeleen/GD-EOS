@@ -339,7 +339,7 @@ def _build_gd_eos_editor(env: Environment):
     editor_env.Depends(editor_complete, editor_library)
     editor_env.Default(editor_complete)
 
-    editor_env.GD_EOS_ADD_CLEAN_FILES(editor_library)
+    editor_env.GD_EOS_ADD_CLEAN_FILES(editor_library, "editor")
     return editor_library
 
 
@@ -391,7 +391,7 @@ def _build_gd_eos(env: Environment):
     env.Depends(complete_command, library)
     env.Default(complete_command)
 
-    env.GD_EOS_ADD_CLEAN_FILES(library)
+    env.GD_EOS_ADD_CLEAN_FILES(library, "runtime")
     return library
 
 
