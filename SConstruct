@@ -317,6 +317,7 @@ def _build_gd_eos_editor(env: Environment):
     _gather_sources_recursively(os.path.join(EDITOR_BASE_DIR, "src"), editor_sources)
 
     # Editor documentation is intentionally isolated from the runtime target.
+    os.makedirs(os.path.join(EDITOR_BASE_DIR, "gen", "doc_data"), exist_ok=True)
     doc_data = editor_env.GD_EOS_GENERATE_DOC_DATA()
     if doc_data:
         editor_sources.append(doc_data)
