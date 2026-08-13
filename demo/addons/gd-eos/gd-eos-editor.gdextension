@@ -13,10 +13,10 @@ entry_symbol = "gdeos_editor_library_init"
 compatibility_minimum = 4.2
 
 [libraries]
-linux.editor.x86_64 = "res://addons/gd-eos/bin/editor/linux/libgdeos_editor.linux.template_debug.x86_64.so"
-windows.editor.x86_64 = "res://addons/gd-eos/bin/editor/windows/libgdeos_editor.windows.template_debug.x86_64.dll"
-macos.editor = "res://addons/gd-eos/bin/editor/macos/libgdeos_editor.macos.template_debug.framework"
-android.editor.arm64 = "bin/android/libgdeos.android.template_debug.arm64.so"
-android.editor.x86_64 = "bin/android/libgdeos.android.template_debug.x86_64.so"
-android.editor.arm32 = "bin/android/libgdeos.android.template_debug.arm32.so"
-android.editor.x86_32 = "bin/android/libgdeos.android.template_debug.x86_32.so"
+linux.editor.x86_64 = "bin/editor/linux/libgdeos_editor.linux.x86_64.so"
+windows.editor.x86_64 = "bin/editor/windows/libgdeos_editor.windows.x86_64.dll"
+macos.editor = "bin/editor/macos/libgdeos_editor.macos.framework"
+android.editor.arm64 = "bin/editor/android/libgdeos_editor.android.arm64.so"
+android.editor.x86_64 = "bin/editor/android/libgdeos_editor.android.x86_64.so"
+android.editor.arm32 = "bin/editor/android/libgdeos_editor.android.arm32.so"
+android.editor.x86_32 = "bin/editor/android/libgdeos_editor.android.x86_32.so"

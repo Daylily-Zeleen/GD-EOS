@@ -10,7 +10,7 @@ from SCons.Variables import Variables
 
 os.system("chcp 65001")
 
-env: Environment = SConscript("thirdparty/godot-cpp/SConstruct")
+env: Environment = SConscript("thirdparty/godot-cpp/SConstruct", {"api_version": "4.3"}) # 用于兼容最新的 godot-cpp (2026.8.14)
 
 # ─── 构建选项 ─────────────────────────────────────────────────────────────
 
@@ -202,21 +202,31 @@ def _copy_platform_dependencies(platform: str, arch: str) -> None:
             shutil.rmtree(ANDROID_BUILD_TMP_DIR)
 
 
-def _copy_output_library(
-    env: Environment,
-    platform: str,
-    target: str,
-    suffix: str,
-    shared_lib_suffix: str,
-    library_name: str,
-    destination_folder: str,
-) -> None:
+def _get_target_free_suffix(env: Environment) -> str:
+    platform = env["platform"]
+    target = env["target"]
+    target_suffix = f".{platform}.{target}"
+    suffix = env["suffix"]
+    if target_suffix not in suffix:
+        raise ValueError(f"Unexpected godot-cpp suffix: {suffix}")
+    return suffix.replace(target_suffix, f".{platform}", 1)
+
+
+def _get_output_library_path(env: Environment, library_name: str, output_folder: str = OUTPUT_BIN_FOLDER) -> str:
+    platform = env["platform"]
+
     if platform == "macos":
-        src = f"{OUTPUT_BIN_FOLDER}/macos/{library_name}.{platform}.{target}.framework/{library_name}.{platform}.{target}"
-        dst = f"{destination_folder}/macos/{library_name}.{platform}.{target}.framework/{library_name}.{platform}.{target}".replace(".dev.", ".")
-    else:
-        src = f"{OUTPUT_BIN_FOLDER}/{platform}/{library_name}{suffix}{shared_lib_suffix}"
-        dst = f"{destination_folder}/{platform}/{library_name}{suffix}{shared_lib_suffix}".replace(".dev.", ".")
+        framework_name = f"{library_name}.{platform}.framework"
+        binary_name = f"{library_name}.{platform}"
+        return os.path.join(output_folder, platform, framework_name, binary_name)
+
+    suffix = _get_target_free_suffix(env)
+    return os.path.join(output_folder, platform, f"{library_name}{suffix}{env['SHLIBSUFFIX']}")
+
+
+def _copy_output_library(env: Environment, library_name: str, destination_folder: str) -> None:
+    src = _get_output_library_path(env, library_name)
+    dst = _get_output_library_path(env, library_name, destination_folder)
     _copy_file(src, dst)
 
 
@@ -261,17 +271,8 @@ def _copy_readme_files() -> None:
 
 
 def _on_editor_complete(target, source, env) -> None:
-    platform = env["platform"]
-    target_type = env["target"]
-    suffix = env.get("suffix", "")
-    shared_lib_suffix = env["SHLIBSUFFIX"]
-
     _copy_output_library(
         env,
-        platform,
-        target_type,
-        suffix,
-        shared_lib_suffix,
         library_name=EDITOR_LIB_NAME,
         destination_folder=EDITOR_PLUGIN_BIN_FOLDER,
     )
@@ -281,16 +282,9 @@ def _on_editor_complete(target, source, env) -> None:
 def _on_complete(target, source, env) -> None:
     platform = env["platform"]
     arch = env["arch"]
-    target_type = env["target"]
-    suffix = env.get("suffix", "")
-    shared_lib_suffix = env["SHLIBSUFFIX"]
 
     _copy_output_library(
         env,
-        platform,
-        target_type,
-        suffix,
-        shared_lib_suffix,
         library_name=LIB_NAME,
         destination_folder=PLUGIN_BIN_FOLDER,
     )
@@ -306,8 +300,6 @@ def _on_complete(target, source, env) -> None:
 
 def _build_gd_eos_editor(env: Environment):
     platform = env["platform"]
-    target = env["target"]
-
     if platform not in ["windows", "linux", "macos", "android"]:
         return None
 
@@ -336,16 +328,10 @@ def _build_gd_eos_editor(env: Environment):
     if editor_env.get("is_msvc", False):
         editor_env.Append(CXXFLAGS=["/bigobj"])
 
-    if platform == "macos":
-        editor_library = editor_env.SharedLibrary(
-            f"{OUTPUT_BIN_FOLDER}/macos/{EDITOR_LIB_NAME}.{platform}.{target}.framework/{EDITOR_LIB_NAME}.{platform}.{target}",
-            source=editor_sources,
-        )
-    else:
-        editor_library = editor_env.SharedLibrary(
-            f"{OUTPUT_BIN_FOLDER}/{platform}/{EDITOR_LIB_NAME}{editor_env['suffix']}{editor_env['SHLIBSUFFIX']}",
-            source=editor_sources,
-        )
+    editor_library = editor_env.SharedLibrary(
+        _get_output_library_path(editor_env, EDITOR_LIB_NAME),
+        source=editor_sources,
+    )
 
     editor_env.NoCache(editor_sources)
 
@@ -393,16 +379,10 @@ def _build_gd_eos(env: Environment):
     elif platform == "ios":
         _configure_ios(env, arch)
 
-    if platform == "macos":
-        library = env.SharedLibrary(
-            f"{OUTPUT_BIN_FOLDER}/macos/{LIB_NAME}.{platform}.{env['target']}.framework/{LIB_NAME}.{platform}.{env['target']}",
-            source=sources,
-        )
-    else:
-        library = env.SharedLibrary(
-            f"{OUTPUT_BIN_FOLDER}/{platform}/{LIB_NAME}{env['suffix']}{env['SHLIBSUFFIX']}",
-            source=sources,
-        )
+    library = env.SharedLibrary(
+        _get_output_library_path(env, LIB_NAME),
+        source=sources,
+    )
 
     # 禁用 scons 缓存
     env.NoCache(sources)

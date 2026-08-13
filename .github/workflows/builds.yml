@@ -33,7 +33,7 @@ env:
 
 jobs:
   build:
-    name: ${{ matrix.identifier }} ${{ matrix.target }} (min Godot-${{ inputs.compatibility_minimum }})
+    name: ${{ matrix.identifier }} (min Godot-${{ inputs.compatibility_minimum }})
     runs-on: ${{ matrix.runner }}
     defaults:
       run:
@@ -52,7 +52,6 @@ jobs:
           - 🤖Android-arm32
           - 🤖Android-x86_32
           - 🍏ios-arm64
-        target: [debug, release]
         include:
           # ─── Linux ───────────────────────────────────────────────────────────
           - identifier: 🐧Linux-x64
@@ -197,7 +196,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ env.SCONS_CACHE }}
-          key: ${{ matrix.identifier }}-${{ matrix.target }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
+          key: ${{ matrix.identifier }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
         continue-on-error: true
 
       # ─── Compile ───────────────────────────────────────────────────────────
@@ -205,19 +204,19 @@ jobs:
         if: "matrix.platform != 'ios' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
         shell: sh
         run: |
-          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+          scons target=template_release platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
 
       - name: (iOS) Compile extension
         if: matrix.platform == 'ios'
         shell: sh
         run: |
-          scons target='template_${{ matrix.target }}' platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
+          scons target=template_release platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
           chmod +x ./tools/postprocess_ios.sh
-          ./tools/postprocess_ios.sh target=${{ matrix.target }}
+          ./tools/postprocess_ios.sh target=release
 
       # ─── Documentation ─────────────────────────────────────────────────────
       - name: Generate documents and recompile extension
-        if: "inputs.compatibility_minimum == '4.3' && matrix.target == 'debug' && !contains(matrix.arch, '32') && matrix.godot_editor_suffix != '' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
+        if: "inputs.compatibility_minimum == '4.3' && !contains(matrix.arch, '32') && matrix.godot_editor_suffix != '' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
         uses: ./.github/actions/generate_documents_and_recompile
         with:
           godot_branch_for_generate_documents: ${{ env.GODOT_BRANCH_FOR_GENERATE_DOCUMENTS }}
@@ -238,7 +237,7 @@ jobs:
         if: "!((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-${{ matrix.platform }}-${{ matrix.target }}-${{ matrix.arch }}
+          name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-${{ matrix.platform }}-${{ matrix.arch }}
           path: ./artifacts/GD-EOS/
           retention-days: 14
 

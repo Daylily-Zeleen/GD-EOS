@@ -144,14 +144,13 @@ def _add_clean_files(env: Environment, target: str) -> None:
 
 
 def _generate_doc_data(env: Environment) -> list[str]:
-    # doc (godot-cpp 4.3 以上)
-    if env["target"] in ["editor", "template_debug"]:
-        try:
-            if not env.GetOption("clean"):
-                doc_data = env.GodotCPPDocData(_generated_doc_data_file, source=env.Glob("doc_classes/*.xml"))
-                return doc_data
-            else:
-                return [_generated_doc_data_file]
-        except AttributeError:
-            print("Not including class reference as we're targeting a pre-4.3 baseline.")
-    return []
+    # Editor documentation is generated for every supported godot-cpp target.
+    try:
+        if not env.GetOption("clean"):
+            doc_data = env.GodotCPPDocData(_generated_doc_data_file, source=env.Glob("doc_classes/*.xml"))
+            return doc_data
+        else:
+            return [_generated_doc_data_file]
+    except AttributeError:
+        print("Not including class reference as we're targeting a pre-4.3 baseline.")
+        return []
