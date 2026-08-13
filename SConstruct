@@ -54,14 +54,22 @@ if env["platform"] == "android" and "64" not in env["arch"]:
 # ─── 路径配置 ─────────────────────────────────────────────────────────────
 
 LIB_NAME = "libgdeos"
+EDITOR_LIB_NAME = "libgdeos_editor"
+
 EOS_SDK_FOLDER = "thirdparty/eos-sdk/SDK/"
 OUTPUT_BIN_FOLDER = "bin/"
-BASE_DIR = "gd_eos/"
 PLUGIN_FOLDER = "demo/addons/gd-eos/"
-PLUGIN_BIN_FOLDER = os.path.join(PLUGIN_FOLDER, "bin")
-EXTENSION_FILE = os.path.join(PLUGIN_FOLDER, "gd-eos.gdextension")
 EOS_AAR_DIR = os.path.join(EOS_SDK_FOLDER, "Bin/Android/static-stdc++/aar/")
 ANDROID_BUILD_TMP_DIR = "./.android_build_tmp/"
+
+BASE_DIR = "gd_eos/"
+EDITOR_BASE_DIR = "gd_eos_editor/"
+
+PLUGIN_BIN_FOLDER = os.path.join(PLUGIN_FOLDER, "bin")
+EDITOR_PLUGIN_BIN_FOLDER = os.path.join(PLUGIN_BIN_FOLDER, "editor")
+
+MANIFEST_FILE = os.path.join(PLUGIN_FOLDER, "gd-eos.gdextension")
+EDITOR_MANIFEST_FILE = os.path.join(PLUGIN_FOLDER, "gd-eos-editor.gdextension")
 
 
 # ─── 辅助函数 ─────────────────────────────────────────────────────────────
@@ -194,20 +202,28 @@ def _copy_platform_dependencies(platform: str, arch: str) -> None:
             shutil.rmtree(ANDROID_BUILD_TMP_DIR)
 
 
-def _copy_output_library(env: Environment, platform: str, target: str, suffix: str, shared_lib_suffix: str) -> None:
+def _copy_output_library(
+    env: Environment,
+    platform: str,
+    target: str,
+    suffix: str,
+    shared_lib_suffix: str,
+    library_name: str,
+    destination_folder: str,
+) -> None:
     if platform == "macos":
-        src = f"{OUTPUT_BIN_FOLDER}/macos/{LIB_NAME}.{platform}.{target}.framework/{LIB_NAME}.{platform}.{target}"
-        dst = f"{PLUGIN_BIN_FOLDER}/macos/{LIB_NAME}.{platform}.{target}.framework/{LIB_NAME}.{platform}.{target}".replace(".dev.", ".")
+        src = f"{OUTPUT_BIN_FOLDER}/macos/{library_name}.{platform}.{target}.framework/{library_name}.{platform}.{target}"
+        dst = f"{destination_folder}/macos/{library_name}.{platform}.{target}.framework/{library_name}.{platform}.{target}".replace(".dev.", ".")
     else:
-        src = f"{OUTPUT_BIN_FOLDER}/{platform}/{LIB_NAME}{suffix}{shared_lib_suffix}"
-        dst = f"{PLUGIN_BIN_FOLDER}/{platform}/{LIB_NAME}{suffix}{shared_lib_suffix}".replace(".dev.", ".")
+        src = f"{OUTPUT_BIN_FOLDER}/{platform}/{library_name}{suffix}{shared_lib_suffix}"
+        dst = f"{destination_folder}/{platform}/{library_name}{suffix}{shared_lib_suffix}".replace(".dev.", ".")
     _copy_file(src, dst)
 
 
-def _update_gdextension_file() -> None:
+def _update_manifest_file(file_name: str) -> None:
     version = open("version", "r").readline().strip()
 
-    with open(EXTENSION_FILE, "r", encoding="utf8") as f:
+    with open(file_name, "r", encoding="utf8") as f:
         lines = f.readlines()
 
     for i in range(len(lines)):
@@ -217,7 +233,7 @@ def _update_gdextension_file() -> None:
             lines[i] = f"compatibility_minimum = {_get_min_compatible_version()}\n"
             break
 
-    with open(EXTENSION_FILE, "w", encoding="utf8") as f:
+    with open(file_name, "w", encoding="utf8") as f:
         f.writelines(lines)
 
 
@@ -244,6 +260,24 @@ def _copy_readme_files() -> None:
             f.writelines(lines)
 
 
+def _on_editor_complete(target, source, env) -> None:
+    platform = env["platform"]
+    target_type = env["target"]
+    suffix = env.get("suffix", "")
+    shared_lib_suffix = env["SHLIBSUFFIX"]
+
+    _copy_output_library(
+        env,
+        platform,
+        target_type,
+        suffix,
+        shared_lib_suffix,
+        library_name=EDITOR_LIB_NAME,
+        destination_folder=EDITOR_PLUGIN_BIN_FOLDER,
+    )
+    _update_manifest_file(EDITOR_MANIFEST_FILE)
+
+
 def _on_complete(target, source, env) -> None:
     platform = env["platform"]
     arch = env["arch"]
@@ -251,15 +285,76 @@ def _on_complete(target, source, env) -> None:
     suffix = env.get("suffix", "")
     shared_lib_suffix = env["SHLIBSUFFIX"]
 
-    _copy_output_library(env, platform, target_type, suffix, shared_lib_suffix)
+    _copy_output_library(
+        env,
+        platform,
+        target_type,
+        suffix,
+        shared_lib_suffix,
+        library_name=LIB_NAME,
+        destination_folder=PLUGIN_BIN_FOLDER,
+    )
     _copy_platform_dependencies(platform, arch)
-    _update_gdextension_file()
+    _update_manifest_file(MANIFEST_FILE)
     _copy_readme_files()
 
     env.GD_EOS_POSTPROCESS()
 
 
 # ─── 主构建函数 ───────────────────────────────────────────────────────────
+
+
+def _build_gd_eos_editor(env: Environment):
+    platform = env["platform"]
+    target = env["target"]
+
+    if platform not in ["windows", "linux", "macos", "android"]:
+        return None
+
+    # Keep the editor target independent from the runtime EOS SDK link settings.
+    editor_env = env.Clone()
+
+    editor_env.Append(
+        CPPPATH=[
+            os.path.join(EDITOR_BASE_DIR, "include"),
+            os.path.join(EDITOR_BASE_DIR, "gen", "include"),
+        ]
+    )
+
+    editor_sources = env.Glob(os.path.join(EDITOR_BASE_DIR, "src", "*.cpp"))
+    _gather_sources_recursively(os.path.join(EDITOR_BASE_DIR, "src"), editor_sources)
+
+    # Editor documentation is intentionally isolated from the runtime target.
+    doc_data = editor_env.GD_EOS_GENERATE_DOC_DATA()
+    if doc_data:
+        editor_sources.append(doc_data)
+
+    if platform == "windows":
+        # Match the runtime warning policy without adding the EOS SDK link flags.
+        editor_env.Append(LINKFLAGS=["/ignore:4099"])
+
+    if editor_env.get("is_msvc", False):
+        editor_env.Append(CXXFLAGS=["/bigobj"])
+
+    if platform == "macos":
+        editor_library = editor_env.SharedLibrary(
+            f"{OUTPUT_BIN_FOLDER}/macos/{EDITOR_LIB_NAME}.{platform}.{target}.framework/{EDITOR_LIB_NAME}.{platform}.{target}",
+            source=editor_sources,
+        )
+    else:
+        editor_library = editor_env.SharedLibrary(
+            f"{OUTPUT_BIN_FOLDER}/{platform}/{EDITOR_LIB_NAME}{editor_env['suffix']}{editor_env['SHLIBSUFFIX']}",
+            source=editor_sources,
+        )
+
+    editor_env.NoCache(editor_sources)
+
+    editor_complete = editor_env.Command("complete_editor", editor_library, _on_editor_complete)
+    editor_env.Depends(editor_complete, editor_library)
+    editor_env.Default(editor_complete)
+
+    editor_env.GD_EOS_ADD_CLEAN_FILES(editor_library)
+    return editor_library
 
 
 def _build_gd_eos(env: Environment):
@@ -276,18 +371,10 @@ def _build_gd_eos(env: Environment):
         ]
     )
 
-    # 收集源文件
+    # 收集运行时源文件；编辑器入口只属于 editor GDExtension。
     sources = env.Glob(os.path.join(BASE_DIR, "src", "*.cpp"))
     _gather_sources_recursively(os.path.join(BASE_DIR, "src"), sources)
     sources.extend([f for f in generated_sources if str(f).endswith(".cpp")])
-
-    # doc (godot-cpp 4.3 以上)
-    doc_data = env.GD_EOS_GENERATE_DOC_DATA()
-    if doc_data:
-        sources.append(doc_data)
-
-    if env.get("is_msvc", False):
-        env.Append(CXXFLAGS=["/bigobj"])
 
     # 添加依赖库
     env.Append(LIBPATH=[EOS_SDK_FOLDER + "Bin/"])
@@ -306,7 +393,6 @@ def _build_gd_eos(env: Environment):
     elif platform == "ios":
         _configure_ios(env, arch)
 
-    # 构建库
     if platform == "macos":
         library = env.SharedLibrary(
             f"{OUTPUT_BIN_FOLDER}/macos/{LIB_NAME}.{platform}.{env['target']}.framework/{LIB_NAME}.{platform}.{env['target']}",
@@ -329,4 +415,5 @@ def _build_gd_eos(env: Environment):
     return library
 
 
+_build_gd_eos_editor(env)
 _build_gd_eos(env)

@@ -15,7 +15,7 @@ except ImportError:
     sys.path.insert(0, _tools_dir)
     import binding_generator.main as binding_generator
 
-_generated_doc_data_file: str = "gd_eos/gen/doc_data/doc_data.cpp"
+_generated_doc_data_file: str = "gd_eos_editor/gen/doc_data/doc_data.cpp"
 
 
 def generate(env: Environment):

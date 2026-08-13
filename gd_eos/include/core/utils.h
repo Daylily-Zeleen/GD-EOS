@@ -226,7 +226,7 @@ static Variant::Type get_variant_type() {
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field); \
     ADD_PROPERTY(PropertyInfo(get_variant_type<decltype(_BINDING_CLASS::field)>(), #field), "set_" #field, "get_" #field);
 
-#define _BIND_PROP_BITFIELD(field, bitfield_owner, bitfield_type)                                                \
+#define _BIND_PROP_BITFIELD(field, bitfield_owner, bitfield_type)                                             \
     ClassDB::bind_method(D_METHOD("get_" #field), &_BINDING_CLASS::get_##field);                              \
     ClassDB::bind_method(D_METHOD("set_" #field, "val"), &_BINDING_CLASS::set_##field);                       \
     ADD_PROPERTY(PropertyInfo(Variant::INT, #field, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_CLASS_IS_BITFIELD, \
@@ -1011,11 +1011,6 @@ class _Sharable {
 } //namespace godot::eos::internal
 
 namespace godot::eos {
-
-// Platform Specific Options
-#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
-void setup_eos_project_settings();
-#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
 
 void *get_platform_specific_options();
 

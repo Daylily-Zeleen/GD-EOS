@@ -1,5 +1,3 @@
-#include <register_types.h>
-
 #include <eos_interfaces.h>
 
 #if !defined(EOS_P2P_DISABLED) && !defined(EOS_CONNECT_DISABLED)
@@ -9,12 +7,6 @@
 using namespace godot;
 
 void initialize_gdeos_module(ModuleInitializationLevel p_level) {
-#if defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
-    if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
-        godot::eos::setup_eos_project_settings();
-    }
-#endif // defined(TOOLS_ENABLED) || defined(DEV_ENABLED) || defined(DEBUG_ENABLED)
-
     if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
         return;
     }

@@ -1,0 +1,22 @@
+[infomation]
+name = "GD-EOS"
+version = "v0.0.0"
+decription = "A Epic Online Services editor plugin for Godot."
+author = "忘忧の (Daylily Zeleen)"
+email = "daylily-zeleen@foxmail.com"
+support_link = "https://afdian.com/a/Daylily-Zeleen"
+repo = "https://github.com/Daylily-Zeleen/GD-EOS"
+others = "诚接Godot游戏开发，欢迎邮件联系。/ Receive game development outsourcing, welcome to contact by email."
+
+[configuration]
+entry_symbol = "gdeos_editor_library_init"
+compatibility_minimum = 4.2
+
+[libraries]
+linux.editor.x86_64 = "res://addons/gd-eos/bin/editor/linux/libgdeos_editor.linux.template_debug.x86_64.so"
+windows.editor.x86_64 = "res://addons/gd-eos/bin/editor/windows/libgdeos_editor.windows.template_debug.x86_64.dll"
+macos.editor = "res://addons/gd-eos/bin/editor/macos/libgdeos_editor.macos.template_debug.framework"
+android.editor.arm64 = "bin/android/libgdeos.android.template_debug.arm64.so"
+android.editor.x86_64 = "bin/android/libgdeos.android.template_debug.x86_64.so"
+android.editor.arm32 = "bin/android/libgdeos.android.template_debug.arm32.so"
+android.editor.x86_32 = "bin/android/libgdeos.android.template_debug.x86_32.so"

@@ -29,6 +29,7 @@ tools/.binding_generator.py
 # thirdparty/eos-sdk/
 
 gd_eos/gen/
+gd_eos_editor/gen/
 
 # mingw
 *.o
