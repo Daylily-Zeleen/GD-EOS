@@ -294,14 +294,30 @@ func _get_config(key: StringName) -> String:
 	const cfg_file: String = "res://.env"
 	if not FileAccess.file_exists(cfg_file):
 		return get(key)
-	var cfg := ConfigFile.new() as ConfigFile
-	if not cfg.load(cfg_file) == OK:
+
+	var dotenv_content := FileAccess.get_file_as_string(cfg_file)
+	if dotenv_content.is_empty():
 		return get(key)
-	var config_key := key.to_upper()
-	if not cfg.has_section_key("", config_key):
-		printerr("Config has not key: ", config_key)
-		return get(key)
-	return cfg.get_value("", config_key)
+
+	var desire_key := key.to_upper()
+	for line in dotenv_content.split("\n"):
+		line = line.strip_edges()
+
+		if line.is_empty() or line.begins_with("#"):
+			continue
+
+		var kv := line.split("=", true, 1)
+		if kv.size() != 2:
+			continue
+
+		var k := kv[0].strip_edges()
+		var v := kv[1].strip_edges()
+		if k == desire_key:
+			if v.length() >= 2 and v.begins_with("\"") and v.ends_with("\""):
+				v = v.substr(1, v.length() - 2)
+			return v
+
+	return get(key)
 
 
 static func _eos_log_callback(category: String, message: String, level: EOS.LogLevel) -> void:

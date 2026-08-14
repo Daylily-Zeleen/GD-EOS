@@ -35,7 +35,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## How to start
 
-**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
+**Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
 1. Get `GD-EOS` plugin:
    - Download pre-compiled plugin from release page.
@@ -101,7 +101,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## How to run `demo`
 
-**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
+**Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
 1. Enable required features for you product in developer portal. For convenience, you can enable all features of your client policy, or use the redefine policy "Peer2Peer".
 2. Set your product parameters to the root node of "main.tscn" scene.
@@ -122,7 +122,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 ## How to compile
 
-**Video Tutorial: https://youtu.be/7CHBd7MAiu0** (pull this repo, get EOS SDK, compile, run the demo project.)
+**Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
 1. Clone this repo with submodules (including thirdparty/godot-cpp).
 2. Download EOS C SDK from Epic Developer Portal, and place is at "thirdparty/eos-sdk". (Because I have not right to redistribute it).
@@ -150,10 +150,11 @@ Additionally, if you compile with godot-cpp 4.3(or later version) and use Godot 
 ``` shell
 Godot_v4.3-stable_win64.exe --path demo --doctool .. --gdextension-docs
 ```
+
 You should replace "Godot_v4.3-stable_win64.exe" to your Godot editor's executable file.
 
-7. Compile again like **step 4**.
-8. Now，you can refer classes' document of this plugin in Godot editor help like native Godot classes.
+1. Compile again like **step 4**.
+2. Now，you can refer classes' document of this plugin in Godot editor help like native Godot classes.
 
 **NOTE**: the generated documents is extracted and modified procedurally from the source EOS-SDK, so **it may not be accurate, just for reference**.
 
@@ -177,7 +178,7 @@ By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get
 
 ## Exporting for Android
 
-**Video Tutorial：https://youtu.be/Sh08JCT1lhg** (Exporting for Android)
+**Video Tutorial：<https://youtu.be/Sh08JCT1lhg>** (Exporting for Android)
 
 1. Download "EOS Android SDK 1.16.3(or 1.16.2, but not recommend)" from [Epic Developer Portal](https://dev.epicgames.com/portal), unzip it and put its `SDK` folder under the `thirdparty/eos-sdk` directory, then compile this plugin:
 
