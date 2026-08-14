@@ -3,6 +3,7 @@
 #include <godot_cpp/classes/editor_export_platform.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 namespace godot::eos::editor {
 
@@ -31,7 +32,7 @@ void EOSEditorPlugin::_generate_env_template() {
     Ref<FileAccess> f = FileAccess::open("res://.env", FileAccess::WRITE);
     if (f.is_valid()) {
         f->store_string(template_content);
-        print_line("GD-EOS: \"res://.env\" generated.");
+        UtilityFunctions::print("GD-EOS: \"res://.env\" generated.");
     } else {
         ERR_PRINT(vformat("GD-EOS: generate \"res://.env\" failed: %s", FileAccess::get_open_error()));
     }

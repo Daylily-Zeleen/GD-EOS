@@ -6,6 +6,7 @@
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 
 #include "../../gd_eos_defs.h"
 
@@ -166,7 +167,7 @@ void EOSAndroidExportPlugin::_export_begin(const PackedStringArray &p_features, 
     String client_id_source_msg;
     const String client_id = _read_client_id_from_env(client_id_source_msg);
     if (_inject_login_scheme(client_id)) {
-        print_line("GD-EOS: Injected EOS login scheme into Android project. ClientId is got from ", client_id_source_msg);
+        UtilityFunctions::print("GD-EOS: Injected EOS login scheme into Android project. ClientId is got from ", client_id_source_msg);
     }
 }
 
