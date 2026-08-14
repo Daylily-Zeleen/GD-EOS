@@ -1,0 +1,155 @@
+name: Build extension
+description: Build GD-EOS extension for a given platform
+
+inputs:
+  compatibility_minimum:
+    description: Minimum Godot version
+    required: true
+    type: string
+  sconsflags:
+    description: Additional SCons flags
+    required: false
+    type: string
+  godot_editor_suffix:
+    description: Godot editor suffix for documentation generation
+    required: false
+    type: string
+  host_platform:
+    description: Host platform for documentation generation
+    required: false
+    type: string
+  force_compile:
+    description: Force compilation for documentation
+    required: false
+    type: boolean
+    default: false
+  platform:
+    description: Target platform
+    required: true
+    type: string
+  arch:
+    description: Target architecture
+    required: true
+    type: string
+  identifier:
+    description: Matrix identifier for cache key
+    required: true
+    type: string
+  additional_sconsflags:
+    description: Additional SCons flags from matrix
+    required: false
+    type: string
+  temporary_artifact_suffix:
+    description: Temporary artifact suffix
+    required: true
+    type: string
+  skip_32bit:
+    description: Whether to skip 32-bit builds (from check-sdk-version job)
+    required: true
+    type: string
+  token:
+    description: Token for private EOS SDK repo checkout
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.x"
+
+    - name: Set up SCons
+      shell: bash
+      run: |
+        python -c "import sys; print(sys.version)"
+        python -m pip install scons
+        scons --version
+
+    - name: Checkout project
+      uses: actions/checkout@v5
+      with:
+        submodules: false
+
+    - name: Checkout godot-cpp
+      uses: actions/checkout@v5
+      with:
+        repository: godotengine/godot-cpp
+        path: thirdparty/godot-cpp
+        ref: godot-${{ inputs.compatibility_minimum }}-stable
+        submodules: recursive
+
+    - name: Checkout private EOS SDK repo
+      uses: actions/checkout@v5
+      with:
+        token: ${{ inputs.token }}
+        repository: Daylily-Zeleen/eos-sdk
+        path: thirdparty/eos-sdk
+        ref: main
+        lfs: true
+
+    - name: (Linux) Install dependencies
+      if: inputs.platform == 'linux'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -qqq build-essential pkg-config
+
+    - name: (Linux32) Install dependencies
+      if: inputs.platform == 'linux' && inputs.arch == 'x86_32'
+      shell: bash
+      run: sudo apt-get install gcc-multilib g++-multilib
+
+    - name: (Android) Install dependencies
+      if: inputs.platform == 'android'
+      uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r23c
+        link-to-sdk: true
+
+    - name: Setup build cache
+      uses: actions/cache@v5
+      with:
+        path: ${{ github.workspace }}/.scons-cache/
+        key: ${{ inputs.identifier }}-${{ inputs.arch }}-${{ inputs.compatibility_minimum }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
+      continue-on-error: true
+
+    - name: Compile extension
+      if: inputs.platform != 'ios'
+      shell: sh
+      run: |
+        scons target=template_release platform='${{ inputs.platform }}' arch='${{ inputs.arch }}' build_profile=./build_profile.json ${{ inputs.additional_sconsflags || '' }} ${{ inputs.sconsflags }}
+
+    - name: (iOS) Compile extension
+      if: inputs.platform == 'ios'
+      shell: sh
+      run: |
+        scons target=template_release platform='${{ inputs.platform }}' arch='${{ inputs.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ inputs.additional_sconsflags || '' }} ${{ inputs.sconsflags }}
+        chmod +x ./tools/postprocess_ios.sh
+        ./tools/postprocess_ios.sh target=release
+
+    - name: Generate documents and recompile extension
+      if: inputs.compatibility_minimum == '4.3' && !contains(inputs.arch, '32') && inputs.godot_editor_suffix != '' && !((inputs.platform == 'windows' && inputs.arch == 'x86_32' || inputs.platform == 'android' && contains(inputs.arch, '32')) && inputs.skip_32bit == 'true')
+      uses: ./.github/actions/generate_documents_and_recompile
+      with:
+        godot_branch_for_generate_documents: 4.3-stable
+        godot_editor_suffix: ${{ inputs.godot_editor_suffix }}
+        sconsflags: ${{ inputs.additional_sconsflags }} ${{ inputs.sconsflags }}
+        host_platform: ${{ inputs.host_platform }}
+        force_compile: ${{ inputs.force_compile }}
+        platform: ${{ inputs.platform }}
+        arch: ${{ inputs.arch }}
+
+    - name: Copy to artifacts directory
+      if: "!((inputs.platform == 'windows' && inputs.arch == 'x86_32' || inputs.platform == 'android' && contains(inputs.arch, '32')) && inputs.skip_32bit == 'true')"
+      shell: bash
+      run: python ./misc/copy_dir.py ./demo/addons/ ./artifacts/GD-EOS/addons/
+
+    - name: Upload artifact
+      if: "!((inputs.platform == 'windows' && inputs.arch == 'x86_32' || inputs.platform == 'android' && contains(inputs.arch, '32')) && inputs.skip_32bit == 'true')"
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-${{ inputs.platform }}-${{ inputs.arch }}
+        path: ./artifacts/GD-EOS/
+        retention-days: 14

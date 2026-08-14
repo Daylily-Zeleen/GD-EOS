@@ -6,8 +6,37 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check-sdk-version:
+    name: Check EOS SDK version
+    runs-on: ubuntu-latest
+    outputs:
+      major: ${{ steps.sdk_version.outputs.major }}
+      minor: ${{ steps.sdk_version.outputs.minor }}
+      patch: ${{ steps.sdk_version.outputs.patch }}
+      hotfix: ${{ steps.sdk_version.outputs.hotfix }}
+      skip_32bit: ${{ steps.sdk_version.outputs.skip_32bit }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v5
+        with:
+          submodules: false
+
+      - name: Checkout private EOS SDK repo
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
+          repository: Daylily-Zeleen/eos-sdk
+          path: thirdparty/eos-sdk
+          ref: main
+          lfs: true
+
+      - name: Check EOS SDK version
+        id: sdk_version
+        uses: ./.github/actions/check-sdk-version
+
   # Disable godot-4.2 build
   # min-godot-v4_2:
+  #   needs: check-sdk-version
   #   uses: ./.github/workflows/builds.yml
   #   secrets: inherit
   #   with:
@@ -15,8 +44,10 @@ jobs:
   #     sconsflags: ''
   #     temporary_artifact_suffix: '_no_aoolu'
   #     artifact_suffix: ''
+  #     skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
 
   # min-godot-v4_2-AOOLU:
+  #   needs: check-sdk-version
   #   uses: ./.github/workflows/builds.yml
   #   secrets: inherit
   #   with:
@@ -24,8 +55,10 @@ jobs:
   #     sconsflags: assume_only_one_local_user=yes
   #     temporary_artifact_suffix: _aoolu
   #     artifact_suffix: _aoolu
+  #     skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
 
   min-godot-v4_3:
+    needs: check-sdk-version
     uses: ./.github/workflows/builds.yml
     secrets: inherit
     with:
@@ -33,8 +66,10 @@ jobs:
       sconsflags: ''
       temporary_artifact_suffix: '_no_aoolu'
       artifact_suffix: ''
+      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
 
   min_godot-v4_3-AOOLU:
+    needs: check-sdk-version
     uses: ./.github/workflows/builds.yml
     secrets: inherit
     with:
@@ -42,3 +77,4 @@ jobs:
       sconsflags: assume_only_one_local_user=yes
       temporary_artifact_suffix: _aoolu
       artifact_suffix: _aoolu
+      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}

@@ -50,3 +50,12 @@ runs:
             f.write(f"patch={patch}\n")
             f.write(f"hotfix={hotfix}\n")
             f.write(f"skip_32bit={str(skip_32bit).lower()}\n")
+
+    - name: Report (${{ steps.check.outputs.skip_32bit == 'true' && '32-bit skipped' || '32-bit supported' }})
+      shell: bash
+      run: |
+        if [ "${{ steps.check.outputs.skip_32bit }}" = "true" ]; then
+          echo "⚠️ This EOS SDK version does not support 32-bit Windows/Android platforms. 32-bit build jobs will be skipped."
+        else
+          echo "32-bit Windows/Android builds are supported by this EOS SDK version."
+        fi

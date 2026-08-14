@@ -26,225 +26,138 @@ on:
         default: ""
         required: false
         type: string
+      skip_32bit:
+        description: Whether to skip 32-bit builds (from check-sdk-version job in the caller)
+        required: true
+        type: string
 
 env:
   GODOT_BRANCH_FOR_GENERATE_DOCUMENTS: 4.3-stable
   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
 
 jobs:
-  build:
-    name: ${{ matrix.identifier }} (min Godot-${{ inputs.compatibility_minimum }})
-    runs-on: ${{ matrix.runner }}
-    defaults:
-      run:
-        working-directory: ${{ github.workspace }}
+  # ─── Build 64-bit (always runs) ───────────────────────────────────────────
+  build-64bit:
+    name: Build 64-bit platforms
+    uses: ./.github/workflows/build-matrix.yml
+    with:
+      compatibility_minimum: ${{ inputs.compatibility_minimum }}
+      sconsflags: ${{ inputs.sconsflags }}
+      temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
+      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
+      matrix: |
+        {
+          "include": [
+            {
+              "identifier": "🐧Linux-x64",
+              "runner": "ubuntu-latest",
+              "platform": "linux",
+              "arch": "x86_64",
+              "godot_editor_suffix": "linux.x86_64",
+              "host_platform": "linux"
+            },
+            {
+              "identifier": "🍎Macos-Universal",
+              "runner": "macos-latest",
+              "platform": "macos",
+              "arch": "universal",
+              "godot_editor_suffix": "macos.universal",
+              "host_platform": "macos"
+            },
+            {
+              "identifier": "🏁Windows-x64 (clang)",
+              "runner": "windows-latest",
+              "platform": "windows",
+              "arch": "x86_64",
+              "additional_sconsflags": "use_clang_cl=yes",
+              "godot_editor_suffix": "win64.exe",
+              "host_platform": "windows"
+            },
+            {
+              "identifier": "🤖Android-arm64",
+              "runner": "ubuntu-latest",
+              "platform": "android",
+              "arch": "arm64",
+              "godot_editor_suffix": "linux.x86_64",
+              "host_platform": "linux",
+              "force_compile_for_docs": true
+            },
+            {
+              "identifier": "🤖Android-x86_64",
+              "runner": "ubuntu-latest",
+              "platform": "android",
+              "arch": "x86_64",
+              "godot_editor_suffix": "linux.x86_64",
+              "host_platform": "linux",
+              "force_compile_for_docs": true
+            },
+            {
+              "identifier": "🍏ios-arm64",
+              "runner": "macos-latest",
+              "platform": "ios",
+              "arch": "arm64"
+            }
+          ]
+        }
+    secrets: inherit
 
-    strategy:
-      fail-fast: false
-      matrix:
-        identifier:
-          - 🐧Linux-x64
-          - 🍎Macos-Universal
-          - 🏁Windows-x64 (clang)
-          - 🏁Windows-x86 (msvc)
-          - 🤖Android-arm64
-          - 🤖Android-x86_64
-          - 🤖Android-arm32
-          - 🤖Android-x86_32
-          - 🍏ios-arm64
-        include:
-          # ─── Linux ───────────────────────────────────────────────────────────
-          - identifier: 🐧Linux-x64
-            runner: ubuntu-latest
-            platform: linux
-            arch: x86_64
-            godot_editor_suffix: linux.x86_64
-            host_platform: linux
-
-          # ─── macOS ───────────────────────────────────────────────────────────
-          - identifier: 🍎Macos-Universal
-            runner: macos-latest
-            platform: macos
-            arch: universal
-            godot_editor_suffix: macos.universal
-            host_platform: macos
-
-          # ─── Windows ─────────────────────────────────────────────────────────
-          - identifier: 🏁Windows-x64 (clang)
-            runner: windows-latest
-            platform: windows
-            arch: x86_64
-            additional_sconsflags: use_clang_cl=yes
-            godot_editor_suffix: win64.exe
-            host_platform: windows
-
-          - identifier: 🏁Windows-x86 (msvc)
-            runner: windows-latest
-            platform: windows
-            arch: x86_32
-            godot_editor_suffix: win64.exe
-            host_platform: windows
-            force_compile_for_docs: true
-
-          # ─── Android ─────────────────────────────────────────────────────────
-          - identifier: 🤖Android-arm64
-            runner: ubuntu-latest
-            platform: android
-            arch: arm64
-            godot_editor_suffix: linux.x86_64
-            host_platform: linux
-            force_compile_for_docs: true
-
-          - identifier: 🤖Android-x86_64
-            runner: ubuntu-latest
-            platform: android
-            arch: x86_64
-            godot_editor_suffix: linux.x86_64
-            host_platform: linux
-            force_compile_for_docs: true
-
-          - identifier: 🤖Android-arm32
-            runner: ubuntu-latest
-            platform: android
-            arch: arm32
-            godot_editor_suffix: linux.x86_64
-            host_platform: linux
-            force_compile_for_docs: true
-
-          - identifier: 🤖Android-x86_32
-            runner: ubuntu-latest
-            platform: android
-            arch: x86_32
-            godot_editor_suffix: linux.x86_64
-            host_platform: linux
-            force_compile_for_docs: true
-
-          # ─── iOS ─────────────────────────────────────────────────────────────
-          - identifier: 🍏ios-arm64
-            runner: macos-latest
-            platform: ios
-            arch: arm64
-
-    steps:
-      # ─── Setup ──────────────────────────────────────────────────────────────
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-
-      - name: Set up SCons
-        shell: bash
-        run: |
-          python -c "import sys; print(sys.version)"
-          python -m pip install scons
-          scons --version
-
-      # ─── Checkout ───────────────────────────────────────────────────────────
-      - name: Checkout project
-        uses: actions/checkout@v5
-        with:
-          submodules: false
-
-      - name: Checkout godot-cpp (${{ inputs.compatibility_minimum }})
-        uses: actions/checkout@v5
-        with:
-          repository: godotengine/godot-cpp
-          path: thirdparty/godot-cpp
-          ref: godot-${{ inputs.compatibility_minimum }}-stable
-          submodules: recursive
-
-      - name: Checkout private EOS SDK repo
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
-          repository: Daylily-Zeleen/eos-sdk
-          path: thirdparty/eos-sdk
-          ref: main
-          lfs: true
-
-      # ─── SDK Version Check ─────────────────────────────────────────────────
-      - name: Check EOS SDK version
-        id: sdk_version
-        uses: ./.github/actions/check-sdk-version
-
-      - name: Skip 32-bit build (Windows/Android)
-        if: "((matrix.platform == 'windows' && matrix.arch == 'x86_32') || (matrix.platform == 'android' && contains(matrix.arch, '32'))) && steps.sdk_version.outputs.skip_32bit == 'true'"
-        run: |
-          echo "⚠️ Skipping 32-bit ${{ matrix.platform }} build: EOS SDK ${{ steps.sdk_version.outputs.major }}.${{ steps.sdk_version.outputs.minor }}.${{ steps.sdk_version.outputs.patch }}.${{ steps.sdk_version.outputs.hotfix }} does not support 32-bit ${{ matrix.platform }} platform."
-          echo "Please use 64-bit architecture or downgrade EOS SDK to version 1.18.1.2 or earlier."
-
-      # ─── Platform Dependencies ─────────────────────────────────────────────
-      - name: (Linux) Install dependencies
-        if: matrix.platform == 'linux'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -qqq build-essential pkg-config
-
-      - name: (Linux32) Install dependencies
-        if: matrix.platform == 'linux' && matrix.arch == 'x86_32'
-        run: sudo apt-get install gcc-multilib g++-multilib
-
-      - name: (Android) Install dependencies
-        if: matrix.platform == 'android'
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r23c
-          link-to-sdk: true
-
-      # ─── Build Cache ───────────────────────────────────────────────────────
-      - name: Setup build cache
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.SCONS_CACHE }}
-          key: ${{ matrix.identifier }}-${{ matrix.arch }}-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}-${{ github.branch }}-${{ github.ref }}-${{ github.sha }}
-        continue-on-error: true
-
-      # ─── Compile ───────────────────────────────────────────────────────────
-      - name: Compile extension
-        if: "matrix.platform != 'ios' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
-        shell: sh
-        run: |
-          scons target=template_release platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
-
-      - name: (iOS) Compile extension
-        if: matrix.platform == 'ios'
-        shell: sh
-        run: |
-          scons target=template_release platform='${{ matrix.platform }}' arch='${{ matrix.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
-          chmod +x ./tools/postprocess_ios.sh
-          ./tools/postprocess_ios.sh target=release
-
-      # ─── Documentation ─────────────────────────────────────────────────────
-      - name: Generate documents and recompile extension
-        if: "inputs.compatibility_minimum == '4.3' && !contains(matrix.arch, '32') && matrix.godot_editor_suffix != '' && !((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
-        uses: ./.github/actions/generate_documents_and_recompile
-        with:
-          godot_branch_for_generate_documents: ${{ env.GODOT_BRANCH_FOR_GENERATE_DOCUMENTS }}
-          godot_editor_suffix: ${{ matrix.godot_editor_suffix }}
-          sconsflags: ${{ matrix.additional_sconsflags }} ${{ inputs.sconsflags }}
-          host_platform: ${{ matrix.host_platform }}
-          force_compile: ${{ matrix.force_compile_for_docs }}
-          platform: ${{ matrix.platform }}
-          arch: ${{ matrix.arch }}
-
-      # ─── Artifacts ─────────────────────────────────────────────────────────
-      - name: Copy to artifacts directory
-        if: "!((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
-        shell: bash
-        run: python ./misc/copy_dir.py ./demo/addons/ ./artifacts/GD-EOS/addons/
-
-      - name: Upload artifact
-        if: "!((matrix.platform == 'windows' && matrix.arch == 'x86_32' || matrix.platform == 'android' && contains(matrix.arch, '32')) && steps.sdk_version.outputs.skip_32bit == 'true')"
-        uses: actions/upload-artifact@v6
-        with:
-          name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ./artifacts/GD-EOS/
-          retention-days: 14
+  # ─── Build 32-bit (skipped when EOS SDK > 1.18.1.2) ──────────────────────────
+  build-32bit:
+    name: Build 32-bit platforms
+    # Skip the entire job when the EOS SDK does not support 32-bit platforms.
+    if: inputs.skip_32bit != 'true'
+    uses: ./.github/workflows/build-matrix.yml
+    with:
+      compatibility_minimum: ${{ inputs.compatibility_minimum }}
+      sconsflags: ${{ inputs.sconsflags }}
+      temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
+      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
+      matrix: |
+        {
+          "include": [
+            {
+              "identifier": "🏁Windows-x86 (msvc)",
+              "runner": "windows-latest",
+              "platform": "windows",
+              "arch": "x86_32",
+              "godot_editor_suffix": "win64.exe",
+              "host_platform": "windows",
+              "force_compile_for_docs": true
+            },
+            {
+              "identifier": "🤖Android-arm32",
+              "runner": "ubuntu-latest",
+              "platform": "android",
+              "arch": "arm32",
+              "godot_editor_suffix": "linux.x86_64",
+              "host_platform": "linux",
+              "force_compile_for_docs": true
+            },
+            {
+              "identifier": "🤖Android-x86_32",
+              "runner": "ubuntu-latest",
+              "platform": "android",
+              "arch": "x86_32",
+              "godot_editor_suffix": "linux.x86_64",
+              "host_platform": "linux",
+              "force_compile_for_docs": true
+            }
+          ]
+        }
+    secrets: inherit
 
   # ─── Merge Artifacts ────────────────────────────────────────────────────────
   merge_artifacts:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build-64bit, build-32bit]
+    # Run only when 64-bit succeeded and 32-bit either succeeded or was skipped
+    # (skipped is allowed because the EOS SDK may not support 32-bit). If either
+    # build actually failed, do NOT merge.
+    if: >-
+      always() &&
+      !cancelled() &&
+      needs.build-64bit.result == 'success' &&
+      (needs.build-32bit.result == 'success' || needs.build-32bit.result == 'skipped')
     steps:
       - name: Checkout project
         uses: actions/checkout@v5

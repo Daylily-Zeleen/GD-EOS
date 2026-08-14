@@ -1,0 +1,57 @@
+name: 🛠️ Build matrix
+
+on:
+  workflow_call:
+    secrets:
+      PRIVATE_EOS_SDK_TOKEN:
+        required: true
+    inputs:
+      compatibility_minimum:
+        required: true
+        type: string
+      sconsflags:
+        required: false
+        type: string
+        default: ""
+      temporary_artifact_suffix:
+        required: true
+        type: string
+      matrix:
+        required: true
+        type: string
+      skip_32bit:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: ${{ matrix.identifier }} (min Godot-${{ inputs.compatibility_minimum }})
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        working-directory: ${{ github.workspace }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    steps:
+      # Checkout is required so the local composite action below can be resolved.
+      - name: Checkout project
+        uses: actions/checkout@v5
+        with:
+          submodules: false
+
+      - name: Build extension
+        uses: ./.github/actions/build-extension
+        with:
+          compatibility_minimum: ${{ inputs.compatibility_minimum }}
+          sconsflags: ${{ inputs.sconsflags }}
+          godot_editor_suffix: ${{ matrix.godot_editor_suffix }}
+          host_platform: ${{ matrix.host_platform }}
+          force_compile: ${{ matrix.force_compile_for_docs }}
+          platform: ${{ matrix.platform }}
+          arch: ${{ matrix.arch }}
+          identifier: ${{ matrix.identifier }}
+          additional_sconsflags: ${{ matrix.additional_sconsflags }}
+          temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
+          skip_32bit: ${{ inputs.skip_32bit }}
+          token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
