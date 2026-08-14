@@ -6,6 +6,7 @@
 		"RefCounted",
 		"WeakRef",
 		"EditorExportPlugin",
+		"EditorExportPlatform",
 		"EditorPlugin",
 		"MultiplayerPeerExtension",
 		"OS",

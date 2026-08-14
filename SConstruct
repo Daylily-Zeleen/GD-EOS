@@ -201,6 +201,18 @@ def _copy_platform_dependencies(platform: str, arch: str) -> None:
         if os.path.exists(ANDROID_BUILD_TMP_DIR):
             shutil.rmtree(ANDROID_BUILD_TMP_DIR)
 
+        # 把 EOS 的 aar 依赖也拷贝进插件目录，供导出插件直接引用，
+        # 这样用户无需自己把 aar 放进安卓工程（EOS SDK 无二次分发权，仅拷贝）。
+        aar_files = [f for f in os.listdir(EOS_AAR_DIR)] if os.path.isdir(EOS_AAR_DIR) else []
+        aar_file = next((f for f in aar_files if f.lower().endswith("aar")), None)
+        if aar_file:
+            _copy_file(
+                os.path.join(EOS_AAR_DIR, aar_file),
+                os.path.join(PLUGIN_BIN_FOLDER, "android", aar_file),
+            )
+        else:
+            print("Can't find EOSSDK's static stdc++ aar file, skip copying it into the addon.")
+
 
 def _get_target_free_suffix(env: Environment) -> str:
     platform = env["platform"]

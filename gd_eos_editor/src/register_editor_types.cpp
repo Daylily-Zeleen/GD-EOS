@@ -5,6 +5,9 @@
 
 #include "../../gd_eos_defs.h"
 
+#include "eos_android_export_plugin.h"
+#include "eos_editor_plugin.h"
+
 #include <godot_cpp/classes/project_settings.hpp>
 
 using namespace godot;
@@ -15,18 +18,25 @@ void _initialize_gdeos_editor_module(ModuleInitializationLevel p_level) {
         return;
     }
 
-    ProjectSettings *ps = ProjectSettings::get_singleton();
-    ps->set_setting(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY, "user://");
-    ps->set_setting(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY, "");
+    {
+        ProjectSettings *ps = ProjectSettings::get_singleton();
+        ps->set_setting(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY, "user://");
+        ps->set_setting(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY, "");
 
-    ps->set_initial_value(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY, "user://");
-    ps->set_initial_value(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY, "");
+        ps->set_initial_value(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_INTERNAL_DIRECTORY, "user://");
+        ps->set_initial_value(EOS_PLATFORM_SPECIFIC_SETTING_ANDROID_EXTERNAL_DIRECTORY, "");
+    }
+
+    GDREGISTER_INTERNAL_CLASS(eos::editor::EOSAndroidExportPlugin);
+    GDREGISTER_INTERNAL_CLASS(eos::editor::EOSEditorPlugin);
+    EditorPlugins::add_by_type<eos::editor::EOSEditorPlugin>();
 }
 
 void _uninitialize_gdeos_editor_module(ModuleInitializationLevel p_level) {
     if (p_level != MODULE_INITIALIZATION_LEVEL_EDITOR) {
         return;
     }
+    EditorPlugins::remove_by_type<eos::editor::EOSEditorPlugin>();
 }
 } // namespace
 
@@ -36,7 +46,7 @@ GDExtensionBool GDE_EXPORT gdeos_editor_library_init(GDExtensionInterfaceGetProc
 
     init_obj.register_initializer(_initialize_gdeos_editor_module);
     init_obj.register_terminator(_uninitialize_gdeos_editor_module);
-    init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_EDITOR);
+    init_obj.set_minimum_library_initialization_level(MODULE_INITIALIZATION_LEVEL_SCENE);
 
     return init_obj.init();
 }

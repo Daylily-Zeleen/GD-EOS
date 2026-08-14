@@ -35,7 +35,7 @@
 
 ## 如何开始
 
-**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
+**视频教程: <https://www.bilibili.com/video/BV1Dz421k7P6/>** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
 
 1. 获取`GD-EOS`插件:
    - 在Release页面下载预编译的插件。
@@ -101,7 +101,7 @@
 
 ## 如何运行`demo`项目
 
-**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
+**视频教程: <https://www.bilibili.com/video/BV1Dz421k7P6/>** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
 
 1. 你需要在 Epic 开发者门户对你的产品开启必要的客户端策略特性，为方便起见，你可以开启所有的特性，或者使用预设 Peer2Peer 策略。
 2. 在main场景的根节点中为你的产品设置相应的参数。
@@ -122,7 +122,7 @@
 
 ## 如何编译
 
-**视频教程: https://www.bilibili.com/video/BV1Dz421k7P6/** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
+**视频教程: <https://www.bilibili.com/video/BV1Dz421k7P6/>** (仓库拉取，EOS SDK 获取，编译，示例项目的运行)
 
 1. 将该仓库克隆到本地（包含 thirdparty/godot-cpp 等子模块）。
 2. 从Epic开发者门户下载EOS的C SDK，并将其置于目录"thirdparty/eos-sdk"下（因为我没有重新分发的权利）.
@@ -150,10 +150,11 @@
 ``` shell
     Godot_v4.3-stable_win64.exe --path demo --doctool .. --gdextension-docs
 ```
+
 你需要将“Godot_v4.3-stable_win64.exe”替换为你的Godot编辑器的可执行文件路径。
 
-7. 像**第4步**中一样再次编译该插件。
-8. 现在，你将可以像普通的 Godot 类一样在编辑器中的帮助文档中查看该插件相关类的具体描述。
+1. 像**第4步**中一样再次编译该插件。
+2. 现在，你将可以像普通的 Godot 类一样在编辑器中的帮助文档中查看该插件相关类的具体描述。
 
 **注意**: 生成的文档描述是程序化地从原始的 EOS-SDK 中提取并进行修改该的，因此**可能存在一些错误或不准确的地方，仅供参考**。
 
@@ -177,7 +178,7 @@
 
 ## 安卓导出
 
-**视频教程：https://www.bilibili.com/video/BV19M4m1D7dH/** （安卓导出）
+**视频教程：<https://www.bilibili.com/video/BV19M4m1D7dH/>** （安卓导出）
 
 1. 从[Epic开发者门户](https://dev.epicgames.com/portal)下载 EOS Android SDK 1.16.3（或1.16.2，但是建议不使用低版本），解压并将其中的`SDK`文件夹置于`thirdparty/eos-sdk`目录下，并进行安卓编译：
 
@@ -255,7 +256,24 @@
 
 4. 在你的Godot工程中添加Android导出预设，确保在`Gradle构建`中开启`Use Gradle Build`，并将`最小SDK`同步为你在`config.gradle`中设置的`minSdk`。在`权限`中开启必要的权限:
 `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` 以及 `INTERNET`，并填写其他必要信息。
-1. 现在，你应该能够正常进行安卓导出。
+5. 现在，你应该能够正常进行安卓导出。
+
+### 自动配置（GD-EOS 导出插件）
+
+如果你使用预编译插件（或自行编译），GD-EOS 内置了一个 `EditorExportPlugin`（`EOSAndroidExportPlugin`）来自动完成上述大部分步骤。你只需要：
+
+1. 通过以下**任意一种**方式提供你的 EOS ClientId（按此顺序查找）：
+   - **方式 A — `res://.env` 文件（推荐本地开发）：** 在编辑器中打开 `项目` 菜单 → `GD-EOS: generate "res://.env"`，这会在工程根目录创建 `res://.env` 文件。请至少填写 `CLIENT_ID` 为你的 Epic 产品 ClientId。（**除非是私有仓库，否则请把 `.env` 添加到 `.gitignore` 中进行忽略，防止泄漏你的凭据**。）
+   - **方式 B — 系统环境变量（推荐 CI/CD）：** 在系统环境变量中设置 `EOS_CLIENT_ID`（或 `CLIENT_ID`）。仅当 `res://.env` 未提供 `CLIENT_ID` 时才会使用它。
+2. 照常安装安卓构建模板（`项目` → `安装安卓构建模板`）。
+3. 正常导出安卓即可。插件会在导出过程中自动：
+   - 注入 EOS 的 `aar` 依赖（`eossdk-StaticSTDC-release.aar`，已随插件打包在 `addons/gd-eos/bin/android/` 中）作为 `implementation files(...)` 依赖，你无需自己拷贝 aar。
+   - 添加所需的 Gradle 依赖（`androidx.appcompat`、`androidx.constraintlayout`、`androidx.security:security-crypto`、`androidx.browser:browser`，以及用于 Java 8 desugaring 的 `androidx.webkit:webkit`）。
+   - 将 `eos_login_protocol_scheme` 字符串资源（`eos.<你的client-id小写>`）注入到 `res://android/build/res/values/strings.xml`，EOS Android SDK 的登录回调需要它。
+
+如果 `res://.env` 和系统环境变量都没有提供 ClientId，导出时会打印错误提醒你设置；除此之外构建仍会进行，但登录可能失败。
+
+> 上面的手动步骤仍然完全有效，保留作为参考，或用于不使用 GD-EOS 导出插件的情况。
 
 ## **注意**
 

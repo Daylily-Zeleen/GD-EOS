@@ -256,6 +256,23 @@ By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get
 4. Add a new Android exporting profile, enabled `Use Gradle Build` in `Gradle Build` section, and update `Min SDK` to `23`. Enable required permissions for "EOS Android SDK": `ACESSS_NETWORK_STATE`, `ACCESS_WIFI_STATE` and `INTERNET`. Fill other information if needs.
 5. You can export Android APK if there have not problem.
 
+### Automatic configuration (GD-EOS export plugin)
+
+If you use the precompiled plugin (or build it yourself), GD-EOS ships an `EditorExportPlugin` (`EOSAndroidExportPlugin`) that automates most of the steps above. You only need to:
+
+1. Provide your EOS ClientId in **one** of the following ways (checked in this order):
+   - **Option A — `res://.env` file (recommended for local development):** In the editor, open the `Project` menu → `GD-EOS: generate "res://.env"`. This creates a `res://.env` file at your project root. Fill in at least `CLIENT_ID` with your Epic Product ClientId. (**Please exclude `.env` file by `.gitignore` in version control to avoid leaking your credentials except if your private is repo.)
+   - **Option B — System environment variable (recommended for CI/CD):** Set `EOS_CLIENT_ID` (or `CLIENT_ID`) in your system environment. This takes precedence only when `res://.env` does not provide a `CLIENT_ID`.
+2. Install the Android build template as usual (`Project` → `Install Android Build Template`).
+3. Export for Android normally. The plugin will, during export:
+   - Inject the EOS `aar` dependency (`eossdk-StaticSTDC-release.aar`, bundled inside the addon at `addons/gd-eos/bin/android/`) as an `implementation files(...)` dependency, so you no longer need to copy the aar yourself.
+   - Add the required Gradle dependencies (`androidx.appcompat`, `androidx.constraintlayout`, `androidx.security:security-crypto`, `androidx.browser:browser`, and `androidx.webkit:webkit` for Java 8 desugaring).
+   - Inject the `eos_login_protocol_scheme` string resource (`eos.<your-client-id-lowercased>`) into `res://android/build/res/values/strings.xml`, which the EOS Android SDK needs for the login callback.
+
+If neither `res://.env` nor the system environment provides a ClientId, the export will print an error reminding you to set it; the build will otherwise proceed but login may fail.
+
+> The manual steps above are still fully valid and are kept for reference or for setups that do not use the GD-EOS export plugin.
+
 ## **Cautious**
 
 This repo is lack of testing. The name of Apis may be changed in later version.
