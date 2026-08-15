@@ -34,6 +34,12 @@ on:
 env:
   GODOT_BRANCH_FOR_GENERATE_DOCUMENTS: 4.3-stable
   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
+  BIT32_MATRIX: |
+    [
+      {"identifier":"🏁Windows-x86 (msvc)","runner":"windows-latest","platform":"windows","arch":"x86_32","godot_editor_suffix":"win64.exe","host_platform":"windows","force_compile_for_docs":true},
+      {"identifier":"🤖Android-arm32","runner":"ubuntu-latest","platform":"android","arch":"arm32","godot_editor_suffix":"linux.x86_64","host_platform":"linux","force_compile_for_docs":true},
+      {"identifier":"🤖Android-x86_32","runner":"ubuntu-latest","platform":"android","arch":"x86_32","godot_editor_suffix":"linux.x86_64","host_platform":"linux","force_compile_for_docs":true}
+    ]
 
 jobs:
   # ─── Build 64-bit (always runs) ───────────────────────────────────────────
@@ -101,49 +107,39 @@ jobs:
         }
     secrets: inherit
 
+  # ─── Derive 32-bit matrix (single source of truth) ──────────────────────────
+  # Reads BIT32_MATRIX env (the only place 32-bit platforms are listed) and
+  # exposes it as a build matrix consumed by build-32bit.
+  setup_bit32:
+    name: Compute 32-bit matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+    steps:
+      - name: Generate matrix from BIT32_MATRIX
+        id: gen
+        shell: python
+        run: |
+          import json
+          import os
+
+          entries = json.loads('''${{ env.BIT32_MATRIX }}''')
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("matrix=" + json.dumps({"include": entries}) + "\n")
+
   # ─── Build 32-bit (skipped when EOS SDK > 1.18.1.2) ──────────────────────────
   build-32bit:
     name: Build 32-bit platforms
     # Skip the entire job when the EOS SDK does not support 32-bit platforms.
     if: inputs.skip_32bit != 'true'
+    needs: [setup_bit32]
     uses: ./.github/workflows/build-matrix.yml
     with:
       compatibility_minimum: ${{ inputs.compatibility_minimum }}
       sconsflags: ${{ inputs.sconsflags }}
       temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
       skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
-      matrix: |
-        {
-          "include": [
-            {
-              "identifier": "🏁Windows-x86 (msvc)",
-              "runner": "windows-latest",
-              "platform": "windows",
-              "arch": "x86_32",
-              "godot_editor_suffix": "win64.exe",
-              "host_platform": "windows",
-              "force_compile_for_docs": true
-            },
-            {
-              "identifier": "🤖Android-arm32",
-              "runner": "ubuntu-latest",
-              "platform": "android",
-              "arch": "arm32",
-              "godot_editor_suffix": "linux.x86_64",
-              "host_platform": "linux",
-              "force_compile_for_docs": true
-            },
-            {
-              "identifier": "🤖Android-x86_32",
-              "runner": "ubuntu-latest",
-              "platform": "android",
-              "arch": "x86_32",
-              "godot_editor_suffix": "linux.x86_64",
-              "host_platform": "linux",
-              "force_compile_for_docs": true
-            }
-          ]
-        }
+      matrix: ${{ needs.setup_bit32.outputs.matrix }}
     secrets: inherit
 
   # ─── Merge Artifacts ────────────────────────────────────────────────────────
@@ -166,6 +162,67 @@ jobs:
 
       - name: Setup version
         run: echo BUILD_VERSION=$(head -n 1 ./version) >> $GITHUB_ENV
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          pattern: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}*
+          merge-multiple: true
+          path: ./artifacts/GD-EOS/
+
+      - name: Postprocess .gdextension files (drop 32-bit libs when unsupported)
+        shell: python
+        run: |
+          import os
+          import re
+          import json
+
+          skip_32bit = "${{ inputs.skip_32bit }}" == "true"
+          bit32_prefixes = tuple(f"{e['platform']}.{e['arch']}" for e in json.loads('''${{ env.BIT32_MATRIX }}'''))
+
+          gdextension_files = [
+              "artifacts/GD-EOS/addons/gd-eos/gd-eos.gdextension",
+              "artifacts/GD-EOS/addons/gd-eos/gd-eos-editor.gdextension",
+          ]
+
+          key_re = re.compile(r"^([A-Za-z0-9_.\-]+)\s*=")
+
+          for rel in gdextension_files:
+              path = rel
+              if not os.path.isfile(path):
+                  print(f"::warning::Skipping missing {rel}")
+                  continue
+              with open(path, "r", encoding="utf-8") as f:
+                  lines = f.readlines()
+              kept = []
+              removed = []
+              for line in lines:
+                  stripped = line.strip()
+                  m = key_re.match(stripped)
+                  key = ".".join(p for p in m.group(1).split(".") if p != "editor") if m else ""
+                  if skip_32bit and key.startswith(bit32_prefixes):
+                      removed.append(stripped)
+                      continue
+                  kept.append(line)
+              with open(path, "w", encoding="utf-8") as f:
+                  f.writelines(kept)
+              if skip_32bit and removed:
+                  print(f"Removed 32-bit entries from {rel}: {', '.join(removed)}")
+              else:
+                  print(f"Kept all entries in {rel} (skip_32bit={skip_32bit})")
+
+      # Upload the post-processed directory as a temporary artifact so the
+      # official merge action can absorb it. The name is prefixed with the same
+      # base as the per-platform artifacts so the merge action's `pattern`
+      # matches it and `delete-merged: true` removes it afterwards. The "-zzz-"
+      # segment sorts last, so this artifact merges after the per-platform ones
+      # and its edited .gdextension files override the unedited ones.
+      - name: Upload post-processed artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-zzz-postprocessed
+          path: ./artifacts/GD-EOS/
+          retention-days: 1
 
       - name: Merge Artifacts to all in one
         uses: actions/upload-artifact/merge@v6

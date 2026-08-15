@@ -7,7 +7,7 @@ concurrency:
 
 jobs:
   check-sdk-version:
-    name: Check EOS SDK version
+    name: Check EOS SDK version And determine 32 bit build
     runs-on: ubuntu-latest
     outputs:
       major: ${{ steps.sdk_version.outputs.major }}
@@ -33,6 +33,19 @@ jobs:
       - name: Check EOS SDK version
         id: sdk_version
         uses: ./.github/actions/check-sdk-version
+
+      - name: Report EOS SDK Version
+        run: |
+          echo "EOS SDK version: ${{ steps.sdk_version.outputs.major }}.${{ steps.sdk_version.outputs.minor }}.${{ steps.sdk_version.outputs.patch }}.${{ steps.sdk_version.outputs.hotfix }}"
+          if [ "${{ steps.sdk_version.outputs.skip_32bit }}" = "true" ]; then
+            echo "⚠️ This EOS SDK version does not support 32-bit Windows/Android platforms. 32-bit build jobs will be skipped."
+          else
+            echo "32-bit Windows/Android builds are supported by this EOS SDK version."
+          fi
+
+      - name: Enable 32 bit build
+        if: steps.sdk_version.outputs.skip_32bit != 'true'
+        run: echo "32-bit builds are enabled for this EOS SDK version."
 
   # Disable godot-4.2 build
   # min-godot-v4_2:
