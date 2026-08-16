@@ -164,7 +164,7 @@ jobs:
         run: echo BUILD_VERSION=$(head -n 1 ./version) >> $GITHUB_ENV
 
       - name: Download all build artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           pattern: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}*
           merge-multiple: true
@@ -218,14 +218,14 @@ jobs:
       # segment sorts last, so this artifact merges after the per-platform ones
       # and its edited .gdextension files override the unedited ones.
       - name: Upload post-processed artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}-zzz-postprocessed
           path: ./artifacts/GD-EOS/
           retention-days: 1
 
       - name: Merge Artifacts to all in one
-        uses: actions/upload-artifact/merge@v6
+        uses: actions/upload-artifact/merge@v7
         with:
           name: ${{ github.event.repository.name }}-${{ env.BUILD_VERSION }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.artifact_suffix }}
           pattern: ${{ github.event.repository.name }}-min-godot-${{ inputs.compatibility_minimum }}${{ inputs.temporary_artifact_suffix }}*
