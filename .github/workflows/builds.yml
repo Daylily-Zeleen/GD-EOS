@@ -34,6 +34,18 @@ on:
 env:
   GODOT_BRANCH_FOR_GENERATE_DOCUMENTS: 4.3-stable
   SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
+  # Single source of truth for build platforms. Each object is one matrix entry
+  # consumed by the build jobs. 64-bit always builds; 32-bit is skipped when the
+  # EOS SDK lacks 32-bit support (see the build-32bit `if`).
+  BIT64_MATRIX: |
+    [
+      {"identifier":"🐧Linux-x64","runner":"ubuntu-latest","platform":"linux","arch":"x86_64","godot_editor_suffix":"linux.x86_64","host_platform":"linux"},
+      {"identifier":"🍎Macos-Universal","runner":"macos-latest","platform":"macos","arch":"universal","godot_editor_suffix":"macos.universal","host_platform":"macos"},
+      {"identifier":"🏁Windows-x64 (clang)","runner":"windows-latest","platform":"windows","arch":"x86_64","additional_sconsflags":"use_clang_cl=yes","godot_editor_suffix":"win64.exe","host_platform":"windows"},
+      {"identifier":"🤖Android-arm64","runner":"ubuntu-latest","platform":"android","arch":"arm64","godot_editor_suffix":"linux.x86_64","host_platform":"linux","force_compile_for_docs":true},
+      {"identifier":"🤖Android-x86_64","runner":"ubuntu-latest","platform":"android","arch":"x86_64","godot_editor_suffix":"linux.x86_64","host_platform":"linux","force_compile_for_docs":true},
+      {"identifier":"🍏ios-arm64","runner":"macos-latest","platform":"ios","arch":"arm64"}
+    ]
   BIT32_MATRIX: |
     [
       {"identifier":"🏁Windows-x86 (msvc)","runner":"windows-latest","platform":"windows","arch":"x86_32","godot_editor_suffix":"win64.exe","host_platform":"windows","force_compile_for_docs":true},
@@ -41,105 +53,56 @@ env:
       {"identifier":"🤖Android-x86_32","runner":"ubuntu-latest","platform":"android","arch":"x86_32","godot_editor_suffix":"linux.x86_64","host_platform":"linux","force_compile_for_docs":true}
     ]
 
-jobs:
-  # ─── Build 64-bit (always runs) ───────────────────────────────────────────
-  build-64bit:
-    name: Build 64-bit platforms
-    uses: ./.github/workflows/build-matrix.yml
-    with:
-      compatibility_minimum: ${{ inputs.compatibility_minimum }}
-      sconsflags: ${{ inputs.sconsflags }}
-      temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
-      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
-      matrix: |
-        {
-          "include": [
-            {
-              "identifier": "🐧Linux-x64",
-              "runner": "ubuntu-latest",
-              "platform": "linux",
-              "arch": "x86_64",
-              "godot_editor_suffix": "linux.x86_64",
-              "host_platform": "linux"
-            },
-            {
-              "identifier": "🍎Macos-Universal",
-              "runner": "macos-latest",
-              "platform": "macos",
-              "arch": "universal",
-              "godot_editor_suffix": "macos.universal",
-              "host_platform": "macos"
-            },
-            {
-              "identifier": "🏁Windows-x64 (clang)",
-              "runner": "windows-latest",
-              "platform": "windows",
-              "arch": "x86_64",
-              "additional_sconsflags": "use_clang_cl=yes",
-              "godot_editor_suffix": "win64.exe",
-              "host_platform": "windows"
-            },
-            {
-              "identifier": "🤖Android-arm64",
-              "runner": "ubuntu-latest",
-              "platform": "android",
-              "arch": "arm64",
-              "godot_editor_suffix": "linux.x86_64",
-              "host_platform": "linux",
-              "force_compile_for_docs": true
-            },
-            {
-              "identifier": "🤖Android-x86_64",
-              "runner": "ubuntu-latest",
-              "platform": "android",
-              "arch": "x86_64",
-              "godot_editor_suffix": "linux.x86_64",
-              "host_platform": "linux",
-              "force_compile_for_docs": true
-            },
-            {
-              "identifier": "🍏ios-arm64",
-              "runner": "macos-latest",
-              "platform": "ios",
-              "arch": "arm64"
-            }
-          ]
-        }
-    secrets: inherit
-
-  # ─── Derive 32-bit matrix (single source of truth) ──────────────────────────
-  # Reads BIT32_MATRIX env (the only place 32-bit platforms are listed) and
-  # exposes it as a build matrix consumed by build-32bit.
-  setup_bit32:
-    name: Compute 32-bit matrix
+jobs:  
+  # ─── Derive build matrices (single source of truth) ──────────────────────────
+  # Reads BIT64_MATRIX / BIT32_MATRIX env (the only places platforms are listed)
+  # and exposes them as build matrices consumed by build-64bit / build-32bit.
+  setup_matrix:
+    name: Compute build matrices
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.gen.outputs.matrix }}
+      matrix64: ${{ steps.gen.outputs.matrix64 }}
+      matrix32: ${{ steps.gen.outputs.matrix32 }}
     steps:
-      - name: Generate matrix from BIT32_MATRIX
+      - name: Generate matrices from BIT64_MATRIX / BIT32_MATRIX
         id: gen
         shell: python
         run: |
           import json
           import os
 
-          entries = json.loads('''${{ env.BIT32_MATRIX }}''')
+          bit64 = json.loads('''${{ env.BIT64_MATRIX }}''')
+          bit32 = json.loads('''${{ env.BIT32_MATRIX }}''')
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-              f.write("matrix=" + json.dumps({"include": entries}) + "\n")
+              f.write("matrix64=" + json.dumps({"include": bit64}) + "\n")
+              f.write("matrix32=" + json.dumps({"include": bit32}) + "\n")
 
-  # ─── Build 32-bit (skipped when EOS SDK > 1.18.1.2) ──────────────────────────
-  build-32bit:
-    name: Build 32-bit platforms
-    # Skip the entire job when the EOS SDK does not support 32-bit platforms.
-    if: inputs.skip_32bit != 'true'
-    needs: [setup_bit32]
+  # ─── Build 64-bit (always runs) ───────────────────────────────────────────
+  build-64bit:
+    name: Build 64-bit platforms
+    needs: [setup_matrix]
     uses: ./.github/workflows/build-matrix.yml
     with:
       compatibility_minimum: ${{ inputs.compatibility_minimum }}
       sconsflags: ${{ inputs.sconsflags }}
       temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
       skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
-      matrix: ${{ needs.setup_bit32.outputs.matrix }}
+      matrix: ${{ needs.setup_matrix.outputs.matrix64 }}
+    secrets: inherit
+
+  # ─── Build 32-bit (skipped when EOS SDK > 1.18.1.2) ──────────────────────────
+  build-32bit:
+    name: Build 32-bit platforms
+    # Skip the entire job when the EOS SDK does not support 32-bit platforms.
+    if: inputs.skip_32bit != 'true'
+    needs: [setup_matrix]
+    uses: ./.github/workflows/build-matrix.yml
+    with:
+      compatibility_minimum: ${{ inputs.compatibility_minimum }}
+      sconsflags: ${{ inputs.sconsflags }}
+      temporary_artifact_suffix: ${{ inputs.temporary_artifact_suffix }}
+      skip_32bit: ${{ needs.check-sdk-version.outputs.skip_32bit }}
+      matrix: ${{ needs.setup_matrix.outputs.matrix32 }}
     secrets: inherit
 
   # ─── Merge Artifacts ────────────────────────────────────────────────────────
