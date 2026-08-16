@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>libgdeos.macos.template_release</string>
+	<string>libgdeos.macos</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.daylily-zeleen.gdeos</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Godot Box2D</string>
+	<string>GD-EOS</string>
 	<key>CFBundlePackageType</key>
 	<string>FMWK</string>
 	<key>CFBundleShortVersionString</key>
