@@ -33,7 +33,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 > - EOS-SDK-27379709-v1.16.1
 > - EOS-SDK-Android-27379709-v1.16.1
 
-## How to start
+## How To Start
 
 **Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
@@ -99,7 +99,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 
 4. Now, you can use all functions of EOS, please refer [Epic Online Services' document](https://dev.epicgames.com/docs) for more details.
 
-## How to run `demo`
+## How To Run `Demo`
 
 **Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
@@ -120,7 +120,7 @@ This project is cost a lot of time and effort, if it can help you, please [buy m
 5. After login, user "Create" button to create a lobby in one instance, then click "Refresh" button to get lobby list, select a lobby and join it by "Join" button.
 6. Now, the two instances should be able to play together.
 
-## How to compile
+## How To Compile
 
 **Video Tutorial: <https://youtu.be/7CHBd7MAiu0>** (pull this repo, get EOS SDK, compile, run the demo project.)
 
@@ -168,7 +168,7 @@ To use this version, you must use`EOSConnect.login()` to set an `EOSProductUserI
 
 By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get_local()` to get current local user id, **but don't manually release the return value of these APIs!!**.
 
-## **Known issues**
+## **Known Issues**
 
 1. If you want to use overlay (only available for Windows), pay attention to the settings of the renderer.
 2. About Android exporting, if you use precompiled binary library, you need to download `EOS-SDK-Android-32303053-v1.16.3`(pay attention to the version) from epic developer portal for getting "aar" file (again, I have not right to dispatch SDK).
@@ -176,9 +176,9 @@ By the way, you can use `EOSProductUserId.get_local()` and `EOSEpicAccountId.get
 4. It is not recommended to use `1.16.1` or previous version, because `1.16.2` fixed many bugs.
 5. Only the first user who use `EOSConnect` interface to login can use `EOSMultiplayerPeer` and `EOSMultiplayerMediator` (the EOS SDK allow multiple users to login in one process. You can see many APIs determine user by passing a `local_user_id` argument).
 
-## Exporting for Android
+## Exporting For Android
 
-### Automatic configuration (GD-EOS export plugin)
+### Automatic Configuration (GD-EOS Export Plugin)
 
 If you use the precompiled plugin (or build it yourself), GD-EOS ships an `EditorExportPlugin` (`EOSAndroidExportPlugin`) that automates the Android export steps described below. This is the default and recommended way to export for Android. You only need to:
 
@@ -193,7 +193,7 @@ If you use the precompiled plugin (or build it yourself), GD-EOS ships an `Edito
 
 If neither `res://.env` nor the system environment provides a ClientId, the export will print an error reminding you to set it; the build will otherwise proceed but login may fail.
 
-### Manual configuration (for reference)
+### Manual Configuration (For Reference)
 
 The following manual steps are kept only for reference, or for setups that do not use the GD-EOS export plugin. If you use the plugin (the default), you do not need to follow them.
 
