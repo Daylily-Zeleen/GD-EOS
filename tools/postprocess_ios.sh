@@ -6,16 +6,14 @@ if [ "$1" = "target=release" ] || [ "$1" = "target=template_release" ]; then
 fi
 
 gdeos_ios_bin_dir=./demo/addons/gd-eos/bin/ios
-godotcpp_bin_dir=./thirdparty/godot-cpp/bin
 
 # Delete existing target-independent xcframeworks if any
-rm -rf "${gdeos_ios_bin_dir}/libgodot-cpp.ios.xcframework"
 rm -rf "${gdeos_ios_bin_dir}/libgdeos.ios.xcframework"
 
-# Create libgodot-cpp xcframework
-xcodebuild -create-xcframework \
--library "${godotcpp_bin_dir}/libgodot-cpp.ios.template_${build_target}.arm64.a" \
--output "${gdeos_ios_bin_dir}/libgodot-cpp.ios.xcframework"
+# NOTE: libgodot-cpp is statically linked into libgdeos.ios.arm64.dylib
+# (godot-cpp is built as a static library and linked via the SConscript env),
+# so we do NOT distribute a separate libgodot-cpp xcframework anymore.
+# CI verifies the dylib has no undefined godot-cpp symbols before this step.
 
 # Create libgdeos xcframework
 xcodebuild -create-xcframework \

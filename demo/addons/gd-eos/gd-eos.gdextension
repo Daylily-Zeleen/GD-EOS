@@ -33,4 +33,4 @@ macos = {"bin/macos/libEOSSDK-Mac-Shipping.dylib": ""}
 
 linux.x86_64 = {"bin/linux/libEOSSDK-Linux-Shipping.so": ""}
 
-ios = {"bin/ios/libgodot-cpp.ios.xcframework": "", "bin/ios/EOSSDK.xcframework": ""}
+ios = {"bin/ios/EOSSDK.xcframework": ""}

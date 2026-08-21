@@ -126,6 +126,24 @@ runs:
       shell: sh
       run: |
         scons target=template_release platform='${{ inputs.platform }}' arch='${{ inputs.arch }}' build_profile=./build_profile.json ios_simulator=no ${{ inputs.additional_sconsflags || '' }} ${{ inputs.sconsflags }}
+
+    - name: (iOS) Verify libgdeos is self-contained (no unresolved godot-cpp symbols)
+      if: inputs.platform == 'ios'
+      shell: sh
+      run: |
+        echo "Checking for undefined godot-cpp symbols in bin/ios/libgdeos.ios.arm64.dylib ..."
+        # 过滤掉系统框架/EOSSDK 的符号，只关注 godot-cpp 相关符号
+        if nm -u bin/ios/libgdeos.ios.arm64.dylib | grep -iE 'godot|gdextension'; then
+          echo "::warning::bin/ios/libgdeos.ios.arm64.dylib contains undefined godot-cpp symbols; it still depends on the external libgodot-cpp library!"
+          exit 1
+        else
+          echo "OK: no undefined godot-cpp symbols, the dylib is self-contained."
+        fi
+
+    - name: (iOS) Postprocess
+      if: inputs.platform == 'ios'
+      shell: sh
+      run: |
         chmod +x ./tools/postprocess_ios.sh
         ./tools/postprocess_ios.sh target=release
 
