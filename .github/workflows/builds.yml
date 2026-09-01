@@ -119,7 +119,7 @@ jobs:
       (needs.build-32bit.result == 'success' || needs.build-32bit.result == 'skipped')
     steps:
       - name: Checkout project
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: false
 
