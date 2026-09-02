@@ -17,12 +17,12 @@ jobs:
       skip_32bit: ${{ steps.sdk_version.outputs.skip_32bit }}
     steps:
       - name: Checkout project
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           submodules: false
 
       - name: Checkout private EOS SDK repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.PRIVATE_EOS_SDK_TOKEN }}
           repository: Daylily-Zeleen/eos-sdk
